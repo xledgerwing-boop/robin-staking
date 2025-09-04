@@ -8,7 +8,7 @@ import { OwnableUpgradeable } from '@openzeppelin/contracts-upgradeable/access/O
 
 import { IPolymarketAaveStakingVault } from './interfaces/IPolymarketAaveStakingVault.sol';
 
-contract VaultManagerUUPS is Initializable, UUPSUpgradeable, OwnableUpgradeable {
+contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     using Clones for address;
 
     // ============ Config (settable by owner) ============
@@ -191,5 +191,5 @@ contract VaultManagerUUPS is Initializable, UUPSUpgradeable, OwnableUpgradeable 
     }
 
     // ============ UUPS authorization ============
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }
 }

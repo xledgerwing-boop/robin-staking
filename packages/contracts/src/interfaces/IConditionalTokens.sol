@@ -6,21 +6,11 @@ import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 interface IConditionalTokens is IERC1155 {
     // Core CTF ops
-    function splitPosition(
-        IERC20 collateralToken,
-        bytes32 parentCollectionId,
-        bytes32 conditionId,
-        uint256[] calldata partition,
-        uint256 amount
-    ) external;
+    function splitPosition(IERC20 collateralToken, bytes32 parentCollectionId, bytes32 conditionId, uint256[] calldata partition, uint256 amount)
+        external;
 
-    function mergePositions(
-        IERC20 collateralToken,
-        bytes32 parentCollectionId,
-        bytes32 conditionId,
-        uint256[] calldata partition,
-        uint256 amount
-    ) external;
+    function mergePositions(IERC20 collateralToken, bytes32 parentCollectionId, bytes32 conditionId, uint256[] calldata partition, uint256 amount)
+        external;
 
     function redeemPositions(IERC20 collateralToken, bytes32 parentCollectionId, bytes32 conditionId, uint256[] calldata indexSets) external;
 
@@ -29,7 +19,7 @@ interface IConditionalTokens is IERC1155 {
 
     function getPositionId(IERC20 collateralToken, bytes32 collectionId) external pure returns (uint256);
 
-    function getOutcomeSlotCount(bytes32 conditionId) external view returns (uint);
+    function getOutcomeSlotCount(bytes32 conditionId) external view returns (uint256);
 
     function payoutDenominator(bytes32 conditionId) external view returns (uint256);
 

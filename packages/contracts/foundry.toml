@@ -10,4 +10,10 @@ ffi = true
 [rpc_endpoints]
 polygon = "${POLYGON_RPC_URL}"
 
+[fmt]
+line_length = 150
+quote_style = 'single'
+single_line_statement_blocks = 'preserve'
+bracket_spacing = true
+
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
