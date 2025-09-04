@@ -44,6 +44,7 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
 
     // -------- constructor (logic) --------
     /// @dev Prevent initializing the logic contract directly.
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
