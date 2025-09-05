@@ -153,25 +153,25 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
     function deposit(bool isYes, uint256 amount) external nonReentrant onlyBeforeFinalize whenDepositsNotPaused {
         if (amount == 0) revert InsufficientAmounts();
 
-        address proxy = _proxyFor(msg.sender);
+        address sender = msg.sender;
 
         // Pull outcome tokens from user (abstract hook)
         if (isYes) {
-            _pmTakeYes(proxy, amount);
-            yesBalance[proxy] += amount;
+            _pmTakeYes(sender, amount);
+            yesBalance[sender] += amount;
             totalUserYes += amount;
             unpairedYes += amount;
         } else {
-            _pmTakeNo(proxy, amount);
+            _pmTakeNo(sender, amount);
             // NO is implied: we don't store userNo directly
             unpairedNo += amount;
         }
 
         // Update user/global balances & time-weighted scores
-        updateScore(proxy, amount, true);
+        updateScore(sender, amount, true);
         updateGlobalScore(amount, true);
 
-        emit Deposited(proxy, isYes, amount);
+        emit Deposited(sender, isYes, amount);
 
         // Try to pair and supply to strategy
         _pairAndSupply();
@@ -184,13 +184,13 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
     function withdraw(uint256 yesAmount, uint256 noAmount) external nonReentrant onlyBeforeFinalize whenWithdrawalsNotPaused {
         if (yesAmount == 0 && noAmount == 0) revert InsufficientAmounts();
 
-        address proxy = _proxyFor(msg.sender);
+        address sender = msg.sender;
 
         // Check user balances
-        uint256 userYes = yesBalance[proxy];
+        uint256 userYes = yesBalance[sender];
         if (yesAmount > userYes) revert InsufficientUserYes(userYes);
 
-        uint256 userTotal = getBalance(proxy);
+        uint256 userTotal = getBalance(sender);
         uint256 userNo = userTotal - userYes;
         if (noAmount > userNo) revert InsufficientUserNo(userNo);
 
@@ -201,21 +201,21 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
         // Send tokens out (abstract hooks because pm could use ERC-20 or ERC-1155)
         if (yesAmount > 0) {
             unpairedYes -= yesAmount;
-            yesBalance[proxy] = userYes - yesAmount;
+            yesBalance[sender] = userYes - yesAmount;
             totalUserYes -= yesAmount;
-            _pmGiveYes(proxy, yesAmount);
+            _pmGiveYes(sender, yesAmount);
         }
         if (noAmount > 0) {
             unpairedNo -= noAmount;
-            _pmGiveNo(proxy, noAmount);
+            _pmGiveNo(sender, noAmount);
         }
 
         // Update user/global balances & scores
         uint256 totalOut = yesAmount + noAmount;
-        updateScore(proxy, totalOut, false);
+        updateScore(sender, totalOut, false);
         updateGlobalScore(totalOut, false);
 
-        emit Withdrawn(proxy, yesAmount, noAmount);
+        emit Withdrawn(sender, yesAmount, noAmount);
     }
 
     // ========= FINALIZATION & YIELD UNLOCK =========
@@ -312,9 +312,9 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
      * @notice Harvest time-weighted yield (single pool) after unlock.
      */
     function harvestYield() external nonReentrant onlyAfterUnlock whenGlobalNotPaused {
-        address proxy = _proxyFor(msg.sender);
+        address sender = msg.sender;
 
-        uint256 score = _finalizeUserScore(proxy); // calculates user score at finalization, resets and returns it
+        uint256 score = _finalizeUserScore(sender); // calculates user score at finalization, resets and returns it
         uint256 globalScore = getGlobalScore();
         if (score == 0 || globalScore == 0) revert NoYield();
         if (userYield == 0) revert NoYield();
@@ -325,9 +325,9 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
         if (userShare > usdBalance) revert InsufficientUSD(usdBalance, userShare);
 
         // Pay user in USD
-        _usdTransfer(proxy, userShare);
+        _usdTransfer(sender, userShare);
 
-        emit HarvestedYield(proxy, userShare);
+        emit HarvestedYield(sender, userShare);
     }
 
     /**
@@ -350,11 +350,11 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
      * @param amount Max amount of winning tokens to redeem (set high to redeem all).
      */
     function redeemWinningForUSD(uint256 amount) external nonReentrant onlyAfterFinalize whenGlobalNotPaused {
-        address proxy = _proxyFor(msg.sender);
+        address sender = msg.sender;
 
         // Determine user's winning balance
-        uint256 userYes = yesBalance[proxy];
-        uint256 userTotal = getBalance(proxy);
+        uint256 userYes = yesBalance[sender];
+        uint256 userTotal = getBalance(sender);
         uint256 userNo = userTotal - userYes;
 
         uint256 winning = yesWon ? userYes : userNo;
@@ -364,20 +364,20 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
 
         // Burn user’s claim to those winning tokens in vault accounting
         if (yesWon) {
-            yesBalance[proxy] = userYes - toRedeem;
+            yesBalance[sender] = userYes - toRedeem;
             totalUserYes -= toRedeem;
         }
         // This will only change the users and global balances and not the scores because the scorer is already finalized
-        updateScore(proxy, toRedeem, false);
+        updateScore(sender, toRedeem, false);
         updateGlobalScore(toRedeem, false);
 
         // Provide USD to the user:
         uint256 toPay = _pmUSDAmountForOutcome(toRedeem);
         uint256 usdBalance = _usdBalanceOfThis();
         if (toPay > usdBalance) revert InsufficientUSD(usdBalance, toPay);
-        _usdTransfer(proxy, toPay);
+        _usdTransfer(sender, toPay);
 
-        emit RedeemedWinningForUSD(proxy, toRedeem, toPay);
+        emit RedeemedWinningForUSD(sender, toRedeem, toPay);
     }
 
     // ========= VIEWS / HELPERS =========
@@ -553,11 +553,6 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
 
     /// @notice Convert USDC amount → outcome token amount (smallest units).
     function _pmOutcomeAmountForUSD(uint256 usdAmount) internal pure virtual returns (uint256 outcomeAmount);
-
-    /// @notice Get the proxy of the outcome tokens for a user. This is relevant for markets that use proxy wallets. For other markets, this functions returns the user itself.
-    /// The implementation has to verify that this is the proxy wallet belongs to the user.
-    /// All token interactions and yield accounting are done with the proxy wallet. The proxy address basically replaces the user address in everything.
-    function _proxyFor(address user) internal view virtual returns (address);
 
     // ----- yield Strategy (USD) -----
 

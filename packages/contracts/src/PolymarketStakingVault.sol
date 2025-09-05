@@ -6,7 +6,6 @@ import { ERC1155HolderUpgradeable } from '@openzeppelin/contracts-upgradeable/to
 
 import { RobinStakingVault } from './RobinStakingVault.sol';
 import { IConditionalTokens } from './interfaces/IConditionalTokens.sol';
-import { ISafeProxyFactory } from './interfaces/ISafeProxyFactory.sol';
 
 /// @title PolymarketStakingVault
 /// @notice PM adapter for Polymarket (Gnosis CTF) that implements the prediction-market hooks of RobinStakingVault.
@@ -19,7 +18,6 @@ abstract contract PolymarketStakingVault is RobinStakingVault, ERC1155HolderUpgr
     bytes32 public constant PARENT_COLLECTION_ID = 0x0; // Always 0x0 for Polymarket
 
     IConditionalTokens public ctf;
-    ISafeProxyFactory public safeProxyFactory;
 
     // Condition wiring
     bytes32 public conditionId;
@@ -29,13 +27,11 @@ abstract contract PolymarketStakingVault is RobinStakingVault, ERC1155HolderUpgr
     error InvalidOutcomeSlotCount(uint256 outcomeSlotCount);
 
     /// @param _ctf                 Address of Polymarket's Conditional Tokens contract (Polygon mainnet: 0x4D97...6045)
-    /// @param _safeProxyFactory    Address of SafeProxyFactory contract (Polygon mainnet: 0xaacF...541b)
     /// @param _conditionId         CTF conditionId for this market
-    function __PolymarketStakingVault_init(address _ctf, address _safeProxyFactory, bytes32 _conditionId) internal onlyInitializing {
+    function __PolymarketStakingVault_init(address _ctf, bytes32 _conditionId) internal onlyInitializing {
         __ERC1155Holder_init();
 
         ctf = IConditionalTokens(_ctf);
-        safeProxyFactory = ISafeProxyFactory(_safeProxyFactory);
         conditionId = _conditionId;
 
         //Only allow Polymarket binary markets
@@ -127,10 +123,5 @@ abstract contract PolymarketStakingVault is RobinStakingVault, ERC1155HolderUpgr
 
     function _pmOutcomeAmountForUSD(uint256 usdAmount) internal pure override returns (uint256) {
         return usdAmount;
-    }
-
-    function _proxyFor(address user) internal view override returns (address) {
-        address p = safeProxyFactory.computeProxyAddress(user);
-        return p == address(0) ? user : p;
     }
 }

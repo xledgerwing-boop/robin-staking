@@ -15,7 +15,7 @@ contract DeployManagerAndVaultImpl is Script {
     // Addresses (Polygon mainnet or your target network)
     address constant UNDERLYING_USD = 0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174; // USDC
     address constant CONDITIONAL_TOKENS = 0x4D97DCd97eC945f40cF65F87097ACe5EA0476045; // Polymarket CTF
-    address constant SAFE_PROXY_FACTORY = 0xaacFeEa03eb1561C4e67d661e40682Bd20E3541b; // Polymarket Safe/Proxy factory (for proxy address compute)
+    //address constant SAFE_PROXY_FACTORY = 0xaacFeEa03eb1561C4e67d661e40682Bd20E3541b; // Polymarket Safe/Proxy factory (for proxy address compute)
     address constant AAVE_V3_POOL = 0x794a61358D6845594F94dc1DB02A252b5b4814aD; // Aave v3 Pool
     address constant AAVE_DATA_PROVIDER = 0x14496b405D62c24F91f04Cda1c69Dc526D56fDE5; // Aave v3 Data Provider
 
@@ -33,7 +33,7 @@ contract DeployManagerAndVaultImpl is Script {
         // 2) Prepare initializer calldata for the UUPS Manager proxy
         bytes memory initData = abi.encodeCall(
             RobinVaultManager.initialize,
-            (vaultImplementation, PROTOCOL_FEE_BPS, UNDERLYING_USD, CONDITIONAL_TOKENS, SAFE_PROXY_FACTORY, AAVE_V3_POOL, AAVE_DATA_PROVIDER)
+            (vaultImplementation, PROTOCOL_FEE_BPS, UNDERLYING_USD, CONDITIONAL_TOKENS, AAVE_V3_POOL, AAVE_DATA_PROVIDER)
         );
 
         // 3) Deploy the UUPS proxy for the manager using OZ upgrades helper
