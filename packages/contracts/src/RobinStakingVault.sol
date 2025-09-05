@@ -51,11 +51,11 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
     uint256 public leftoverUsd;
 
     //amount of YES the user has deposited and still holds claim to in the vault.
-    //can be used together with getBalance of TimeWeighedScorer to get the user's no balance
+    //can be used together with getBalance of TimeWeighedScorer to calculate the user's no balance
     //getBalance of TimeWeighedScorer is used instead of storing yes and no balances of user to save user storage space and reduce gas costs
     mapping(address => uint256) internal yesBalance;
 
-    // Total YES (sum over all users); can be used together with totalLastBalance of TimeWeighedScorer to get the total NO
+    // Total YES (sum over all users); can be used together with globalLastBalance of TimeWeighedScorer to calculate the total NO
     uint256 public totalUserYes;
 
     // ====== Yield & Fees ======
@@ -64,6 +64,10 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
     uint256 public userYield; // total yield allocated to users (after fee)
     uint256 public protocolYield; // protocol fee portion
     bool public protocolYieldHarvested;
+
+    // ====== Limits ======
+    // Per-side deposit limit (applies equally to YES and NO). 0 = unlimited
+    uint256 public depositLimit;
 
     // ====== Errors ======
     error VaultAlreadyFinalized();
@@ -74,6 +78,7 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
     error InsufficientUserYes(uint256 have);
     error InsufficientUserNo(uint256 have);
     error InsufficientAmounts();
+    error DepositLimitExceeded();
     error InsufficientWithdrawalUSD(uint256 needed, uint256 withdrawn);
     error InsufficientUSD(uint256 holding, uint256 needed);
     error NoYield();
@@ -155,6 +160,19 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
         if (amount == 0) revert InsufficientAmounts();
 
         address sender = msg.sender;
+
+        // Enforce per-side deposit limits if set
+        // Strategy limit is not checked to save gas, will revert anyways if it's reached
+        if (depositLimit != 0) {
+            if (isYes) {
+                uint256 newYesTotal = totalUserYes + amount;
+                if (newYesTotal > depositLimit) revert DepositLimitExceeded();
+            } else {
+                uint256 totalNo = globalLastBalance - totalUserYes;
+                uint256 newNoTotal = totalNo + amount;
+                if (newNoTotal > depositLimit) revert DepositLimitExceeded();
+            }
+        }
 
         // Pull outcome tokens from user (abstract hook)
         if (isYes) {
@@ -381,6 +399,11 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
         emit RedeemedWinningForUSD(sender, toRedeem, toPay);
     }
 
+    /// @notice Set the per-side deposit limit (in outcome units). 0 = unlimited.
+    function setDepositLimit(uint256 newLimit) external onlyOwner {
+        depositLimit = newLimit;
+    }
+
     // ========= VIEWS / HELPERS =========
 
     function getUserBalances(address user) external view returns (uint256 userYes_, uint256 userNo_) {
@@ -435,6 +458,23 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
             // after finalizeMarket() we exited the strategy and all unpaired tokens were converted to USD
             tvlUsd = onHandUsd;
         }
+    }
+
+    /// @notice Effective per-side deposit limit in outcome units: min(vault limit, strategy limit converted to outcome units). 0 if unlimited.
+    function getCurrentSupplyAndLimit()
+        public
+        view
+        returns (uint256 supplyYes, uint256 supplyNo, uint256 supplyLimit, uint256 strategySupply, uint256 strategyLimit)
+    {
+        (uint256 _strategySupply, uint256 _strategyLimit) = _yieldStrategySupplyAndLimitUsd();
+
+        strategySupply = _strategySupply == 0 ? 0 : _pmOutcomeAmountForUsd(_strategySupply);
+        strategyLimit = _strategyLimit == 0 ? 0 : _pmOutcomeAmountForUsd(_strategyLimit);
+        supplyYes = totalUserYes;
+        supplyNo = globalLastBalance - totalUserYes;
+        supplyLimit = depositLimit;
+
+        return (supplyYes, supplyNo, supplyLimit, strategySupply, strategyLimit);
     }
 
     // ========= INTERNAL LOGIC =========
@@ -571,4 +611,7 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
 
     /// @dev Current APY of the yield strategy, view-only.
     function _yieldStrategyCurrentApy() external view virtual returns (uint256 apyBps);
+
+    /// @notice The max supply the strategy has (0 = unlimited) and the currently supplied amount
+    function _yieldStrategySupplyAndLimitUsd() internal view virtual returns (uint256 currentSupply, uint256 limit);
 }

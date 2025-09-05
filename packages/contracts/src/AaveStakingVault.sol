@@ -14,9 +14,12 @@ import { RobinStakingVault } from './RobinStakingVault.sol';
  * @dev Keep it abstract so you can compose with your Polymarket adapter
  */
 abstract contract AaveStakingVault is RobinStakingVault {
+    // Selector for Aave v3 custom error: Errors.SupplyCapExceeded()
+    bytes4 private constant AAVE_SUPPLY_CAP_EXCEEDED_SEL = bytes4(keccak256('SupplyCapExceeded()'));
+
     IPool public aavePool;
     IAToken public aToken; // interest-bearing token for underlyingUsd
-    address public dataProvider; // optional; set to Aave ProtocolDataProvider if you want APY
+    IPoolDataProvider public dataProvider; // optional; set to Aave ProtocolDataProvider if you want APY
 
     error InvalidUnderlyingAsset();
     error InvalidPool();
@@ -35,7 +38,7 @@ abstract contract AaveStakingVault is RobinStakingVault {
 
         aavePool = IPool(_pool);
         aToken = IAToken(aavePool.getReserveAToken(_underlyingAsset));
-        dataProvider = _dataProv;
+        dataProvider = IPoolDataProvider(_dataProv);
 
         // Approve pool to pull unlimited underlying
         IERC20(address(underlyingUsd)).approve(_pool, type(uint256).max);
@@ -47,6 +50,17 @@ abstract contract AaveStakingVault is RobinStakingVault {
     function _yieldStrategySupply(uint256 amountUsd) internal override {
         if (amountUsd == 0) return;
         aavePool.supply(address(underlyingUsd), amountUsd, address(this), 0);
+        try aavePool.supply(address(underlyingUsd), amountUsd, address(this), 0) {
+            // success
+        } catch (bytes memory revertData) {
+            if (_matchesSupplyCapExceeded(revertData)) {
+                revert DepositLimitExceeded(); //use error from RobinStakingVault for when vault deposit limit is reached
+            }
+            // bubble everything else exactly as-is
+            assembly {
+                revert(add(revertData, 0x20), mload(revertData))
+            }
+        }
         // aToken balance increases automatically (rebasing)
     }
 
@@ -74,13 +88,25 @@ abstract contract AaveStakingVault is RobinStakingVault {
     /// @dev Current APY of the yield strategy, view-only. Returns BPS (1e4).
     /// @notice Uses liquidityRate (APR in ray) from the data provider.
     function _yieldStrategyCurrentApy() external view override returns (uint256 apyBps) {
-        (,,,,, uint256 liquidityRate,,,,,,) = IPoolDataProvider(dataProvider).getReserveData(address(underlyingUsd));
+        (,,,,, uint256 liquidityRate,,,,,,) = dataProvider.getReserveData(address(underlyingUsd));
         // liquidityRate is APR in ray (1e27). Convert APR -> APY (daily comp) and output in bps.
         // APR (fraction) = liquidityRate / 1e27
         // APY ≈ (1 + APR/365) ^ 365 - 1
         uint256 apyRay = _rayPow(RAY + _rayDiv(liquidityRate, 365), 365) - RAY;
         // Convert APY (ray) to bps: apyBps = apyRay * 10000 / 1e27
         apyBps = (apyRay * 10_000) / RAY;
+    }
+
+    /// @notice Aave supply cap for the underlying, expressed in smallest USD units (0 = unlimited).
+    /// @dev Uses DataProvider.getReserveCaps and reserve decimals to scale to smallest units.
+    function _yieldStrategySupplyAndLimitUsd() internal view override returns (uint256 currentSupply, uint256 limit) {
+        (, uint256 supplyCapTokens) = dataProvider.getReserveCaps(address(underlyingUsd));
+        (uint256 decimals,,,,,,,,,) = dataProvider.getReserveConfigurationData(address(underlyingUsd));
+        uint256 capUsd = supplyCapTokens * 10 ** decimals;
+
+        uint256 totalATokenUsd = dataProvider.getATokenTotalSupply(address(underlyingUsd));
+
+        return (totalATokenUsd, capUsd);
     }
 
     // ===================== Ray math helpers =====================
@@ -108,5 +134,16 @@ abstract contract AaveStakingVault is RobinStakingVault {
             e >>= 1;
         }
         return result;
+    }
+
+    // ===================== Helper functions =====================
+
+    function _matchesSupplyCapExceeded(bytes memory data) private pure returns (bool) {
+        if (data.length < 4) return false;
+        bytes4 sel;
+        assembly {
+            sel := mload(add(data, 0x20))
+        }
+        return sel == AAVE_SUPPLY_CAP_EXCEEDED_SEL;
     }
 }

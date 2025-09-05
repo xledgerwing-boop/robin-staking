@@ -8,4 +8,6 @@ interface IPolymarketAaveStakingVault {
     function harvestProtocolYield(address receiver) external; // onlyOwner in the vault
 
     function owner() external view returns (address);
+
+    function setDepositLimit(uint256 newLimit) external;
 }

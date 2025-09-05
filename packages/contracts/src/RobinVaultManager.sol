@@ -171,6 +171,12 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
         IRobinVaultPausing(vault).unpauseUnlockYield();
     }
 
+    // ============ Vault Deposit Limit control ============
+    function setVaultDepositLimit(address vault, uint256 newLimit) external onlyOwner {
+        if (vault == address(0)) revert UnknownVault(vault);
+        IPolymarketAaveStakingVault(vault).setDepositLimit(newLimit);
+    }
+
     // ============ Manager Pause control ============
     function pause() external onlyRole(PAUSER_ROLE) {
         _pause();
