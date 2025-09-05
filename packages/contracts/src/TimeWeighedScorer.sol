@@ -52,7 +52,7 @@ abstract contract TimeWeighedScorer is Initializable, OwnableUpgradeable {
     }
 
     /// @dev This function has to be called whenever any change to user balance occurs
-    function updateScore(address user, uint256 balanceDelta, bool increase) public returns (uint256) {
+    function updateScore(address user, uint256 balanceDelta, bool increase) public onlyOwner returns (uint256) {
         assert(increase || balanceDelta <= scoreInfos[user].lastBalance);
 
         ScoreInfo storage info = scoreInfos[user];
@@ -68,7 +68,7 @@ abstract contract TimeWeighedScorer is Initializable, OwnableUpgradeable {
     }
 
     /// @dev This function has to be called whenever any change to global supply occurs
-    function updateGlobalScore(uint256 supplyDelta, bool increase) public {
+    function updateGlobalScore(uint256 supplyDelta, bool increase) public onlyOwner {
         assert(increase || supplyDelta <= globalLastBalance);
         uint256 currentTime = _getCurrentScorableTime(); //equals finalizationTime if finalized
         uint256 timeElapsed = currentTime - globalLastUpdated;
