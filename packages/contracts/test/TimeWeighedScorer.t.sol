@@ -50,7 +50,7 @@ contract TimeWeighedScorerTest is Test {
         vm.warp(block.timestamp + 3600);
 
         // materialize the score accrual without changing balance
-        mock.$_updateScore(user1, 0, false);
+        mock.updateScore(user1, 0, false);
 
         (uint256 bal,, uint256 cum) = mock.getUserState(user1);
         assertEq(bal, 1000);
@@ -62,7 +62,7 @@ contract TimeWeighedScorerTest is Test {
         mock.setBalance(user1, 0);
         vm.warp(block.timestamp + 3600);
 
-        mock.$_updateScore(user1, 0, false);
+        mock.updateScore(user1, 0, false);
         (uint256 bal,, uint256 cum) = mock.getUserState(user1);
         assertEq(bal, 0);
         assertEq(cum, 0);
@@ -75,7 +75,7 @@ contract TimeWeighedScorerTest is Test {
         mock.setBalance(user1, 2000);
         vm.warp(block.timestamp + 1800); // 30m
 
-        mock.$_updateScore(user1, 0, false);
+        mock.updateScore(user1, 0, false);
         (,, uint256 cum) = mock.getUserState(user1);
         // 1000*3600 + 2000*1800 = 7_200_000
         assertEq(cum, 7_200_000);
@@ -84,11 +84,11 @@ contract TimeWeighedScorerTest is Test {
     function test_RapidBalanceChanges() external {
         mock.setBalance(user1, 1000);
         vm.warp(block.timestamp + 1);
-        mock.$_updateScore(user1, 0, false);
+        mock.updateScore(user1, 0, false);
 
         mock.setBalance(user1, 2000);
         vm.warp(block.timestamp + 1);
-        mock.$_updateScore(user1, 0, false);
+        mock.updateScore(user1, 0, false);
 
         (,, uint256 cum) = mock.getUserState(user1);
         assertEq(cum, 1000 * 1 + 2000 * 1);
@@ -98,7 +98,7 @@ contract TimeWeighedScorerTest is Test {
         mock.setGlobalSupply(10_000);
         vm.warp(block.timestamp + 3600);
 
-        mock.$_updateGlobalScore(0, false);
+        mock.updateGlobalScore(0, false);
         assertEq(mock.globalScore(), 10_000 * 3600);
     }
 
@@ -107,8 +107,8 @@ contract TimeWeighedScorerTest is Test {
         mock.setBalance(user2, 2000);
         vm.warp(block.timestamp + 3600);
 
-        mock.$_updateScore(user1, 0, false);
-        mock.$_updateScore(user2, 0, false);
+        mock.updateScore(user1, 0, false);
+        mock.updateScore(user2, 0, false);
 
         (,, uint256 cum1) = mock.getUserState(user1);
         (,, uint256 cum2) = mock.getUserState(user2);
@@ -121,7 +121,7 @@ contract TimeWeighedScorerTest is Test {
     function test_GetCurrentScoreAfterMoreTime() external {
         mock.setBalance(user1, 1000);
         vm.warp(block.timestamp + 3600);
-        mock.$_updateScore(user1, 0, false);
+        mock.updateScore(user1, 0, false);
 
         vm.warp(block.timestamp + 1800);
         assertEq(mock.getScore(user1), 1000 * (3600 + 1800)); // 5_400_000
@@ -130,7 +130,7 @@ contract TimeWeighedScorerTest is Test {
     function test_GetGlobalScoreAfterMoreTime() external {
         mock.setGlobalSupply(10_000);
         vm.warp(block.timestamp + 3600);
-        mock.$_updateGlobalScore(0, false);
+        mock.updateGlobalScore(0, false);
 
         vm.warp(block.timestamp + 1800);
         assertEq(mock.getGlobalScore(), 10_000 * (3600 + 1800)); // 54_000_000
@@ -145,7 +145,7 @@ contract TimeWeighedScorerTest is Test {
     function test_FinalizeGlobalScore() external {
         mock.setGlobalSupply(10_000);
         vm.warp(block.timestamp + 3600);
-        mock.$_updateGlobalScore(0, false);
+        mock.updateGlobalScore(0, false);
 
         uint256 expectedTime = block.timestamp; // next tx at same timestamp
         // expect the event (topics: emitter, we match full)
@@ -161,7 +161,7 @@ contract TimeWeighedScorerTest is Test {
     function test_PreventDoubleFinalizeGlobal() external {
         mock.setGlobalSupply(10_000);
         vm.warp(block.timestamp + 3600);
-        mock.$_updateGlobalScore(0, false);
+        mock.updateGlobalScore(0, false);
 
         mock.finalizeGlobalScore();
         vm.expectRevert(abi.encodeWithSignature('AlreadyFinalized()'));
@@ -171,7 +171,7 @@ contract TimeWeighedScorerTest is Test {
     function test_FinalizeUserScore() external {
         mock.setBalance(user1, 1000);
         vm.warp(block.timestamp + 3600);
-        mock.$_updateScore(user1, 0, false);
+        mock.updateScore(user1, 0, false);
 
         mock.finalizeGlobalScore();
 
@@ -190,7 +190,7 @@ contract TimeWeighedScorerTest is Test {
     function test_PreventUserFinalizeBeforeGlobal() external {
         mock.setBalance(user1, 1000);
         vm.warp(block.timestamp + 3600);
-        mock.$_updateScore(user1, 0, false);
+        mock.updateScore(user1, 0, false);
 
         vm.expectRevert(abi.encodeWithSignature('NotFinalized()'));
         mock.finalizeUserScore(user1);
@@ -221,8 +221,8 @@ contract TimeWeighedScorerTest is Test {
         mock.setBalance(user1, 1000);
         mock.setBalance(user2, 2000);
         vm.warp(block.timestamp + 3600);
-        mock.$_updateScore(user1, 0, false);
-        mock.$_updateScore(user2, 0, false);
+        mock.updateScore(user1, 0, false);
+        mock.updateScore(user2, 0, false);
 
         mock.finalizeGlobalScore();
 
@@ -238,7 +238,7 @@ contract TimeWeighedScorerTest is Test {
     function test_NoChangeOnRepeatedUserFinalize() external {
         mock.setBalance(user1, 1000);
         vm.warp(block.timestamp + 3600);
-        mock.$_updateScore(user1, 0, false);
+        mock.updateScore(user1, 0, false);
 
         mock.finalizeGlobalScore();
 
@@ -263,7 +263,7 @@ contract TimeWeighedScorerTest is Test {
     function testOnlyOwner_CanFinalizeUser() external {
         mock.setBalance(user1, 1000);
         vm.warp(block.timestamp + 3600);
-        mock.$_updateScore(user1, 0, false);
+        mock.updateScore(user1, 0, false);
         mock.finalizeGlobalScore();
 
         vm.prank(user1);
@@ -278,7 +278,7 @@ contract TimeWeighedScorerTest is Test {
         mock.setBalance(user1, 1000);
         vm.warp(block.timestamp + thirtyYears);
 
-        mock.$_updateScore(user1, 0, false);
+        mock.updateScore(user1, 0, false);
         assertEq(mock.getScore(user1), 1000 * thirtyYears);
     }
 
@@ -287,7 +287,7 @@ contract TimeWeighedScorerTest is Test {
         mock.setBalance(user1, oneBillion);
         vm.warp(block.timestamp + 3600);
 
-        mock.$_updateScore(user1, 0, false);
+        mock.updateScore(user1, 0, false);
         assertEq(mock.getScore(user1), oneBillion * 3600);
     }
 
@@ -298,14 +298,14 @@ contract TimeWeighedScorerTest is Test {
         mock.setBalance(user1, oneBillion);
         vm.warp(block.timestamp + thirtyYears);
 
-        mock.$_updateScore(user1, 0, false);
+        mock.updateScore(user1, 0, false);
         assertEq(mock.getScore(user1), oneBillion * thirtyYears);
     }
 
     function test_ZeroTimeElapsed() external {
         mock.setBalance(user1, 1000);
         // immediately update again with 0 delta
-        mock.$_updateScore(user1, 0, false);
+        mock.updateScore(user1, 0, false);
         assertEq(mock.getScore(user1), 0);
     }
 
@@ -313,14 +313,14 @@ contract TimeWeighedScorerTest is Test {
         mock.setBalance(user1, 1000);
         vm.warp(block.timestamp + 1);
 
-        mock.$_updateScore(user1, 0, false);
+        mock.updateScore(user1, 0, false);
         assertEq(mock.getScore(user1), 1000);
     }
 
     function test_BalanceChangeWithoutTimePassing() external {
         mock.setBalance(user1, 1000);
         vm.warp(block.timestamp + 3600);
-        mock.$_updateScore(user1, 0, false);
+        mock.updateScore(user1, 0, false);
 
         // change balance instantly
         mock.setBalance(user1, 2000);
@@ -336,7 +336,7 @@ contract TimeWeighedScorerTest is Test {
     function test_GlobalFinalizedEvent() external {
         mock.setGlobalSupply(10_000);
         vm.warp(block.timestamp + 3600);
-        mock.$_updateGlobalScore(0, false);
+        mock.updateGlobalScore(0, false);
 
         uint256 expectedTime = block.timestamp;
         vm.expectEmit(true, true, true, true);
@@ -348,7 +348,7 @@ contract TimeWeighedScorerTest is Test {
     function test_UserFinalizedEvent() external {
         mock.setBalance(user1, 1000);
         vm.warp(block.timestamp + 3600);
-        mock.$_updateScore(user1, 0, false);
+        mock.updateScore(user1, 0, false);
 
         mock.finalizeGlobalScore();
         uint256 fin = mock.finalizationTime();
@@ -369,9 +369,9 @@ contract TimeWeighedScorerTest is Test {
 
         // First period
         vm.warp(block.timestamp + 3600);
-        mock.$_updateScore(user1, 0, false);
-        mock.$_updateScore(user2, 0, false);
-        mock.$_updateGlobalScore(0, false);
+        mock.updateScore(user1, 0, false);
+        mock.updateScore(user2, 0, false);
+        mock.updateGlobalScore(0, false);
 
         // Change balances
         mock.setBalance(user1, 1500);
@@ -380,9 +380,9 @@ contract TimeWeighedScorerTest is Test {
 
         // Second period
         vm.warp(block.timestamp + 1800);
-        mock.$_updateScore(user1, 0, false);
-        mock.$_updateScore(user2, 0, false);
-        mock.$_updateGlobalScore(0, false);
+        mock.updateScore(user1, 0, false);
+        mock.updateScore(user2, 0, false);
+        mock.updateGlobalScore(0, false);
 
         // Finalize
         mock.finalizeGlobalScore();
@@ -399,19 +399,19 @@ contract TimeWeighedScorerTest is Test {
         // User1 starts
         mock.setBalance(user1, 1000);
         vm.warp(block.timestamp + 3600);
-        mock.$_updateScore(user1, 0, false);
+        mock.updateScore(user1, 0, false);
 
         // User2 joins
         mock.setBalance(user2, 2000);
         vm.warp(block.timestamp + 1800);
-        mock.$_updateScore(user1, 0, false);
-        mock.$_updateScore(user2, 0, false);
+        mock.updateScore(user1, 0, false);
+        mock.updateScore(user2, 0, false);
 
         // User1 leaves (balance = 0)
         mock.setBalance(user1, 0);
         vm.warp(block.timestamp + 1800);
-        mock.$_updateScore(user1, 0, false);
-        mock.$_updateScore(user2, 0, false);
+        mock.updateScore(user1, 0, false);
+        mock.updateScore(user2, 0, false);
 
         // Finalize
         mock.finalizeGlobalScore();

@@ -21,7 +21,7 @@ contract MockTimeWeighedScorer is TimeWeighedScorer {
             balanceDelta = previousBalance - balance;
         }
         mockBalances[user] = balance;
-        _updateScore(user, balanceDelta, increase);
+        updateScore(user, balanceDelta, increase);
     }
 
     function setGlobalSupply(uint256 supply) external {
@@ -34,7 +34,7 @@ contract MockTimeWeighedScorer is TimeWeighedScorer {
             supplyDelta = previousSupply - supply;
         }
         mockGlobalSupply = supply;
-        _updateGlobalScore(supplyDelta, increase);
+        updateGlobalScore(supplyDelta, increase);
     }
 
     function getCurrentBalance(address user) public view returns (uint256) {
@@ -43,13 +43,5 @@ contract MockTimeWeighedScorer is TimeWeighedScorer {
 
     function getCurrentGlobalSupply() public view returns (uint256) {
         return mockGlobalSupply;
-    }
-
-    function $_updateScore(address user, uint256 balanceDelta, bool increase) external returns (uint256) {
-        return _updateScore(user, balanceDelta, increase);
-    }
-
-    function $_updateGlobalScore(uint256 supplyDelta, bool increase) external {
-        _updateGlobalScore(supplyDelta, increase);
     }
 }

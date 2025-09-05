@@ -168,8 +168,8 @@ abstract contract RobinStakingVault is Initializable, OwnableUpgradeable, Reentr
         }
 
         // Update user/global balances & time-weighted scores
-        _updateScore(proxy, amount, true);
-        _updateGlobalScore(amount, true);
+        updateScore(proxy, amount, true);
+        updateGlobalScore(amount, true);
 
         emit Deposited(proxy, isYes, amount);
 
@@ -212,8 +212,8 @@ abstract contract RobinStakingVault is Initializable, OwnableUpgradeable, Reentr
 
         // Update user/global balances & scores
         uint256 totalOut = yesAmount + noAmount;
-        _updateScore(proxy, totalOut, false);
-        _updateGlobalScore(totalOut, false);
+        updateScore(proxy, totalOut, false);
+        updateGlobalScore(totalOut, false);
 
         emit Withdrawn(proxy, yesAmount, noAmount);
     }
@@ -271,9 +271,14 @@ abstract contract RobinStakingVault is Initializable, OwnableUpgradeable, Reentr
         // ====== Draining complete — finalize yield and enable payouts ======
 
         // Compute yield using ALL withdrawn (leftoverUSD is already included), minus principal
-        if (unlockedUSD > pairedUSDPrincipal) {
+        if (unlockedUSD >= pairedUSDPrincipal) {
             totalYield = unlockedUSD - pairedUSDPrincipal;
         } else {
+            //We only support strategies that can't loose money.
+            //In the future we can calculate a lossRatio here like
+            //lossRatio = (unlockedUSD * 10_000) / pairedUSDPrincipal;
+            //then every redemption will multiply the amount by lossRatio so every redemption becomes proportionally smaller
+            //We would also have to disable redemption while vault is still draining to make it fair for everyone
             totalYield = 0;
         }
 
@@ -363,8 +368,8 @@ abstract contract RobinStakingVault is Initializable, OwnableUpgradeable, Reentr
             totalUserYes -= toRedeem;
         }
         // This will only change the users and global balances and not the scores because the scorer is already finalized
-        _updateScore(proxy, toRedeem, false);
-        _updateGlobalScore(toRedeem, false);
+        updateScore(proxy, toRedeem, false);
+        updateGlobalScore(toRedeem, false);
 
         // Provide USD to the user:
         uint256 toPay = _pmUSDAmountForOutcome(toRedeem);
