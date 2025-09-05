@@ -30,6 +30,7 @@ abstract contract VaultPausable is Initializable, OwnableUpgradeable, IRobinVaul
     event PausedUnlockYieldSet(bool paused);
 
     // ====== Initializer ======
+    /// forge-lint: disable-next-line(mixed-case-function)
     function __VaultPausable_init() internal onlyInitializing {
         pausedAll = false;
         pausedDeposits = false;

@@ -42,6 +42,7 @@ abstract contract TimeWeighedScorer is Initializable, OwnableUpgradeable {
         _;
     }
 
+    /// forge-lint: disable-next-line(mixed-case-function)
     function __TimeWeighedScorer_init() internal onlyInitializing {
         __Ownable_init(msg.sender);
         globalScore = 0;

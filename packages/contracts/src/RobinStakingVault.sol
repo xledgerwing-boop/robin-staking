@@ -27,14 +27,14 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
     using SafeERC20 for IERC20;
 
     // ====== Parameters / Config ======
-    IERC20 public underlyingUSD;
+    IERC20 public underlyingUsd;
     uint256 public protocolFeeBps; // e.g. 1000 = 10%
     uint256 internal constant BPS_DENOM = 10_000;
 
     // ====== Market & Lifecycle ======
     bool public finalized; // set once the market end has been verified on-chain (resolution known)
     bool public unlocking; // draining in progress
-    uint256 public unlockedUSD; // cumulative USD withdrawn from strategy since unlock started
+    uint256 public unlockedUsd; // cumulative USD withdrawn from strategy since unlock started
     bool public yieldUnlocked; // set after strategy exit & yield computation
     bool public yesWon; // winning side after resolution (true=YES, false=NO)
     uint256 internal constant STRATEGY_EXIT_DUST = 1;
@@ -45,10 +45,10 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
     uint256 public unpairedNo;
 
     // USD principal supplied to the yield strategy (paired YES/NO merged => USD, supplied).
-    uint256 public pairedUSDPrincipal;
+    uint256 public pairedUsdPrincipal;
 
     // USD that is temporarily in the vault (e.g., from withdrawals) awaiting next supply.
-    uint256 public leftoverUSD;
+    uint256 public leftoverUsd;
 
     //amount of YES the user has deposited and still holds claim to in the vault.
     //can be used together with getBalance of TimeWeighedScorer to get the user's no balance
@@ -86,9 +86,9 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
     event Withdrawn(address indexed user, uint256 yesAmount, uint256 noAmount);
 
     event MarketFinalized(bool yesWon);
-    event YieldUnlockStarted(uint256 leftoverUSD, uint256 principalAtStart);
+    event YieldUnlockStarted(uint256 leftoverUsd, uint256 principalAtStart);
     event YieldUnlockProgress(uint256 withdrawnThisCall, uint256 cumulativeWithdrawn, uint256 remainingInStrategy);
-    event YieldUnlocked(uint256 totalWithdrawnUSD, uint256 totalYield, uint256 userYield, uint256 protocolYield);
+    event YieldUnlocked(uint256 totalWithdrawnUsd, uint256 totalYield, uint256 userYield, uint256 protocolYield);
 
     event HarvestedYield(address indexed user, uint256 amount);
     event RedeemedWinningForUSD(address indexed user, uint256 winningAmount, uint256 usdPaid);
@@ -117,21 +117,22 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
     }
 
     // ====== Initializer ======
+    /// forge-lint: disable-next-line(mixed-case-function)
     function __RobinStakingVault_init(uint256 _protocolFeeBps, address _underlyingAsset) internal onlyInitializing {
         __ReentrancyGuard_init();
         __TimeWeighedScorer_init();
         __VaultPausable_init();
         if (_protocolFeeBps > BPS_DENOM) revert InvalidBps(_protocolFeeBps);
         protocolFeeBps = _protocolFeeBps;
-        underlyingUSD = IERC20(_underlyingAsset);
+        underlyingUsd = IERC20(_underlyingAsset);
 
         finalized = false;
         yieldUnlocked = false;
 
         unpairedYes = 0;
         unpairedNo = 0;
-        pairedUSDPrincipal = 0;
-        leftoverUSD = 0;
+        pairedUsdPrincipal = 0;
+        leftoverUsd = 0;
 
         totalYield = 0;
         userYield = 0;
@@ -251,32 +252,32 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
         // First call: initialize draining state
         if (!unlocking) {
             unlocking = true;
-            unlockedUSD = leftoverUSD; //already include in final amount of unlockedUSD because we want to allow token redemption while draining
-            leftoverUSD = 0;
-            emit YieldUnlockStarted(unlockedUSD, pairedUSDPrincipal);
+            unlockedUsd = leftoverUsd; //already include in final amount of unlockedUsd because we want to allow token redemption while draining
+            leftoverUsd = 0;
+            emit YieldUnlockStarted(unlockedUsd, pairedUsdPrincipal);
         }
 
         // Exit strategy completely (principal + interest to this contract)
         // Drains as much as possible
-        uint256 withdrawnUSD = _yieldStrategyExit();
-        unlockedUSD += withdrawnUSD;
+        uint256 withdrawnUsd = _yieldStrategyExit();
+        unlockedUsd += withdrawnUsd;
 
         // Check remaining strategy balance
         uint256 remaining = _yieldStrategyBalance();
-        emit YieldUnlockProgress(withdrawnUSD, unlockedUSD, remaining);
+        emit YieldUnlockProgress(withdrawnUsd, unlockedUsd, remaining);
 
         // Not done yet — exit early, keep draining in future calls
         if (remaining > STRATEGY_EXIT_DUST) return;
 
         // ====== Draining complete — finalize yield and enable payouts ======
 
-        // Compute yield using ALL withdrawn (leftoverUSD is already included), minus principal
-        if (unlockedUSD >= pairedUSDPrincipal) {
-            totalYield = unlockedUSD - pairedUSDPrincipal;
+        // Compute yield using ALL withdrawn (leftoverUsd is already included), minus principal
+        if (unlockedUsd >= pairedUsdPrincipal) {
+            totalYield = unlockedUsd - pairedUsdPrincipal;
         } else {
             //We only support strategies that can't loose money.
             //In the future we can calculate a lossRatio here like
-            //lossRatio = (unlockedUSD * 10_000) / pairedUSDPrincipal;
+            //lossRatio = (unlockedUsd * 10_000) / pairedUsdPrincipal;
             //then every redemption will multiply the amount by lossRatio so every redemption becomes proportionally smaller
             //We would also have to disable redemption while vault is still draining to make it fair for everyone
             totalYield = 0;
@@ -287,14 +288,14 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
         userYield = totalYield - protocolYield;
 
         // After exit, strategy principal and leftover is zeroed
-        pairedUSDPrincipal = 0;
+        pairedUsdPrincipal = 0;
         unlocking = false;
 
         // Redeem all leftover winning tokens to USDC so all liabilities are in USDC
         uint256 winLeft = yesWon ? unpairedYes : unpairedNo;
         if (winLeft > 0) {
-            uint256 got = _pmRedeemWinningToUSD(yesWon);
-            if (got != _pmUSDAmountForOutcome(winLeft)) revert RedeemMismatch();
+            uint256 got = _pmRedeemWinningToUsd(yesWon);
+            if (got != _pmUsdAmountForOutcome(winLeft)) revert RedeemMismatch();
             if (yesWon) {
                 unpairedYes = 0;
             } else {
@@ -305,7 +306,7 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
         // Enable harvesting
         yieldUnlocked = true;
 
-        emit YieldUnlocked(unlockedUSD, totalYield, userYield, protocolYield);
+        emit YieldUnlocked(unlockedUsd, totalYield, userYield, protocolYield);
     }
 
     /**
@@ -349,7 +350,7 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
      * redeeming tokens is subject to availability of USD in the vault while strategy is still draining.
      * @param amount Max amount of winning tokens to redeem (set high to redeem all).
      */
-    function redeemWinningForUSD(uint256 amount) external nonReentrant onlyAfterFinalize whenGlobalNotPaused {
+    function redeemWinningForUsd(uint256 amount) external nonReentrant onlyAfterFinalize whenGlobalNotPaused {
         address sender = msg.sender;
 
         // Determine user's winning balance
@@ -372,7 +373,7 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
         updateGlobalScore(toRedeem, false);
 
         // Provide USD to the user:
-        uint256 toPay = _pmUSDAmountForOutcome(toRedeem);
+        uint256 toPay = _pmUsdAmountForOutcome(toRedeem);
         uint256 usdBalance = _usdBalanceOfThis();
         if (toPay > usdBalance) revert InsufficientUSD(usdBalance, toPay);
         _usdTransfer(sender, toPay);
@@ -393,46 +394,46 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
         no_ = unpairedNo;
     }
 
-    function getVaultPairedPrincipalUSD() external view returns (uint256) {
-        return pairedUSDPrincipal;
+    function getVaultPairedPrincipalUsd() external view returns (uint256) {
+        return pairedUsdPrincipal;
     }
 
     /**
      * @notice Estimated yield breakdown (pre-unlock) or final numbers (post-unlock).
-     * @dev If not unlocked: estimates based on strategy balance vs principal (+ leftoverUSD).
+     * @dev If not unlocked: estimates based on strategy balance vs principal (+ leftoverUsd).
      */
     function getCurrentYieldBreakdown() external view returns (uint256 estTotalYield, uint256 estUserYield, uint256 estProtocolYield) {
         if (yieldUnlocked) {
             return (totalYield, userYield, protocolYield);
         }
 
-        // Estimate based on current strategy balance + leftoverUSD vs pairedUSDPrincipal
+        // Estimate based on current strategy balance + leftoverUsd vs pairedUsdPrincipal
         uint256 stratBal = _yieldStrategyBalance();
-        uint256 grossUSD = stratBal + leftoverUSD + unlockedUSD;
-        if (grossUSD <= pairedUSDPrincipal) {
+        uint256 grossUsd = stratBal + leftoverUsd + unlockedUsd;
+        if (grossUsd <= pairedUsdPrincipal) {
             return (0, 0, 0);
         }
-        uint256 estYield = grossUSD - pairedUSDPrincipal;
+        uint256 estYield = grossUsd - pairedUsdPrincipal;
         uint256 fee = Math.mulDiv(estYield, protocolFeeBps, BPS_DENOM);
         uint256 userPart = estYield - fee;
         return (estYield, userPart, fee);
     }
 
-    function getTVLUSDC() external view returns (uint256 onHandUSD, uint256 inStrategyUSD, uint256 convertibleUSD, uint256 tvlUSD) {
-        onHandUSD = _usdBalanceOfThis();
+    function getTvlUsd() external view returns (uint256 onHandUsd, uint256 inStrategyUsd, uint256 convertibleUsd, uint256 tvlUsd) {
+        onHandUsd = _usdBalanceOfThis();
         if (!yieldUnlocked) {
-            inStrategyUSD = _yieldStrategyBalance();
+            inStrategyUsd = _yieldStrategyBalance();
             uint256 convertibleTokens = 0;
             if (!finalized) {
                 convertibleTokens = unpairedYes < unpairedNo ? unpairedYes : unpairedNo; // pre-resolution: pairs can be merged 1:1 to USD
             } else {
                 convertibleTokens = yesWon ? unpairedYes : unpairedNo;
             }
-            convertibleUSD = _pmUSDAmountForOutcome(convertibleTokens);
-            tvlUSD = onHandUSD + inStrategyUSD + convertibleUSD;
+            convertibleUsd = _pmUsdAmountForOutcome(convertibleTokens);
+            tvlUsd = onHandUsd + inStrategyUsd + convertibleUsd;
         } else {
             // after finalizeMarket() we exited the strategy and all unpaired tokens were converted to USD
-            tvlUSD = onHandUSD;
+            tvlUsd = onHandUsd;
         }
     }
 
@@ -440,7 +441,7 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
 
     /**
      * @dev Tries to pair unpaired YES/NO, merges to USD, and supplies to strategy.
-     *      Also re-supplies any leftoverUSD.
+     *      Also re-supplies any leftoverUsd.
      */
     function _pairAndSupply() internal {
         uint256 pairable = unpairedYes < unpairedNo ? unpairedYes : unpairedNo;
@@ -450,19 +451,19 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
             unpairedYes -= pairable;
             unpairedNo -= pairable;
 
-            uint256 usdFromPairs = _pmUSDAmountForOutcome(pairable);
-            uint256 toSupplyUSD = usdFromPairs + leftoverUSD;
-            leftoverUSD = 0;
+            uint256 usdFromPairs = _pmUsdAmountForOutcome(pairable);
+            uint256 toSupplyUsd = usdFromPairs + leftoverUsd;
+            leftoverUsd = 0;
 
             // Supply to yield strategy (abstract)
-            _yieldStrategySupply(toSupplyUSD);
+            _yieldStrategySupply(toSupplyUsd);
 
             // Increase recorded principal
-            pairedUSDPrincipal += usdFromPairs;
-        } else if (leftoverUSD > 0) {
+            pairedUsdPrincipal += usdFromPairs;
+        } else if (leftoverUsd > 0) {
             // No pairs but we have USD to (re-)supply
-            _yieldStrategySupply(leftoverUSD);
-            leftoverUSD = 0;
+            _yieldStrategySupply(leftoverUsd);
+            leftoverUsd = 0;
         }
     }
 
@@ -480,22 +481,22 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
 
         // We can split USD -> YES+NO only in equal pairs, so withdraw the max shortfall.
         uint256 pairsNeeded = shortYes > shortNo ? shortYes : shortNo;
-        uint256 usdNeeded = _pmUSDAmountForOutcome(pairsNeeded);
+        uint256 usdNeeded = _pmUsdAmountForOutcome(pairsNeeded);
 
         // Withdraw USD from strategy; principal decreases by the amount derived from pairs
-        uint256 withdrawnUSD = _yieldStrategyWithdraw(usdNeeded);
-        if (withdrawnUSD < usdNeeded) revert InsufficientWithdrawalUSD(usdNeeded, withdrawnUSD);
+        uint256 withdrawnUsd = _yieldStrategyWithdraw(usdNeeded);
+        if (withdrawnUsd < usdNeeded) revert InsufficientWithdrawalUSD(usdNeeded, withdrawnUsd);
         // Record principal decrease (we are reversing merges for user withdrawal)
-        if (pairedUSDPrincipal >= usdNeeded) {
-            pairedUSDPrincipal -= usdNeeded;
+        if (pairedUsdPrincipal >= usdNeeded) {
+            pairedUsdPrincipal -= usdNeeded;
         } else {
             // Shouldn't happen in a well-formed state, but guard anyway
-            pairedUSDPrincipal = 0;
+            pairedUsdPrincipal = 0;
         }
 
-        // If protocol interest got pulled along, capture any excess over requested pairs as leftoverUSD
-        if (withdrawnUSD > usdNeeded) {
-            leftoverUSD += (withdrawnUSD - usdNeeded);
+        // If protocol interest got pulled along, capture any excess over requested pairs as leftoverUsd
+        if (withdrawnUsd > usdNeeded) {
+            leftoverUsd += (withdrawnUsd - usdNeeded);
         }
 
         // Split the required pairs back into YES+NO (abstract)
@@ -509,13 +510,13 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
     }
 
     /// @dev Transfer USD held by this contract to `to`.
-    function _usdTransfer(address to, uint256 amountUSD) internal {
-        underlyingUSD.safeTransfer(to, amountUSD);
+    function _usdTransfer(address to, uint256 amountUsd) internal {
+        underlyingUsd.safeTransfer(to, amountUsd);
     }
 
     /// @dev USD token balance held by this contract.
     function _usdBalanceOfThis() internal view returns (uint256) {
-        return underlyingUSD.balanceOf(address(this));
+        return underlyingUsd.balanceOf(address(this));
     }
 
     // ========= ABSTRACT HOOKS =========
@@ -541,33 +542,33 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
 
     /// @dev After resolution, redeem all winning outcome tokens for USD.
     /// @param isYes true if YES is the winner.
-    /// @return redeemedUSD amount of USD obtained.
-    function _pmRedeemWinningToUSD(bool isYes) internal virtual returns (uint256 redeemedUSD);
+    /// @return redeemedUsd amount of USD obtained.
+    function _pmRedeemWinningToUsd(bool isYes) internal virtual returns (uint256 redeemedUsd);
 
     /// @dev Read on-chain resolution status & winner from PM.
     /// @return resolved true if resolved, and yesWon_ the winning side.
     function _pmCheckResolved() internal view virtual returns (bool resolved, bool yesWon_);
 
     /// @notice Convert outcome token amount → USDC amount (both in smallest units).
-    function _pmUSDAmountForOutcome(uint256 outcomeAmount) internal pure virtual returns (uint256 usdAmount);
+    function _pmUsdAmountForOutcome(uint256 outcomeAmount) internal pure virtual returns (uint256 usdAmount);
 
     /// @notice Convert USDC amount → outcome token amount (smallest units).
-    function _pmOutcomeAmountForUSD(uint256 usdAmount) internal pure virtual returns (uint256 outcomeAmount);
+    function _pmOutcomeAmountForUsd(uint256 usdAmount) internal pure virtual returns (uint256 outcomeAmount);
 
     // ----- yield Strategy (USD) -----
 
     /// @dev Supply USD from this contract to the yield strategy.
-    function _yieldStrategySupply(uint256 amountUSD) internal virtual;
+    function _yieldStrategySupply(uint256 amountUsd) internal virtual;
 
     /// @dev Withdraw USD from the yield strategy to this contract. Returns actual withdrawn.
-    function _yieldStrategyWithdraw(uint256 amountUSD) internal virtual returns (uint256 withdrawnUSD);
+    function _yieldStrategyWithdraw(uint256 amountUsd) internal virtual returns (uint256 withdrawnUsd);
 
-    /// @dev Withdraw as much as possible this call. Returns (success, amountWithdrawnUSD).
-    function _yieldStrategyExit() internal virtual returns (uint256 withdrawnUSD);
+    /// @dev Withdraw as much as possible this call. Returns (success, amountWithdrawnUsd).
+    function _yieldStrategyExit() internal virtual returns (uint256 withdrawnUsd);
 
     /// @dev Current USD balance the strategy would pay if exited now (principal+interest), view-only.
-    function _yieldStrategyBalance() internal view virtual returns (uint256 balanceUSD);
+    function _yieldStrategyBalance() internal view virtual returns (uint256 balanceUsd);
 
     /// @dev Current APY of the yield strategy, view-only.
-    function _yieldStrategyCurrentAPY() external view virtual returns (uint256 apyBps);
+    function _yieldStrategyCurrentApy() external view virtual returns (uint256 apyBps);
 }

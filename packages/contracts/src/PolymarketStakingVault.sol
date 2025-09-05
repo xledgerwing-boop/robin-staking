@@ -13,8 +13,8 @@ import { IConditionalTokens } from './interfaces/IConditionalTokens.sol';
 abstract contract PolymarketStakingVault is RobinStakingVault, ERC1155HolderUpgradeable {
     uint256 public constant YES_INDEX = 0;
     uint256 public constant NO_INDEX = 1;
-    uint256 public constant YES_INDEX_SET = 1 << YES_INDEX; // YES is always the first index set for us
-    uint256 public constant NO_INDEX_SET = 1 << NO_INDEX; // NO is always the second index set for us
+    uint256 public constant YES_INDEX_SET = 1; // YES is always the first index set for us
+    uint256 public constant NO_INDEX_SET = 2; // NO is always the second index set for us
     bytes32 public constant PARENT_COLLECTION_ID = 0x0; // Always 0x0 for Polymarket
 
     IConditionalTokens public ctf;
@@ -28,6 +28,7 @@ abstract contract PolymarketStakingVault is RobinStakingVault, ERC1155HolderUpgr
 
     /// @param _ctf                 Address of Polymarket's Conditional Tokens contract (Polygon mainnet: 0x4D97...6045)
     /// @param _conditionId         CTF conditionId for this market
+    /// forge-lint: disable-next-line(mixed-case-function)
     function __PolymarketStakingVault_init(address _ctf, bytes32 _conditionId) internal onlyInitializing {
         __ERC1155Holder_init();
 
@@ -40,11 +41,11 @@ abstract contract PolymarketStakingVault is RobinStakingVault, ERC1155HolderUpgr
 
         bytes32 yesColl = ctf.getCollectionId(PARENT_COLLECTION_ID, conditionId, YES_INDEX_SET);
         bytes32 noColl = ctf.getCollectionId(PARENT_COLLECTION_ID, conditionId, NO_INDEX_SET);
-        yesPositionId = ctf.getPositionId(underlyingUSD, yesColl);
-        noPositionId = ctf.getPositionId(underlyingUSD, noColl);
+        yesPositionId = ctf.getPositionId(underlyingUsd, yesColl);
+        noPositionId = ctf.getPositionId(underlyingUsd, noColl);
 
         // Allow CTF to pull USDC for splits/merges/redemptions
-        IERC20(address(underlyingUSD)).approve(address(ctf), type(uint256).max);
+        IERC20(address(underlyingUsd)).approve(address(ctf), type(uint256).max);
     }
 
     // ---------- PM hook implementations ----------
@@ -73,7 +74,7 @@ abstract contract PolymarketStakingVault is RobinStakingVault, ERC1155HolderUpgr
         uint256[] memory partition = new uint256[](2);
         partition[0] = YES_INDEX_SET;
         partition[1] = NO_INDEX_SET;
-        ctf.mergePositions(underlyingUSD, PARENT_COLLECTION_ID, conditionId, partition, pairs);
+        ctf.mergePositions(underlyingUsd, PARENT_COLLECTION_ID, conditionId, partition, pairs);
         // USDC arrives in this contract
     }
 
@@ -82,22 +83,22 @@ abstract contract PolymarketStakingVault is RobinStakingVault, ERC1155HolderUpgr
         uint256[] memory partition = new uint256[](2);
         partition[0] = YES_INDEX_SET;
         partition[1] = NO_INDEX_SET;
-        ctf.splitPosition(underlyingUSD, PARENT_COLLECTION_ID, conditionId, partition, pairs);
+        ctf.splitPosition(underlyingUsd, PARENT_COLLECTION_ID, conditionId, partition, pairs);
         // Outcome tokens minted to this contract
     }
 
-    function _pmRedeemWinningToUSD(bool isYes) internal override returns (uint256 redeemedUSD) {
+    function _pmRedeemWinningToUsd(bool isYes) internal override returns (uint256 redeemedUsd) {
         // CTF's redeemPositions burns ALL valuable tokens for the given indexSets.
         // We redemption-all during unlock, so that's what we want.
-        uint256 beforeBal = underlyingUSD.balanceOf(address(this));
+        uint256 beforeBal = underlyingUsd.balanceOf(address(this));
 
         uint256[] memory indexSets = new uint256[](1);
         indexSets[0] = isYes ? YES_INDEX_SET : NO_INDEX_SET;
-        ctf.redeemPositions(underlyingUSD, PARENT_COLLECTION_ID, conditionId, indexSets);
+        ctf.redeemPositions(underlyingUsd, PARENT_COLLECTION_ID, conditionId, indexSets);
 
-        uint256 afterBal = underlyingUSD.balanceOf(address(this));
-        redeemedUSD = afterBal - beforeBal;
-        return redeemedUSD;
+        uint256 afterBal = underlyingUsd.balanceOf(address(this));
+        redeemedUsd = afterBal - beforeBal;
+        return redeemedUsd;
     }
 
     function _pmCheckResolved() internal view override returns (bool resolved, bool yesWon_) {
@@ -117,11 +118,11 @@ abstract contract PolymarketStakingVault is RobinStakingVault, ERC1155HolderUpgr
     }
 
     // For Polymarket CTF, outcome token units equal collateral units (USDC) -> identity mapping.
-    function _pmUSDAmountForOutcome(uint256 outcomeAmount) internal pure override returns (uint256) {
+    function _pmUsdAmountForOutcome(uint256 outcomeAmount) internal pure override returns (uint256) {
         return outcomeAmount;
     }
 
-    function _pmOutcomeAmountForUSD(uint256 usdAmount) internal pure override returns (uint256) {
+    function _pmOutcomeAmountForUsd(uint256 usdAmount) internal pure override returns (uint256) {
         return usdAmount;
     }
 }

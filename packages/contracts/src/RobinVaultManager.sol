@@ -20,7 +20,7 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
     // ============ Config (settable by owner) ============
     address public implementation; // PolymarketAaveStakingVault logic contract
     uint256 public protocolFeeBps; // applied to all new vaults
-    address public underlyingUSD; // USDC (collateral)
+    address public underlyingUsd; // USDC (collateral)
     address public ctf; // Conditional Tokens Framework
     address public aavePool; // Aave v3 Pool
     address public aaveDataProv; // Aave data provider
@@ -30,7 +30,7 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
     address[] public allVaults;
 
     // ============ Events / Errors ============
-    event ConfigUpdated(address implementation, uint256 protocolFeeBps, address underlyingUSD, address ctf, address aavePool, address aaveDataProv);
+    event ConfigUpdated(address implementation, uint256 protocolFeeBps, address underlyingUsd, address ctf, address aavePool, address aaveDataProv);
     event VaultCreated(bytes32 indexed conditionId, address indexed vault, address indexed creator);
     event ProtocolFeeClaimed(bytes32 indexed conditionId, address indexed vault, address indexed to, uint256 when);
 
@@ -50,7 +50,7 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
     function initialize(
         address _implementation,
         uint256 _protocolFeeBps,
-        address _underlyingUSD,
+        address _underlyingUsd,
         address _ctf,
         address _aavePool,
         address _aaveDataProv
@@ -62,8 +62,8 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
 
         _setImplementation(_implementation);
         _setProtocolFeeBps(_protocolFeeBps);
-        _setUnderlyingUSD(_underlyingUSD);
-        _setCTF(_ctf);
+        _setUnderlyingUsd(_underlyingUsd);
+        _setCtf(_ctf);
         _setAavePool(_aavePool);
         _setAaveDataProv(_aaveDataProv);
 
@@ -71,7 +71,7 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(PAUSER_ROLE, msg.sender);
 
-        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUSD, ctf, aavePool, aaveDataProv);
+        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, ctf, aavePool, aaveDataProv);
     }
 
     // ============ Permissionless creation ============
@@ -83,7 +83,7 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
         vault = Clones.cloneDeterministic(implementation, conditionId);
 
         // Initialize: the vault will set `owner = address(this)` because msg.sender is the manager
-        IPolymarketAaveStakingVault(vault).initialize(protocolFeeBps, underlyingUSD, ctf, conditionId, aavePool, aaveDataProv);
+        IPolymarketAaveStakingVault(vault).initialize(protocolFeeBps, underlyingUsd, ctf, conditionId, aavePool, aaveDataProv);
 
         // Sanity: manager must be the vault owner
         require(IPolymarketAaveStakingVault(vault).owner() == address(this), 'manager not owner');
@@ -183,32 +183,32 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
     // ============ Owner config setters ============
     function setImplementation(address _implementation) external onlyOwner {
         _setImplementation(_implementation);
-        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUSD, ctf, aavePool, aaveDataProv);
+        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, ctf, aavePool, aaveDataProv);
     }
 
     function setProtocolFeeBps(uint256 _bps) external onlyOwner {
         _setProtocolFeeBps(_bps);
-        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUSD, ctf, aavePool, aaveDataProv);
+        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, ctf, aavePool, aaveDataProv);
     }
 
-    function setUnderlyingUSD(address _underlying) external onlyOwner {
-        _setUnderlyingUSD(_underlying);
-        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUSD, ctf, aavePool, aaveDataProv);
+    function setUnderlyingUsd(address _underlying) external onlyOwner {
+        _setUnderlyingUsd(_underlying);
+        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, ctf, aavePool, aaveDataProv);
     }
 
-    function setCTF(address _ctf) external onlyOwner {
-        _setCTF(_ctf);
-        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUSD, ctf, aavePool, aaveDataProv);
+    function setCtf(address _ctf) external onlyOwner {
+        _setCtf(_ctf);
+        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, ctf, aavePool, aaveDataProv);
     }
 
     function setAavePool(address _pool) external onlyOwner {
         _setAavePool(_pool);
-        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUSD, ctf, aavePool, aaveDataProv);
+        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, ctf, aavePool, aaveDataProv);
     }
 
     function setAaveDataProv(address _dp) external onlyOwner {
         _setAaveDataProv(_dp);
-        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUSD, ctf, aavePool, aaveDataProv);
+        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, ctf, aavePool, aaveDataProv);
     }
 
     // ============ Internal setters ============
@@ -222,12 +222,12 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
         protocolFeeBps = _bps;
     }
 
-    function _setUnderlyingUSD(address _u) internal {
+    function _setUnderlyingUsd(address _u) internal {
         if (_u == address(0)) revert ZeroAddress();
-        underlyingUSD = _u;
+        underlyingUsd = _u;
     }
 
-    function _setCTF(address _c) internal {
+    function _setCtf(address _c) internal {
         if (_c == address(0)) revert ZeroAddress();
         ctf = _c;
     }

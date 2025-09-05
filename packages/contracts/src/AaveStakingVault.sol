@@ -15,7 +15,7 @@ import { RobinStakingVault } from './RobinStakingVault.sol';
  */
 abstract contract AaveStakingVault is RobinStakingVault {
     IPool public aavePool;
-    IAToken public aToken; // interest-bearing token for underlyingUSD
+    IAToken public aToken; // interest-bearing token for underlyingUsd
     address public dataProvider; // optional; set to Aave ProtocolDataProvider if you want APY
 
     error InvalidUnderlyingAsset();
@@ -23,10 +23,11 @@ abstract contract AaveStakingVault is RobinStakingVault {
     error InvalidDataProvider();
 
     /**
-     * @param _underlyingAsset address for the given underlyingUSD
+     * @param _underlyingAsset address for the given underlyingUsd
      * @param _pool        Aave v3 Pool address (Polygon)
      * @param _dataProv    (optional) Aave ProtocolDataProvider-like; pass address(0) to skip APY
      */
+    /// forge-lint: disable-next-line(mixed-case-function)
     function __AaveStakingVault_init(address _underlyingAsset, address _pool, address _dataProv) internal onlyInitializing {
         if (_underlyingAsset == address(0)) revert InvalidUnderlyingAsset();
         if (_pool == address(0)) revert InvalidPool();
@@ -37,43 +38,43 @@ abstract contract AaveStakingVault is RobinStakingVault {
         dataProvider = _dataProv;
 
         // Approve pool to pull unlimited underlying
-        IERC20(address(underlyingUSD)).approve(_pool, type(uint256).max);
+        IERC20(address(underlyingUsd)).approve(_pool, type(uint256).max);
     }
 
     // ===================== AaveStakingVault strategy hooks =====================
 
     /// @dev Supply USD from this contract to the yield strategy.
-    function _yieldStrategySupply(uint256 amountUSD) internal override {
-        if (amountUSD == 0) return;
-        aavePool.supply(address(underlyingUSD), amountUSD, address(this), 0);
+    function _yieldStrategySupply(uint256 amountUsd) internal override {
+        if (amountUsd == 0) return;
+        aavePool.supply(address(underlyingUsd), amountUsd, address(this), 0);
         // aToken balance increases automatically (rebasing)
     }
 
     /// @dev Withdraw USD from the yield strategy to this contract. Returns actual withdrawn.
-    function _yieldStrategyWithdraw(uint256 amountUSD) internal override returns (uint256 withdrawnUSD) {
-        if (amountUSD == 0) return 0;
-        // Will withdraw up to 'amountUSD' (or less if rounding/availability)
-        withdrawnUSD = aavePool.withdraw(address(underlyingUSD), amountUSD, address(this));
-        return withdrawnUSD;
+    function _yieldStrategyWithdraw(uint256 amountUsd) internal override returns (uint256 withdrawnUsd) {
+        if (amountUsd == 0) return 0;
+        // Will withdraw up to 'amountUsd' (or less if rounding/availability)
+        withdrawnUsd = aavePool.withdraw(address(underlyingUsd), amountUsd, address(this));
+        return withdrawnUsd;
     }
 
-    /// @dev Withdraw as much as possible this call. Returns (success, amountWithdrawnUSD).
-    function _yieldStrategyExit() internal override returns (uint256 withdrawnUSD) {
+    /// @dev Withdraw as much as possible this call. Returns (success, amountWithdrawnUsd).
+    function _yieldStrategyExit() internal override returns (uint256 withdrawnUsd) {
         // Withdraw max: Aave treats type(uint256).max as "entire balance"
-        withdrawnUSD = aavePool.withdraw(address(underlyingUSD), type(uint256).max, address(this));
-        return withdrawnUSD;
+        withdrawnUsd = aavePool.withdraw(address(underlyingUsd), type(uint256).max, address(this));
+        return withdrawnUsd;
     }
 
     /// @dev Current USD balance the strategy would pay if exited now (principal+interest), view-only.
-    function _yieldStrategyBalance() internal view override returns (uint256 balanceUSD) {
+    function _yieldStrategyBalance() internal view override returns (uint256 balanceUsd) {
         // aToken is rebasing: balanceOf(this) reflects principal + accrued interest
         return aToken.balanceOf(address(this));
     }
 
     /// @dev Current APY of the yield strategy, view-only. Returns BPS (1e4).
     /// @notice Uses liquidityRate (APR in ray) from the data provider.
-    function _yieldStrategyCurrentAPY() external view override returns (uint256 apyBps) {
-        (,,,,, uint256 liquidityRate,,,,,,) = IPoolDataProvider(dataProvider).getReserveData(address(underlyingUSD));
+    function _yieldStrategyCurrentApy() external view override returns (uint256 apyBps) {
+        (,,,,, uint256 liquidityRate,,,,,,) = IPoolDataProvider(dataProvider).getReserveData(address(underlyingUsd));
         // liquidityRate is APR in ray (1e27). Convert APR -> APY (daily comp) and output in bps.
         // APR (fraction) = liquidityRate / 1e27
         // APY ≈ (1 + APR/365) ^ 365 - 1

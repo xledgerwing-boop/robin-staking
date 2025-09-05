@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import 'forge-std/Test.sol';
+import { Test } from 'forge-std/Test.sol';
 import { MockTimeWeighedScorer } from '../src/test/MockTimeWeighedScorer.t.sol';
 
 contract TimeWeighedScorerTest is Test {
@@ -26,7 +26,7 @@ contract TimeWeighedScorerTest is Test {
 
     /* ----------------------------- Initialization ---------------------------- */
 
-    function test_InitDefaults() external {
+    function test_InitDefaults() external view {
         assertEq(mock.globalScore(), 0);
         assertGt(mock.globalLastUpdated(), 0);
         assertEq(mock.globalLastBalance(), 0);
@@ -34,7 +34,7 @@ contract TimeWeighedScorerTest is Test {
         assertEq(mock.owner(), owner);
     }
 
-    function test_InitTimestampCloseToNow() external {
+    function test_InitTimestampCloseToNow() external view {
         // we assume initialize() just ran in setUp; allow small tolerance
         uint256 t = block.timestamp;
         uint256 last = mock.globalLastUpdated();
@@ -136,7 +136,7 @@ contract TimeWeighedScorerTest is Test {
         assertEq(mock.getGlobalScore(), 10_000 * (3600 + 1800)); // 54_000_000
     }
 
-    function test_UninitializedUserHasZeroScore() external {
+    function test_UninitializedUserHasZeroScore() external view {
         assertEq(mock.getScore(user3), 0);
     }
 
