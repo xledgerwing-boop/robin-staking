@@ -55,15 +55,15 @@ abstract contract TimeWeighedScorer is Initializable, OwnableUpgradeable {
     }
 
     /// @dev This function has to be called just AFTER any change to global supply occurs
-    function _updateGlobalScore(uint256 balanceDelta, bool increase) internal {
-        assert(increase || balanceDelta <= globalLastBalance);
+    function _updateGlobalScore(uint256 supplyDelta, bool increase) internal {
+        assert(increase || supplyDelta <= globalLastBalance);
         uint256 currentTime = _getCurrentTime(); //equals finalizationTime if finalized
         uint256 timeElapsed = currentTime - globalLastUpdated;
         globalScore += globalLastBalance * timeElapsed;
         globalLastUpdated = currentTime;
 
-        if (increase) globalLastBalance += balanceDelta;
-        else globalLastBalance -= balanceDelta;
+        if (increase) globalLastBalance += supplyDelta;
+        else globalLastBalance -= supplyDelta;
     }
 
     function _getCurrentTime() internal view returns (uint256) {
