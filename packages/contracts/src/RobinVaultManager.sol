@@ -5,11 +5,17 @@ import { Clones } from '@openzeppelin/contracts/proxy/Clones.sol';
 import { Initializable } from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import { UUPSUpgradeable } from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import { OwnableUpgradeable } from '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
+import { AccessControlUpgradeable } from '@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol';
+import { PausableUpgradeable } from '@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol';
 
 import { IPolymarketAaveStakingVault } from './interfaces/IPolymarketAaveStakingVault.sol';
+import { IRobinVaultPausing } from './interfaces/IRobinVaultPausing.sol';
 
-contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable {
+contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable, AccessControlUpgradeable, PausableUpgradeable {
     using Clones for address;
+
+    // ============ Roles ============
+    bytes32 public constant PAUSER_ROLE = keccak256('PAUSER_ROLE');
 
     // ============ Config (settable by owner) ============
     address public implementation; // PolymarketAaveStakingVault logic contract
@@ -61,6 +67,8 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
     ) external initializer {
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
+        __AccessControl_init();
+        __Pausable_init();
 
         _setImplementation(_implementation);
         _setProtocolFeeBps(_protocolFeeBps);
@@ -70,12 +78,16 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
         _setAavePool(_aavePool);
         _setAaveDataProv(_aaveDataProv);
 
+        // Grant roles
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(PAUSER_ROLE, msg.sender);
+
         emit ConfigUpdated(implementation, protocolFeeBps, underlyingUSD, ctf, safeProxyFactory, aavePool, aaveDataProv);
     }
 
     // ============ Permissionless creation ============
     /// @notice Create a vault for `conditionId`. Reverts if one already exists.
-    function createVault(bytes32 conditionId) external returns (address vault) {
+    function createVault(bytes32 conditionId) external whenNotPaused returns (address vault) {
         if (vaultOf[conditionId] != address(0)) revert VaultExists(conditionId, vaultOf[conditionId]);
 
         // Deterministic address per (implementation, salt, deployer=this manager proxy)
@@ -93,6 +105,8 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
         emit VaultCreated(conditionId, vault, msg.sender);
     }
 
+    // =========== View functions ============
+
     /// @notice Predict the address for the vault of `conditionId` (before creation).
     function predictVaultAddress(bytes32 conditionId) external view returns (address predicted) {
         predicted = Clones.predictDeterministicAddress(implementation, conditionId, address(this));
@@ -100,6 +114,10 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
 
     function allVaultsLength() external view returns (uint256) {
         return allVaults.length;
+    }
+
+    function vaultForConditionId(bytes32 conditionId) external view returns (address) {
+        return vaultOf[conditionId];
     }
 
     // ============ Protocol fee claim ============
@@ -117,6 +135,60 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
         if (vault == address(0)) revert UnknownVault(vault);
         IPolymarketAaveStakingVault(vault).harvestProtocolYield(to);
         emit ProtocolFeeClaimed(bytes32(0), vault, to, block.timestamp);
+    }
+
+    // ============ Vault Pause controls (via manager) ============
+    // Master switch
+    function pauseAllFrom(address vault) external onlyRole(PAUSER_ROLE) {
+        if (vault == address(0)) revert UnknownVault(vault);
+        IRobinVaultPausing(vault).pauseAll();
+    }
+
+    function unpauseAllFrom(address vault) external onlyRole(PAUSER_ROLE) {
+        if (vault == address(0)) revert UnknownVault(vault);
+        IRobinVaultPausing(vault).unpauseAll();
+    }
+
+    // Deposits
+    function pauseDepositsFrom(address vault) external onlyRole(PAUSER_ROLE) {
+        if (vault == address(0)) revert UnknownVault(vault);
+        IRobinVaultPausing(vault).pauseDeposits();
+    }
+
+    function unpauseDepositsFrom(address vault) external onlyRole(PAUSER_ROLE) {
+        if (vault == address(0)) revert UnknownVault(vault);
+        IRobinVaultPausing(vault).unpauseDeposits();
+    }
+
+    // Withdrawals
+    function pauseWithdrawalsFrom(address vault) external onlyRole(PAUSER_ROLE) {
+        if (vault == address(0)) revert UnknownVault(vault);
+        IRobinVaultPausing(vault).pauseWithdrawals();
+    }
+
+    function unpauseWithdrawalsFrom(address vault) external onlyRole(PAUSER_ROLE) {
+        if (vault == address(0)) revert UnknownVault(vault);
+        IRobinVaultPausing(vault).unpauseWithdrawals();
+    }
+
+    // UnlockYield
+    function pauseUnlockYieldFrom(address vault) external onlyRole(PAUSER_ROLE) {
+        if (vault == address(0)) revert UnknownVault(vault);
+        IRobinVaultPausing(vault).pauseUnlockYield();
+    }
+
+    function unpauseUnlockYieldFrom(address vault) external onlyRole(PAUSER_ROLE) {
+        if (vault == address(0)) revert UnknownVault(vault);
+        IRobinVaultPausing(vault).unpauseUnlockYield();
+    }
+
+    // ============ Manager Pause control ============
+    function pause() external onlyRole(PAUSER_ROLE) {
+        _pause();
+    }
+
+    function unpause() external onlyRole(PAUSER_ROLE) {
+        _unpause();
     }
 
     // ============ Owner config setters ============

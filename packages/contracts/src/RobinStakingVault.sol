@@ -4,11 +4,11 @@ pragma solidity ^0.8.28;
 import { Initializable } from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import { SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
-import { OwnableUpgradeable } from '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
 import { ReentrancyGuardUpgradeable } from '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
 import { Math } from '@openzeppelin/contracts/utils/math/Math.sol';
 
 import { TimeWeighedScorer } from './TimeWeighedScorer.sol';
+import { VaultPausable } from './VaultPausable.sol';
 
 /**
  * @title RobinStakingVault
@@ -23,7 +23,7 @@ import { TimeWeighedScorer } from './TimeWeighedScorer.sol';
  *      Implementors MUST define the underlying USD token transfers, strategy supply/withdraw/exit,
  *      and PM-specific merge/split/transfer/resolution logic.
  */
-abstract contract RobinStakingVault is Initializable, OwnableUpgradeable, ReentrancyGuardUpgradeable, TimeWeighedScorer {
+abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable, TimeWeighedScorer, VaultPausable {
     using SafeERC20 for IERC20;
 
     // ====== Parameters / Config ======
@@ -118,9 +118,9 @@ abstract contract RobinStakingVault is Initializable, OwnableUpgradeable, Reentr
 
     // ====== Initializer ======
     function __RobinStakingVault_init(uint256 _protocolFeeBps, address _underlyingAsset) internal onlyInitializing {
-        __Ownable_init(msg.sender);
         __ReentrancyGuard_init();
         __TimeWeighedScorer_init();
+        __VaultPausable_init();
         if (_protocolFeeBps > BPS_DENOM) revert InvalidBps(_protocolFeeBps);
         protocolFeeBps = _protocolFeeBps;
         underlyingUSD = IERC20(_underlyingAsset);
@@ -150,7 +150,7 @@ abstract contract RobinStakingVault is Initializable, OwnableUpgradeable, Reentr
      * @param isYes true to deposit YES, false to deposit NO.
      * @param amount amount of outcome tokens to deposit.
      */
-    function deposit(bool isYes, uint256 amount) external nonReentrant onlyBeforeFinalize {
+    function deposit(bool isYes, uint256 amount) external nonReentrant onlyBeforeFinalize whenDepositsNotPaused {
         if (amount == 0) revert InsufficientAmounts();
 
         address proxy = _proxyFor(msg.sender);
@@ -181,7 +181,7 @@ abstract contract RobinStakingVault is Initializable, OwnableUpgradeable, Reentr
      * @notice Withdraw YES/NO tokens before market resolution.
      * @dev Pulls USD from strategy and splits if we can't satisfy from unpaired pools.
      */
-    function withdraw(uint256 yesAmount, uint256 noAmount) external nonReentrant onlyBeforeFinalize {
+    function withdraw(uint256 yesAmount, uint256 noAmount) external nonReentrant onlyBeforeFinalize whenWithdrawalsNotPaused {
         if (yesAmount == 0 && noAmount == 0) revert InsufficientAmounts();
 
         address proxy = _proxyFor(msg.sender);
@@ -225,7 +225,7 @@ abstract contract RobinStakingVault is Initializable, OwnableUpgradeable, Reentr
      *         Records the winning side, finalizes all scores at market end time,
      *         exits strategy (unlock yield), and opens harvesting/redemption.
      */
-    function finalizeMarket() external nonReentrant onlyBeforeFinalize {
+    function finalizeMarket() external nonReentrant onlyBeforeFinalize whenGlobalNotPaused {
         // Confirm resolution from PM (abstract read)
         (bool resolved_, bool yesWon_) = _pmCheckResolved();
         if (!resolved_) revert MarketNotResolved();
@@ -247,7 +247,7 @@ abstract contract RobinStakingVault is Initializable, OwnableUpgradeable, Reentr
      * In case the yield startegy is not liquid enough to withdraw the entire principal, the draining will happen in batches.
      * UnlockYield will be called multiple times in that case.
      */
-    function unlockYield() public nonReentrant onlyAfterFinalize onlyBeforeUnlock {
+    function unlockYield() public nonReentrant onlyAfterFinalize onlyBeforeUnlock whenUnlockYieldNotPaused {
         // First call: initialize draining state
         if (!unlocking) {
             unlocking = true;
@@ -311,7 +311,7 @@ abstract contract RobinStakingVault is Initializable, OwnableUpgradeable, Reentr
     /**
      * @notice Harvest time-weighted yield (single pool) after unlock.
      */
-    function harvestYield() external nonReentrant onlyAfterUnlock {
+    function harvestYield() external nonReentrant onlyAfterUnlock whenGlobalNotPaused {
         address proxy = _proxyFor(msg.sender);
 
         uint256 score = _finalizeUserScore(proxy); // calculates user score at finalization, resets and returns it
@@ -333,7 +333,7 @@ abstract contract RobinStakingVault is Initializable, OwnableUpgradeable, Reentr
     /**
      * @notice Harvest protocol fee after unlock.
      */
-    function harvestProtocolYield(address receiver) external nonReentrant onlyAfterUnlock onlyOwner {
+    function harvestProtocolYield(address receiver) external nonReentrant onlyAfterUnlock onlyOwner whenGlobalNotPaused {
         if (protocolYield == 0) revert NoYield();
         if (protocolYieldHarvested) revert AlreadyHarvested();
         protocolYieldHarvested = true;
@@ -349,7 +349,7 @@ abstract contract RobinStakingVault is Initializable, OwnableUpgradeable, Reentr
      * redeeming tokens is subject to availability of USD in the vault while strategy is still draining.
      * @param amount Max amount of winning tokens to redeem (set high to redeem all).
      */
-    function redeemWinningForUSD(uint256 amount) external nonReentrant onlyAfterFinalize {
+    function redeemWinningForUSD(uint256 amount) external nonReentrant onlyAfterFinalize whenGlobalNotPaused {
         address proxy = _proxyFor(msg.sender);
 
         // Determine user's winning balance
