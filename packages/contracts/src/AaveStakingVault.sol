@@ -5,6 +5,7 @@ import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import { IPool } from '@aave-dao/aave-v3-origin/src/contracts/interfaces/IPool.sol';
 import { IPoolDataProvider } from '@aave-dao/aave-v3-origin/src/contracts/interfaces/IPoolDataProvider.sol';
 import { IAToken } from '@aave-dao/aave-v3-origin/src/contracts/interfaces/IAToken.sol';
+import { Errors } from '@aave-dao/aave-v3-origin/src/contracts/protocol/libraries/helpers/Errors.sol';
 
 import { RobinStakingVault } from './RobinStakingVault.sol';
 
@@ -14,9 +15,6 @@ import { RobinStakingVault } from './RobinStakingVault.sol';
  * @dev Keep it abstract so you can compose with your Polymarket adapter
  */
 abstract contract AaveStakingVault is RobinStakingVault {
-    // Selector for Aave v3 custom error: Errors.SupplyCapExceeded()
-    bytes4 private constant AAVE_SUPPLY_CAP_EXCEEDED_SEL = bytes4(keccak256('SupplyCapExceeded()'));
-
     IPool public aavePool;
     IAToken public aToken; // interest-bearing token for underlyingUsd
     IPoolDataProvider public dataProvider; // optional; set to Aave ProtocolDataProvider if you want APY
@@ -110,7 +108,6 @@ abstract contract AaveStakingVault is RobinStakingVault {
     }
 
     // ===================== Ray math helpers =====================
-
     uint256 internal constant RAY = 1e27;
 
     function _rayMul(uint256 a, uint256 b) internal pure returns (uint256) {
@@ -137,13 +134,12 @@ abstract contract AaveStakingVault is RobinStakingVault {
     }
 
     // ===================== Helper functions =====================
-
     function _matchesSupplyCapExceeded(bytes memory data) private pure returns (bool) {
         if (data.length < 4) return false;
         bytes4 sel;
         assembly {
             sel := mload(add(data, 0x20))
         }
-        return sel == AAVE_SUPPLY_CAP_EXCEEDED_SEL;
+        return sel == Errors.SupplyCapExceeded.selector;
     }
 }
