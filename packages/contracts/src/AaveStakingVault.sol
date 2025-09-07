@@ -47,7 +47,6 @@ abstract contract AaveStakingVault is RobinStakingVault {
     /// @dev Supply USD from this contract to the yield strategy.
     function _yieldStrategySupply(uint256 amountUsd) internal override {
         if (amountUsd == 0) return;
-        aavePool.supply(address(underlyingUsd), amountUsd, address(this), 0);
         try aavePool.supply(address(underlyingUsd), amountUsd, address(this), 0) {
             // success
         } catch (bytes memory revertData) {
