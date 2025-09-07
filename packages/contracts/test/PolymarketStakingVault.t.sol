@@ -6,10 +6,10 @@ import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import { IConditionalTokens } from '../src/interfaces/IConditionalTokens.sol';
 import { MockPolyMarketAaveVault } from './mocks/MockPolyMarketAaveVault.sol';
-import { Addresses } from './helpers/Addresses.t.sol';
+import { Constants } from './helpers/Constants.t.sol';
 import { ForkFixture } from './helpers/ForkFixture.t.sol';
 
-contract PolymarketStakingVaultForkTest is Test, ForkFixture, Addresses {
+contract PolymarketStakingVaultForkTest is Test, ForkFixture, Constants {
     // Fork settings
     uint256 internal constant FORK_BLOCK = 76163124; // e.g., 61500000
 

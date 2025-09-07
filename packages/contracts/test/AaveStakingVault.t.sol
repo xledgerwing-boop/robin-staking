@@ -8,10 +8,10 @@ import { RobinStakingVault } from '../src/RobinStakingVault.sol';
 import { IAToken } from '@aave-dao/aave-v3-origin/src/contracts/interfaces/IAToken.sol';
 import { Errors } from '@aave-dao/aave-v3-origin/src/contracts/protocol/libraries/helpers/Errors.sol';
 import { MockPolyMarketAaveVault } from './mocks/MockPolyMarketAaveVault.sol';
-import { Addresses } from './helpers/Addresses.t.sol';
+import { Constants } from './helpers/Constants.t.sol';
 import { ForkFixture } from './helpers/ForkFixture.t.sol';
 
-contract AaveStakingVaultTest is Test, ForkFixture, Addresses {
+contract AaveStakingVaultTest is Test, ForkFixture, Constants {
     // ===== Fill these constants before running tests =====
     // Pick a stable snapshot block so values are deterministic
     uint256 internal constant FORK_BLOCK = 76163124; // e.g., 62500000

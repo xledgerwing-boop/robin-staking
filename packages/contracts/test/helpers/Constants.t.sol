@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-abstract contract Addresses {
+abstract contract Constants {
     struct BettingMarketInfo {
         bytes32 conditionId;
         uint256 yesPositionId;
@@ -19,6 +19,8 @@ abstract contract Addresses {
     address internal constant DATA_PROVIDER = address(0x14496b405D62c24F91f04Cda1c69Dc526D56fDE5); // Aave v3 ProtocolDataProvider-like
     address internal constant CTF = address(0x4D97DCd97eC945f40cF65F87097ACe5EA0476045); // Polymarket CTF
     address internal constant USDC_WHALE = CTF;
+
+    uint256 constant PROTOCOL_FEE_BPS = 1000;
 
     BettingMarketInfo internal resolvedMarket = BettingMarketInfo({
         slug: 'what-will-trump-say-during-events-with-polish-president-on-september-3',
