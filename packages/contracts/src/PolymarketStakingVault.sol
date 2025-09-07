@@ -6,6 +6,8 @@ import { ERC1155HolderUpgradeable } from '@openzeppelin/contracts-upgradeable/to
 
 import { RobinStakingVault } from './RobinStakingVault.sol';
 import { IConditionalTokens } from './interfaces/IConditionalTokens.sol';
+import { IWcol } from './interfaces/IWcol.sol';
+import { INegRiskAdapter } from './interfaces/INegRiskAdapter.sol';
 
 /// @title PolymarketStakingVault
 /// @notice PM adapter for Polymarket (Gnosis CTF) that implements the prediction-market hooks of RobinStakingVault.
@@ -23,29 +25,57 @@ abstract contract PolymarketStakingVault is RobinStakingVault, ERC1155HolderUpgr
     bytes32 public conditionId;
     uint256 public yesPositionId; // ERC-1155 id
     uint256 public noPositionId; // ERC-1155 id
+    bool public negRisk;
+    INegRiskAdapter public negRiskAdapter;
+    IERC20 public polymarketCollateral;
 
     error InvalidOutcomeSlotCount(uint256 outcomeSlotCount);
+    error MarketAlreadyResolved();
 
     /// @param _ctf                 Address of Polymarket's Conditional Tokens contract (Polygon mainnet: 0x4D97...6045)
     /// @param _conditionId         CTF conditionId for this market
+    /// @param _negRisk             True if the market uses WCOL as collateral
+    /// @param _negRiskAdapter      Address of the WCOL adapter; only needed for negRisk markets
+    /// @param _collateral          Address of the collateral token
+    /// @param _checkResolved       True if the market should be checked for resolution when created, necessary for tests, always true in production
     /// forge-lint: disable-next-line(mixed-case-function)
-    function __PolymarketStakingVault_init(address _ctf, bytes32 _conditionId) internal onlyInitializing {
+    function __PolymarketStakingVault_init(
+        address _ctf,
+        bytes32 _conditionId,
+        address _negRiskAdapter,
+        bool _negRisk,
+        address _collateral,
+        bool _checkResolved
+    ) internal onlyInitializing {
         __ERC1155Holder_init();
 
         ctf = IConditionalTokens(_ctf);
         conditionId = _conditionId;
+        negRisk = _negRisk;
+        negRiskAdapter = INegRiskAdapter(_negRiskAdapter);
+        polymarketCollateral = IERC20(_collateral);
 
         //Only allow Polymarket binary markets
         uint256 outcomeSlotCount = ctf.getOutcomeSlotCount(conditionId);
-        if (outcomeSlotCount != 2) revert InvalidOutcomeSlotCount(outcomeSlotCount);
+        if (outcomeSlotCount != 2) revert InvalidOutcomeSlotCount(outcomeSlotCount); //also checks that market is created (prepared)
 
         bytes32 yesColl = ctf.getCollectionId(PARENT_COLLECTION_ID, conditionId, YES_INDEX_SET);
         bytes32 noColl = ctf.getCollectionId(PARENT_COLLECTION_ID, conditionId, NO_INDEX_SET);
-        yesPositionId = ctf.getPositionId(underlyingUsd, yesColl);
-        noPositionId = ctf.getPositionId(underlyingUsd, noColl);
+        yesPositionId = ctf.getPositionId(address(polymarketCollateral), yesColl);
+        noPositionId = ctf.getPositionId(address(polymarketCollateral), noColl);
+
+        if (_checkResolved) {
+            //check that market isn't already resolved
+            (bool resolved,) = _pmCheckResolved();
+            if (resolved) revert MarketAlreadyResolved();
+        }
 
         // Allow CTF to pull USDC for splits/merges/redemptions
-        IERC20(address(underlyingUsd)).approve(address(ctf), type(uint256).max);
+        polymarketCollateral.approve(address(ctf), type(uint256).max);
+        if (negRisk) {
+            ctf.setApprovalForAll(address(negRiskAdapter), true);
+            underlyingUsd.approve(address(negRiskAdapter), type(uint256).max); // If negRisk, the collateral is Polymarket's WCOL which needs to be approved for wrapping USDC.
+        }
     }
 
     // ---------- PM hook implementations ----------
@@ -74,7 +104,14 @@ abstract contract PolymarketStakingVault is RobinStakingVault, ERC1155HolderUpgr
         uint256[] memory partition = new uint256[](2);
         partition[0] = YES_INDEX_SET;
         partition[1] = NO_INDEX_SET;
-        ctf.mergePositions(underlyingUsd, PARENT_COLLECTION_ID, conditionId, partition, pairs);
+
+        //If market uses WCOL, we use the negRiskAdapter to merge the positions.
+        if (negRisk) {
+            //interestingly, we have to give the underlyingUsd to the negRiskAdapter to merge, because it's the collateral token
+            negRiskAdapter.mergePositions(address(underlyingUsd), PARENT_COLLECTION_ID, conditionId, partition, pairs);
+        } else {
+            ctf.mergePositions(address(polymarketCollateral), PARENT_COLLECTION_ID, conditionId, partition, pairs);
+        }
         // USDC arrives in this contract
     }
 
@@ -83,7 +120,14 @@ abstract contract PolymarketStakingVault is RobinStakingVault, ERC1155HolderUpgr
         uint256[] memory partition = new uint256[](2);
         partition[0] = YES_INDEX_SET;
         partition[1] = NO_INDEX_SET;
-        ctf.splitPosition(underlyingUsd, PARENT_COLLECTION_ID, conditionId, partition, pairs);
+
+        //If market uses WCOL, we use the negRiskAdapter to split the positions.
+        if (negRisk) {
+            //interestingly, we have to give the underlyingUsd to the negRiskAdapter to split, because it's the collateral token
+            negRiskAdapter.splitPosition(address(underlyingUsd), PARENT_COLLECTION_ID, conditionId, partition, pairs);
+        } else {
+            ctf.splitPosition(address(polymarketCollateral), PARENT_COLLECTION_ID, conditionId, partition, pairs);
+        }
         // Outcome tokens minted to this contract
     }
 
@@ -94,8 +138,13 @@ abstract contract PolymarketStakingVault is RobinStakingVault, ERC1155HolderUpgr
 
         uint256[] memory indexSets = new uint256[](1);
         indexSets[0] = isYes ? YES_INDEX_SET : NO_INDEX_SET;
-        ctf.redeemPositions(underlyingUsd, PARENT_COLLECTION_ID, conditionId, indexSets);
+        ctf.redeemPositions(address(polymarketCollateral), PARENT_COLLECTION_ID, conditionId, indexSets);
 
+        //If market uses WCOL, we have to unwrap the WCOL into USDC after redemption.
+        if (negRisk) {
+            uint256 wcolBal = IWcol(address(polymarketCollateral)).balanceOf(address(this));
+            IWcol(address(polymarketCollateral)).unwrap(address(this), wcolBal);
+        }
         uint256 afterBal = underlyingUsd.balanceOf(address(this));
         redeemedUsd = afterBal - beforeBal;
         return redeemedUsd;

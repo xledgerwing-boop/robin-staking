@@ -2,8 +2,18 @@
 pragma solidity ^0.8.28;
 
 interface IPolymarketAaveStakingVault {
-    function initialize(uint256 _protocolFeeBps, address _underlying, address _ctf, bytes32 _conditionId, address _aavePool, address _aaveDataProv)
-        external;
+    function initialize(
+        uint256 _protocolFeeBps,
+        address _underlying,
+        address _ctf,
+        bytes32 _conditionId,
+        address _negRiskAdapter,
+        bool _negRisk,
+        address _collateral,
+        bool _checkResolved,
+        address _aavePool,
+        address _aaveDataProv
+    ) external;
 
     function harvestProtocolYield(address receiver) external; // onlyOwner in the vault
 

@@ -21,7 +21,9 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
     address public implementation; // PolymarketAaveStakingVault logic contract
     uint256 public protocolFeeBps; // applied to all new vaults
     address public underlyingUsd; // USDC (collateral)
+    address public polymarketWcol; // WCOL (collateral)
     address public ctf; // Conditional Tokens Framework
+    address public negRiskAdapter; // Polymarket WCOL adapter
     address public aavePool; // Aave v3 Pool
     address public aaveDataProv; // Aave data provider
 
@@ -30,7 +32,16 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
     address[] public allVaults;
 
     // ============ Events / Errors ============
-    event ConfigUpdated(address implementation, uint256 protocolFeeBps, address underlyingUsd, address ctf, address aavePool, address aaveDataProv);
+    event ConfigUpdated(
+        address implementation,
+        uint256 protocolFeeBps,
+        address underlyingUsd,
+        address polymarketWcol,
+        address ctf,
+        address negRiskAdapter,
+        address aavePool,
+        address aaveDataProv
+    );
     event VaultCreated(bytes32 indexed conditionId, address indexed vault, address indexed creator);
     event ProtocolFeeClaimed(bytes32 indexed conditionId, address indexed vault, address indexed to, uint256 when);
 
@@ -38,6 +49,7 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
     error ZeroAddress();
     error InvalidFee(uint256 bps);
     error UnknownVault(address vault);
+    error InvalidCollateral(address collateral);
 
     // -------- constructor (logic) --------
     /// @dev Prevent initializing the logic contract directly.
@@ -51,7 +63,9 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
         address _implementation,
         uint256 _protocolFeeBps,
         address _underlyingUsd,
+        address _polymarketWcol,
         address _ctf,
+        address _negRiskAdapter,
         address _aavePool,
         address _aaveDataProv
     ) external initializer {
@@ -63,7 +77,9 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
         _setImplementation(_implementation);
         _setProtocolFeeBps(_protocolFeeBps);
         _setUnderlyingUsd(_underlyingUsd);
+        _setPolymarketWcol(_polymarketWcol);
         _setCtf(_ctf);
+        _setNegRiskAdapter(_negRiskAdapter);
         _setAavePool(_aavePool);
         _setAaveDataProv(_aaveDataProv);
 
@@ -71,19 +87,24 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(PAUSER_ROLE, msg.sender);
 
-        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, ctf, aavePool, aaveDataProv);
+        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, polymarketWcol, ctf, negRiskAdapter, aavePool, aaveDataProv);
     }
 
     // ============ Permissionless creation ============
     /// @notice Create a vault for `conditionId`. Reverts if one already exists.
-    function createVault(bytes32 conditionId) external whenNotPaused returns (address vault) {
+    function createVault(bytes32 conditionId, bool negRisk, address collateral) external whenNotPaused returns (address vault) {
         if (vaultOf[conditionId] != address(0)) revert VaultExists(conditionId, vaultOf[conditionId]);
+        if (negRisk && negRiskAdapter == address(0)) revert ZeroAddress();
+        if (!negRisk && collateral != underlyingUsd) revert InvalidCollateral(collateral);
+        if (negRisk && collateral != polymarketWcol) revert InvalidCollateral(collateral);
 
         // Deterministic address per (implementation, salt, deployer=this manager proxy)
         vault = Clones.cloneDeterministic(implementation, conditionId);
 
         // Initialize: the vault will set `owner = address(this)` because msg.sender is the manager
-        IPolymarketAaveStakingVault(vault).initialize(protocolFeeBps, underlyingUsd, ctf, conditionId, aavePool, aaveDataProv);
+        IPolymarketAaveStakingVault(vault).initialize(
+            protocolFeeBps, underlyingUsd, ctf, conditionId, negRiskAdapter, negRisk, collateral, true, aavePool, aaveDataProv
+        );
 
         // Sanity: manager must be the vault owner
         require(IPolymarketAaveStakingVault(vault).owner() == address(this), 'manager not owner');
@@ -189,32 +210,42 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
     // ============ Owner config setters ============
     function setImplementation(address _implementation) external onlyOwner {
         _setImplementation(_implementation);
-        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, ctf, aavePool, aaveDataProv);
+        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, polymarketWcol, ctf, negRiskAdapter, aavePool, aaveDataProv);
     }
 
     function setProtocolFeeBps(uint256 _bps) external onlyOwner {
         _setProtocolFeeBps(_bps);
-        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, ctf, aavePool, aaveDataProv);
+        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, polymarketWcol, ctf, negRiskAdapter, aavePool, aaveDataProv);
     }
 
     function setUnderlyingUsd(address _underlying) external onlyOwner {
         _setUnderlyingUsd(_underlying);
-        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, ctf, aavePool, aaveDataProv);
+        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, polymarketWcol, ctf, negRiskAdapter, aavePool, aaveDataProv);
+    }
+
+    function setPolymarketWcol(address _wcol) external onlyOwner {
+        _setPolymarketWcol(_wcol);
+        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, polymarketWcol, ctf, negRiskAdapter, aavePool, aaveDataProv);
     }
 
     function setCtf(address _ctf) external onlyOwner {
         _setCtf(_ctf);
-        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, ctf, aavePool, aaveDataProv);
+        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, polymarketWcol, ctf, negRiskAdapter, aavePool, aaveDataProv);
+    }
+
+    function setNegRiskAdapter(address _negRiskAdapter) external onlyOwner {
+        _setNegRiskAdapter(_negRiskAdapter);
+        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, polymarketWcol, ctf, negRiskAdapter, aavePool, aaveDataProv);
     }
 
     function setAavePool(address _pool) external onlyOwner {
         _setAavePool(_pool);
-        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, ctf, aavePool, aaveDataProv);
+        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, polymarketWcol, ctf, negRiskAdapter, aavePool, aaveDataProv);
     }
 
     function setAaveDataProv(address _dp) external onlyOwner {
         _setAaveDataProv(_dp);
-        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, ctf, aavePool, aaveDataProv);
+        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, polymarketWcol, ctf, negRiskAdapter, aavePool, aaveDataProv);
     }
 
     // ============ Internal setters ============
@@ -233,9 +264,19 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
         underlyingUsd = _u;
     }
 
+    function _setPolymarketWcol(address _wcol) internal {
+        if (_wcol == address(0)) revert ZeroAddress();
+        polymarketWcol = _wcol;
+    }
+
     function _setCtf(address _c) internal {
         if (_c == address(0)) revert ZeroAddress();
         ctf = _c;
+    }
+
+    function _setNegRiskAdapter(address _na) internal {
+        if (_na == address(0)) revert ZeroAddress();
+        negRiskAdapter = _na;
     }
 
     function _setAavePool(address _p) internal {
