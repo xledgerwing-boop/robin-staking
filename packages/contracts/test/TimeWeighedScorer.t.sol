@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 import { Test } from 'forge-std/Test.sol';
-import { MockTimeWeighedScorer } from '../src/test/MockTimeWeighedScorer.t.sol';
+import { MockTimeWeighedScorer } from './mocks/MockTimeWeighedScorer.t.sol';
 
 contract TimeWeighedScorerTest is Test {
     MockTimeWeighedScorer mock;
