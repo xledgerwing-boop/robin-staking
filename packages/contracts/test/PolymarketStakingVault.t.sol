@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import { Test, console2 } from 'forge-std/Test.sol';
+import { Test } from 'forge-std/Test.sol';
 import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
-import { PolymarketStakingVault } from '../src/PolymarketStakingVault.sol';
 import { IConditionalTokens } from '../src/interfaces/IConditionalTokens.sol';
 import { MockPolyMarketAaveVault } from './mocks/MockPolyMarketAaveVault.sol';
 import { Addresses } from './helpers/Addresses.t.sol';
@@ -38,7 +37,8 @@ contract PolymarketStakingVaultForkTest is Test, ForkFixture, Addresses {
     function _fundVaultWithUsdc(address vault, uint256 amount) internal {
         require(USDC_WHALE != address(0) && amount > 0, 'Fill whale/amount');
         vm.startPrank(USDC_WHALE);
-        IERC20(UNDERLYING_USD).transfer(vault, amount);
+        bool success = IERC20(UNDERLYING_USD).transfer(vault, amount);
+        require(success, 'Transfer failed');
         vm.stopPrank();
     }
 
@@ -57,18 +57,18 @@ contract PolymarketStakingVaultForkTest is Test, ForkFixture, Addresses {
     }
 
     function test_Split_And_Merge_Works_Running() public {
-        split_And_Merge_Works(runningMarket);
+        splitAndMergeWorks(runningMarket);
     }
 
     function test_Split_And_Merge_Works_Resolved() public {
-        split_And_Merge_Works(resolvedMarket);
+        splitAndMergeWorks(resolvedMarket);
     }
 
     function test_Split_And_Merge_Works_Resolved_NegRisk() public {
-        split_And_Merge_Works(resolvedNegRiskMarket);
+        splitAndMergeWorks(resolvedNegRiskMarket);
     }
 
-    function split_And_Merge_Works(BettingMarketInfo memory market) public {
+    function splitAndMergeWorks(BettingMarketInfo memory market) public {
         if (market.conditionId == bytes32(0) || AMOUNT_TO_SPLIT == 0) revert('Fill constants');
 
         MockPolyMarketAaveVault vault = _deployVault(market);
@@ -105,14 +105,14 @@ contract PolymarketStakingVaultForkTest is Test, ForkFixture, Addresses {
     }
 
     function test_Redeem_Winning_Tokens_On_Resolved_Market() public {
-        redeem_Winning_Tokens_On_Resolved_Market(resolvedMarket);
+        redeemWinningTokensOnResolvedMarket(resolvedMarket);
     }
 
     function test_Redeem_Winning_Tokens_On_Resolved_NegRisk_Market() public {
-        redeem_Winning_Tokens_On_Resolved_Market(resolvedNegRiskMarket);
+        redeemWinningTokensOnResolvedMarket(resolvedNegRiskMarket);
     }
 
-    function redeem_Winning_Tokens_On_Resolved_Market(BettingMarketInfo memory market) public {
+    function redeemWinningTokensOnResolvedMarket(BettingMarketInfo memory market) public {
         if (resolvedMarket.conditionId == bytes32(0) || AMOUNT_TO_SPLIT == 0) revert('Fill constants');
 
         MockPolyMarketAaveVault vault = _deployVault(market);
