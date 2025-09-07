@@ -72,7 +72,9 @@ abstract contract AaveStakingVault is RobinStakingVault {
     }
 
     /// @dev Withdraw as much as possible this call. Returns (success, amountWithdrawnUsd).
-    function _yieldStrategyExit() internal override returns (uint256 withdrawnUsd) {
+    function _yieldStrategyExit() internal virtual override returns (uint256 withdrawnUsd) {
+        uint256 balance = _yieldStrategyBalance();
+        if (balance == 0) return 0; //Aave will revert if balance is 0
         // Withdraw max: Aave treats type(uint256).max as "entire balance"
         withdrawnUsd = aavePool.withdraw(address(underlyingUsd), type(uint256).max, address(this));
         return withdrawnUsd;

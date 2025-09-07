@@ -53,30 +53,12 @@ abstract contract TimeWeighedScorer is Initializable, OwnableUpgradeable {
 
     /// @dev This function has to be called whenever any change to user balance occurs
     function updateScore(address user, uint256 balanceDelta, bool increase) public onlyOwner returns (uint256) {
-        assert(increase || balanceDelta <= scoreInfos[user].lastBalance);
-
-        ScoreInfo storage info = scoreInfos[user];
-        uint256 currentTime = _getCurrentScorableTime(); //equals finalizationTime if finalized
-        uint256 timeElapsed = currentTime - info.lastUpdated;
-        info.cumulativeScore += info.lastBalance * timeElapsed; // unitinialized users will get 0 score added here
-        info.lastUpdated = currentTime;
-
-        if (increase) info.lastBalance += balanceDelta;
-        else info.lastBalance -= balanceDelta;
-
-        return info.cumulativeScore;
+        return _updateScore(user, balanceDelta, increase);
     }
 
     /// @dev This function has to be called whenever any change to global supply occurs
     function updateGlobalScore(uint256 supplyDelta, bool increase) public onlyOwner {
-        assert(increase || supplyDelta <= globalLastBalance);
-        uint256 currentTime = _getCurrentScorableTime(); //equals finalizationTime if finalized
-        uint256 timeElapsed = currentTime - globalLastUpdated;
-        globalScore += globalLastBalance * timeElapsed;
-        globalLastUpdated = currentTime;
-
-        if (increase) globalLastBalance += supplyDelta;
-        else globalLastBalance -= supplyDelta;
+        _updateGlobalScore(supplyDelta, increase);
     }
 
     function finalizeUserScore(address user) external onlyOwner returns (uint256) {
@@ -112,6 +94,32 @@ abstract contract TimeWeighedScorer is Initializable, OwnableUpgradeable {
 
     // ====== Internal Logic ======
 
+    function _updateScore(address user, uint256 balanceDelta, bool increase) internal returns (uint256) {
+        assert(increase || balanceDelta <= scoreInfos[user].lastBalance);
+
+        ScoreInfo storage info = scoreInfos[user];
+        uint256 currentTime = _getCurrentScorableTime(); //equals finalizationTime if finalized
+        uint256 timeElapsed = currentTime - info.lastUpdated;
+        info.cumulativeScore += info.lastBalance * timeElapsed; // unitinialized users will get 0 score added here
+        info.lastUpdated = currentTime;
+
+        if (increase) info.lastBalance += balanceDelta;
+        else info.lastBalance -= balanceDelta;
+
+        return info.cumulativeScore;
+    }
+
+    function _updateGlobalScore(uint256 supplyDelta, bool increase) internal {
+        assert(increase || supplyDelta <= globalLastBalance);
+        uint256 currentTime = _getCurrentScorableTime(); //equals finalizationTime if finalized
+        uint256 timeElapsed = currentTime - globalLastUpdated;
+        globalScore += globalLastBalance * timeElapsed;
+        globalLastUpdated = currentTime;
+
+        if (increase) globalLastBalance += supplyDelta;
+        else globalLastBalance -= supplyDelta;
+    }
+
     function _getCurrentScorableTime() internal view returns (uint256) {
         uint256 currentTime = block.timestamp;
         if (finalizationTime != 0 && currentTime > finalizationTime) {
@@ -126,7 +134,7 @@ abstract contract TimeWeighedScorer is Initializable, OwnableUpgradeable {
     function _finalizeUserScore(address user) internal onlyAfterGlobalFinalization returns (uint256) {
         //if updateScore is called multiple times after finalization, the score will not change because
         //timeElapsed will be 0 (because currentTime == finalizationTime == lastUpdated)
-        uint256 currentScore = updateScore(user, 0, false); //no need to set balance to 0 because the finalizationTime will cap the score
+        uint256 currentScore = _updateScore(user, 0, false); //no need to set balance to 0 because the finalizationTime will cap the score
         scoreInfos[user].cumulativeScore = 0;
         emit UserFinalized(user, finalizationTime, currentScore);
         return currentScore;
@@ -135,7 +143,7 @@ abstract contract TimeWeighedScorer is Initializable, OwnableUpgradeable {
     function _finalizeGlobalScore() internal {
         if (finalizationTime != 0) revert AlreadyFinalized();
         finalizationTime = block.timestamp;
-        updateGlobalScore(0, false); //no need to set score to 0 because the finalizationTime will cap the score
+        _updateGlobalScore(0, false); //no need to set score to 0 because the finalizationTime will cap the score
         emit GlobalFinalized(finalizationTime, globalScore);
     }
 }

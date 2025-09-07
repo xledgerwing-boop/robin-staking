@@ -27,6 +27,8 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
     address public aavePool; // Aave v3 Pool
     address public aaveDataProv; // Aave data provider
 
+    bool public checkPoolResolved; // whether to check if the Aave pool is resolved; only needed for tests
+
     // ============ Registry ============
     mapping(bytes32 => address) public vaultOf; // conditionId => vault
     address[] public allVaults;
@@ -87,6 +89,8 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(PAUSER_ROLE, msg.sender);
 
+        checkPoolResolved = true;
+
         emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, polymarketWcol, ctf, negRiskAdapter, aavePool, aaveDataProv);
     }
 
@@ -103,7 +107,7 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
 
         // Initialize: the vault will set `owner = address(this)` because msg.sender is the manager
         IPolymarketAaveStakingVault(vault).initialize(
-            protocolFeeBps, underlyingUsd, ctf, conditionId, negRiskAdapter, negRisk, collateral, true, aavePool, aaveDataProv
+            protocolFeeBps, underlyingUsd, ctf, conditionId, negRiskAdapter, negRisk, collateral, checkPoolResolved, aavePool, aaveDataProv
         );
 
         // Sanity: manager must be the vault owner

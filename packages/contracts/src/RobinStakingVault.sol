@@ -257,7 +257,7 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
         _finalizeGlobalScore();
 
         // Exit strategy and compute yield; enable harvesting
-        unlockYield();
+        _unlockYield();
     }
 
     /**
@@ -267,64 +267,7 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
      * UnlockYield will be called multiple times in that case.
      */
     function unlockYield() public nonReentrant onlyAfterFinalize onlyBeforeUnlock whenUnlockYieldNotPaused {
-        // First call: initialize draining state
-        if (!unlocking) {
-            unlocking = true;
-            unlockedUsd = leftoverUsd; //already include in final amount of unlockedUsd because we want to allow token redemption while draining
-            leftoverUsd = 0;
-            emit YieldUnlockStarted(unlockedUsd, pairedUsdPrincipal);
-        }
-
-        // Exit strategy completely (principal + interest to this contract)
-        // Drains as much as possible
-        uint256 withdrawnUsd = _yieldStrategyExit();
-        unlockedUsd += withdrawnUsd;
-
-        // Check remaining strategy balance
-        uint256 remaining = _yieldStrategyBalance();
-        emit YieldUnlockProgress(withdrawnUsd, unlockedUsd, remaining);
-
-        // Not done yet — exit early, keep draining in future calls
-        if (remaining > STRATEGY_EXIT_DUST) return;
-
-        // ====== Draining complete — finalize yield and enable payouts ======
-
-        // Compute yield using ALL withdrawn (leftoverUsd is already included), minus principal
-        if (unlockedUsd >= pairedUsdPrincipal) {
-            totalYield = unlockedUsd - pairedUsdPrincipal;
-        } else {
-            //We only support strategies that can't loose money.
-            //In the future we can calculate a lossRatio here like
-            //lossRatio = (unlockedUsd * 10_000) / pairedUsdPrincipal;
-            //then every redemption will multiply the amount by lossRatio so every redemption becomes proportionally smaller
-            //We would also have to disable redemption while vault is still draining to make it fair for everyone
-            totalYield = 0;
-        }
-
-        // Split yield into user pool and protocol fee
-        protocolYield = Math.mulDiv(totalYield, protocolFeeBps, BPS_DENOM);
-        userYield = totalYield - protocolYield;
-
-        // After exit, strategy principal and leftover is zeroed
-        pairedUsdPrincipal = 0;
-        unlocking = false;
-
-        // Redeem all leftover winning tokens to USDC so all liabilities are in USDC
-        uint256 winLeft = yesWon ? unpairedYes : unpairedNo;
-        if (winLeft > 0) {
-            uint256 got = _pmRedeemWinningToUsd(yesWon);
-            if (got != _pmUsdAmountForOutcome(winLeft)) revert RedeemMismatch();
-            if (yesWon) {
-                unpairedYes = 0;
-            } else {
-                unpairedNo = 0;
-            }
-        }
-
-        // Enable harvesting
-        yieldUnlocked = true;
-
-        emit YieldUnlocked(unlockedUsd, totalYield, userYield, protocolYield);
+        _unlockYield();
     }
 
     /**
@@ -547,6 +490,67 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
         unpairedNo += pairsNeeded;
 
         // After this, we must be able to satisfy the user’s withdrawal from unpaired pools.
+    }
+
+    function _unlockYield() internal onlyAfterFinalize onlyBeforeUnlock whenUnlockYieldNotPaused {
+        // First call: initialize draining state
+        if (!unlocking) {
+            unlocking = true;
+            unlockedUsd = leftoverUsd; //already include in final amount of unlockedUsd because we want to allow token redemption while draining
+            leftoverUsd = 0;
+            emit YieldUnlockStarted(unlockedUsd, pairedUsdPrincipal);
+        }
+
+        // Exit strategy completely (principal + interest to this contract)
+        // Drains as much as possible
+        uint256 withdrawnUsd = _yieldStrategyExit();
+        unlockedUsd += withdrawnUsd;
+
+        // Check remaining strategy balance
+        uint256 remaining = _yieldStrategyBalance();
+        emit YieldUnlockProgress(withdrawnUsd, unlockedUsd, remaining);
+
+        // Not done yet — exit early, keep draining in future calls
+        if (remaining > STRATEGY_EXIT_DUST) return;
+
+        // ====== Draining complete — finalize yield and enable payouts ======
+
+        // Compute yield using ALL withdrawn (leftoverUsd is already included), minus principal
+        if (unlockedUsd >= pairedUsdPrincipal) {
+            totalYield = unlockedUsd - pairedUsdPrincipal;
+        } else {
+            //We only support strategies that can't loose money.
+            //In the future we can calculate a lossRatio here like
+            //lossRatio = (unlockedUsd * 10_000) / pairedUsdPrincipal;
+            //then every redemption will multiply the amount by lossRatio so every redemption becomes proportionally smaller
+            //We would also have to disable redemption while vault is still draining to make it fair for everyone
+            totalYield = 0;
+        }
+
+        // Split yield into user pool and protocol fee
+        protocolYield = Math.mulDiv(totalYield, protocolFeeBps, BPS_DENOM);
+        userYield = totalYield - protocolYield;
+
+        // After exit, strategy principal and leftover is zeroed
+        pairedUsdPrincipal = 0;
+        unlocking = false;
+
+        // Redeem all leftover winning tokens to USDC so all liabilities are in USDC
+        uint256 winLeft = yesWon ? unpairedYes : unpairedNo;
+        if (winLeft > 0) {
+            uint256 got = _pmRedeemWinningToUsd(yesWon);
+            if (got != _pmUsdAmountForOutcome(winLeft)) revert RedeemMismatch();
+            if (yesWon) {
+                unpairedYes = 0;
+            } else {
+                unpairedNo = 0;
+            }
+        }
+
+        // Enable harvesting
+        yieldUnlocked = true;
+
+        emit YieldUnlocked(unlockedUsd, totalYield, userYield, protocolYield);
     }
 
     /// @dev Transfer USD held by this contract to `to`.
