@@ -22,6 +22,7 @@ abstract contract AaveStakingVault is RobinStakingVault {
     error InvalidUnderlyingAsset();
     error InvalidPool();
     error InvalidDataProvider();
+    error UnderlyingAssetNotSupported();
 
     /**
      * @param _underlyingAsset address for the given underlyingUsd
@@ -36,6 +37,7 @@ abstract contract AaveStakingVault is RobinStakingVault {
 
         aavePool = IPool(_pool);
         aToken = IAToken(aavePool.getReserveAToken(_underlyingAsset));
+        if (address(aToken) == address(0)) revert UnderlyingAssetNotSupported();
         dataProvider = IPoolDataProvider(_dataProv);
 
         // Approve pool to pull unlimited underlying
