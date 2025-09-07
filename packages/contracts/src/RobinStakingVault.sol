@@ -610,7 +610,7 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
     function _yieldStrategyBalance() internal view virtual returns (uint256 balanceUsd);
 
     /// @dev Current APY of the yield strategy, view-only.
-    function _yieldStrategyCurrentApy() external view virtual returns (uint256 apyBps);
+    function _yieldStrategyCurrentApy() internal view virtual returns (uint256 apyBps);
 
     /// @notice The max supply the strategy has (0 = unlimited) and the currently supplied amount
     function _yieldStrategySupplyAndLimitUsd() internal view virtual returns (uint256 currentSupply, uint256 limit);

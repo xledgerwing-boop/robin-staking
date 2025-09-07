@@ -84,12 +84,16 @@ abstract contract AaveStakingVault is RobinStakingVault {
 
     /// @dev Current APY of the yield strategy, view-only. Returns BPS (1e4).
     /// @notice Uses liquidityRate (APR in ray) from the data provider.
-    function _yieldStrategyCurrentApy() external view override returns (uint256 apyBps) {
+    function _yieldStrategyCurrentApy() internal view override returns (uint256 apyBps) {
         (,,,,, uint256 liquidityRate,,,,,,) = dataProvider.getReserveData(address(underlyingUsd));
         // liquidityRate is APR in ray (1e27). Convert APR -> APY (daily comp) and output in bps.
         // APR (fraction) = liquidityRate / 1e27
         // APY ≈ (1 + APR/365) ^ 365 - 1
-        uint256 apyRay = _rayPow(RAY + _rayDiv(liquidityRate, 365), 365) - RAY;
+        // Note: dividing a ray by a scalar keeps it in ray units; do NOT use _rayDiv here.
+        uint256 dailyFactorRay = RAY + (liquidityRate / 365);
+        uint256 compoundedRay = _rayPow(dailyFactorRay, 365);
+        if (compoundedRay <= RAY) return 0; // guard against rounding underflow
+        uint256 apyRay = compoundedRay - RAY;
         // Convert APY (ray) to bps: apyBps = apyRay * 10000 / 1e27
         apyBps = (apyRay * 10_000) / RAY;
     }
@@ -112,11 +116,6 @@ abstract contract AaveStakingVault is RobinStakingVault {
     function _rayMul(uint256 a, uint256 b) internal pure returns (uint256) {
         // (a * b) / 1e27 with rounding half-up
         return (a * b + RAY / 2) / RAY;
-    }
-
-    function _rayDiv(uint256 a, uint256 b) internal pure returns (uint256) {
-        // (a * 1e27) / b with rounding half-up
-        return (a * RAY + b / 2) / b;
     }
 
     /// @dev Exponentiation by squaring for ray numbers: base^exp
