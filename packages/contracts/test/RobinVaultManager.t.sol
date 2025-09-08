@@ -3,8 +3,6 @@ pragma solidity ^0.8.28;
 
 import { Test } from 'forge-std/Test.sol';
 import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import { IERC1155 } from '@openzeppelin/contracts/token/ERC1155/IERC1155.sol';
-import { Clones } from '@openzeppelin/contracts/proxy/Clones.sol';
 import { UnsafeUpgrades } from 'openzeppelin-foundry-upgrades/Upgrades.sol';
 
 import { RobinVaultManager } from '../src/RobinVaultManager.sol';
@@ -61,7 +59,8 @@ contract RobinVaultManagerTest is Test, ForkFixture, Constants {
 
         // Fund manager owner with USDC from a known whale (here we reuse CTF as in Constants)
         vm.startPrank(USDC_WHALE);
-        usdc.transfer(owner, 5_000_000_000); // 5,000 USDC
+        bool success = usdc.transfer(owner, 5_000_000_000); // 5,000 USDC
+        assertTrue(success);
         vm.stopPrank();
 
         // Deploy the implementation that clones will point to
@@ -112,7 +111,7 @@ contract RobinVaultManagerTest is Test, ForkFixture, Constants {
         address newCtf = carol;
         address newNegRisk = treasury;
         address newPool = address(0x9999);
-        address newDP = address(0x8888);
+        address newDp = address(0x8888);
 
         vm.startPrank(owner);
         // setImplementation emits with old config values except implementation
@@ -152,8 +151,8 @@ contract RobinVaultManagerTest is Test, ForkFixture, Constants {
 
         // setAaveDataProv
         vm.expectEmit(true, true, true, true);
-        emit RobinVaultManager.ConfigUpdated(newImpl, newFee, newUsd, newWcol, newCtf, newNegRisk, newPool, newDP);
-        manager.setAaveDataProv(newDP);
+        emit RobinVaultManager.ConfigUpdated(newImpl, newFee, newUsd, newWcol, newCtf, newNegRisk, newPool, newDp);
+        manager.setAaveDataProv(newDp);
         vm.stopPrank();
 
         assertEq(manager.implementation(), newImpl);
@@ -163,7 +162,7 @@ contract RobinVaultManagerTest is Test, ForkFixture, Constants {
         assertEq(manager.ctf(), newCtf);
         assertEq(manager.negRiskAdapter(), newNegRisk);
         assertEq(manager.aavePool(), newPool);
-        assertEq(manager.aaveDataProv(), newDP);
+        assertEq(manager.aaveDataProv(), newDp);
     }
 
     function test_Manager_Config_Setters_Negatives() public {
@@ -244,7 +243,8 @@ contract RobinVaultManagerTest is Test, ForkFixture, Constants {
         // manager is owner of vault; set a pretend protocol yield and fund vault with USDC to pay it
         vm.startPrank(owner);
         // fund vault with enough USDC
-        usdc.transfer(address(vault), 1_000_000);
+        bool success = usdc.transfer(address(vault), 1_000_000);
+        assertTrue(success);
         vault.finalizeMarket();
         vault.setProtocolYieldForTest(1_000_000); // 1 USDC
 
