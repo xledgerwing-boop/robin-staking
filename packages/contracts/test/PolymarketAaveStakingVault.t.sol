@@ -15,14 +15,13 @@ import { RobinStakingVault } from '../src/RobinStakingVault.sol';
 import { VaultPausable } from '../src/VaultPausable.sol';
 import { UnsafeUpgrades } from 'openzeppelin-foundry-upgrades/Upgrades.sol';
 import { MockRobinVaultManager } from './mocks/MockRobinVaultManager.sol';
-import { MockBothOutcomeVault } from './mocks/MockBothOutcomeVault.sol';
 
 import { Constants } from './helpers/Constants.t.sol';
 import { ForkFixture } from './helpers/ForkFixture.t.sol';
 
 contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
     uint256 internal constant FORK_BLOCK = 76163124;
-    BettingMarketInfo internal resolvedMarketUsed = resolvedMarket; //quickly switch between negRisk and non-negRisk
+    BettingMarketInfo internal resolvedMarketUsed = resolvedMarket; //quickly switch between negRisk, non-negRisk and equalAmount markets
 
     // actors
     address internal owner;
@@ -304,15 +303,16 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
         } else if (isBoth) {
             (uint256 bobYes, uint256 bobNo) = vault.getUserBalances(bob);
             (uint256 aliceYes, uint256 aliceNo) = vault.getUserBalances(alice);
-            winnersTmp[0] = Winner({ winner: bob, winnerAmount: bobYes + bobNo / 2 });
-            winnersTmp[1] = Winner({ winner: alice, winnerAmount: aliceYes + aliceNo / 2 });
+            winnersTmp[0] = Winner({ winner: bob, winnerAmount: (bobYes + bobNo) / 2 });
+            winnersTmp[1] = Winner({ winner: alice, winnerAmount: (aliceYes + aliceNo) / 2 });
         }
 
         return (vault, winnersTmp);
     }
 
     function test_Redeem_DuringOrAfterUnlock_Sufficient_And_InsufficientUSD() public {
-        (PolymarketAaveStakingVault vault, Winner[] memory winners) = _setupResolvedVaultWithWinners(1_000_000, 1_000_000);
+        uint256 amount = 1_000_000;
+        (PolymarketAaveStakingVault vault, Winner[] memory winners) = _setupResolvedVaultWithWinners(amount, amount);
         address winner = winners[0].winner;
 
         // simulate limited on-hand USDC via cheatcode to exercise InsufficientUSD path
@@ -321,7 +321,8 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
 
         // trying to redeem more than on-hand now should revert
         vm.prank(winner);
-        vm.expectRevert(abi.encodeWithSelector(RobinStakingVault.InsufficientUSD.selector, uint256(300_000), uint256(1_000_000)));
+        uint256 neededAmount = winners[0].winnerAmount;
+        vm.expectRevert(abi.encodeWithSelector(RobinStakingVault.InsufficientUSD.selector, uint256(300_000), uint256(neededAmount)));
         // request 300k but only 100k left on hand (since 200k paid)
         vault.redeemWinningForUsd();
 
@@ -937,6 +938,15 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
         ctf.setApprovalForAll(address(vault), true);
         vm.prank(bob);
         ctf.setApprovalForAll(address(vault), true);
+
+        // if market is equal outcome, report payouts (resolve)
+        if (market.conditionId == toBeEqualOutcomeMarket.conditionId) {
+            vm.prank(toBeEqualOutcomeMarket.resolver);
+            uint256[] memory payouts = new uint256[](2);
+            payouts[0] = 1;
+            payouts[1] = 1;
+            ctf.reportPayouts(toBeEqualOutcomeMarket.questionId, payouts);
+        }
     }
 
     // ========== Initialization ==========
@@ -1294,38 +1304,44 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
     }
 
     // ========== BOTH (50/50) Outcome Simulation ==========
-    function _deployBothVault() internal returns (MockBothOutcomeVault v) {
-        v = new MockBothOutcomeVault();
-        v.initialize(
-            PROTOCOL_FEE_BPS,
-            UNDERLYING_USD,
-            CTF,
-            resolvedMarket.conditionId,
-            NEG_RISK_ADAPTER,
-            resolvedMarket.negRisk,
-            resolvedMarket.collateral,
-            false,
-            AAVE_POOL,
-            DATA_PROVIDER
-        );
-
-        vm.prank(alice);
-        ctf.setApprovalForAll(address(v), true);
-        vm.prank(bob);
-        ctf.setApprovalForAll(address(v), true);
-    }
-
     function test_BOTH_Finalize_EmitsAndFreezes() public {
-        MockBothOutcomeVault v = _deployBothVault();
+        PolymarketAaveStakingVault v = _createVault(toBeEqualOutcomeMarket);
 
         _mintOutcome(alice, v, 1_000_000);
         _mintOutcome(bob, v, 1_000_000);
 
-        // deposits
+        // t0: alice deposits YES
         vm.prank(alice);
         v.deposit(true, 1_000_000);
+
+        // warp T1
+        uint256 t1 = 3600;
+        vm.warp(block.timestamp + t1);
+
+        // t1: bob deposits NO
         vm.prank(bob);
         v.deposit(false, 1_000_000);
+
+        // warp T2
+        uint256 t2 = 1800;
+        vm.warp(block.timestamp + t2);
+
+        // check scores before finalize
+        uint256 sAlice = v.getScore(alice);
+        uint256 sBob = v.getScore(bob);
+        assertEq(sAlice, 1_000_000 * (t1 + t2));
+        assertEq(sBob, 1_000_000 * t2);
+        assertEq(v.getGlobalScore(), sAlice + sBob);
+
+        // check user balances before finalize
+        {
+            (uint256 ay, uint256 an) = v.getUserBalances(alice);
+            (uint256 by, uint256 bn) = v.getUserBalances(bob);
+            assertEq(ay, 1_000_000);
+            assertEq(an, 0);
+            assertEq(by, 0);
+            assertEq(bn, 1_000_000);
+        }
 
         // expect BOTH event
         vm.expectEmit(true, true, true, true, address(v));
@@ -1335,73 +1351,267 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
         assertTrue(v.yieldUnlocked());
 
         uint256 g1 = v.getGlobalScore();
+        uint256 a1 = v.getScore(alice);
+        uint256 b1 = v.getScore(bob);
+
+        // balances unchanged by finalize
+        {
+            (uint256 ay, uint256 an) = v.getUserBalances(alice);
+            (uint256 by, uint256 bn) = v.getUserBalances(bob);
+            assertEq(ay, 1_000_000);
+            assertEq(an, 0);
+            assertEq(by, 0);
+            assertEq(bn, 1_000_000);
+        }
         vm.warp(block.timestamp + 1 hours);
         uint256 g2 = v.getGlobalScore();
+        uint256 a2 = v.getScore(alice);
+        uint256 b2 = v.getScore(bob);
         assertEq(g1, g2);
+        assertEq(a1, a2);
+        assertEq(b1, b2);
     }
 
     function test_BOTH_Redeem_Splits_EqualDeposits() public {
-        MockBothOutcomeVault v = _deployBothVault();
+        PolymarketAaveStakingVault v = _createVault(toBeEqualOutcomeMarket);
 
-        _mintOutcome(alice, v, 2_000_000);
-        _mintOutcome(bob, v, 2_000_000);
+        uint256 depositAmount = 2_000_000;
 
-        // Alice YES 2 USDC, Bob NO 2 USDC
+        _mintOutcome(alice, v, depositAmount);
+        _mintOutcome(bob, v, depositAmount);
+
+        // t0: Alice YES 2M
         vm.prank(alice);
-        v.deposit(true, 2_000_000);
+        v.deposit(true, depositAmount);
+        // warp
+        uint256 t1 = 1200;
+        vm.warp(block.timestamp + t1);
+        // t1: Bob NO 2M
         vm.prank(bob);
-        v.deposit(false, 2_000_000);
+        v.deposit(false, depositAmount);
 
-        vm.warp(block.timestamp + 500);
+        // scores pre-finalize
+        uint256 sA0 = v.getScore(alice);
+        uint256 sB0 = v.getScore(bob);
+        // bob deposited later; sA0 > sB0
+        assertGt(sA0, sB0);
+
+        uint256 t3 = 5000;
+        vm.warp(block.timestamp + t3);
         v.finalizeMarket();
 
-        // Expected 50% each
-        uint256 payAlice = 1_000_000;
-        uint256 payBob = 1_000_000;
+        // user balances before redeem
+        {
+            (uint256 ay, uint256 an) = v.getUserBalances(alice);
+            (uint256 by, uint256 bn) = v.getUserBalances(bob);
+            assertEq(ay, depositAmount);
+            assertEq(an, 0);
+            assertEq(by, 0);
+            assertEq(bn, depositAmount);
+        }
 
-        uint256 aBefore = usdc.balanceOf(alice);
-        vm.prank(alice);
-        v.redeemWinningForUsd();
-        uint256 aAfter = usdc.balanceOf(alice);
-        assertEq(aAfter - aBefore, payAlice);
+        // redemption (50% each)
+        {
+            uint256 aBefore = usdc.balanceOf(alice);
+            vm.prank(alice);
+            v.redeemWinningForUsd();
+            assertEq(usdc.balanceOf(alice) - aBefore, depositAmount / 2);
+        }
+        // after Alice redeem: Alice balances zero; Bob unchanged
+        {
+            (uint256 ay, uint256 an) = v.getUserBalances(alice);
+            (uint256 by, uint256 bn) = v.getUserBalances(bob);
+            assertEq(ay, 0);
+            assertEq(an, 0);
+            assertEq(by, 0);
+            assertEq(bn, depositAmount);
+        }
+        {
+            uint256 bBefore = usdc.balanceOf(bob);
+            vm.prank(bob);
+            v.redeemWinningForUsd();
+            assertEq(usdc.balanceOf(bob) - bBefore, depositAmount / 2);
+        }
 
-        uint256 bBefore = usdc.balanceOf(bob);
-        vm.prank(bob);
-        v.redeemWinningForUsd();
-        uint256 bAfter = usdc.balanceOf(bob);
-        assertEq(bAfter - bBefore, payBob);
+        // user balances after redeem should be zero for BOTH case
+        {
+            (uint256 ay, uint256 an) = v.getUserBalances(alice);
+            (uint256 by, uint256 bn) = v.getUserBalances(bob);
+            assertEq(ay, 0);
+            assertEq(an, 0);
+            assertEq(by, 0);
+            assertEq(bn, 0);
+        }
+
+        // scores remain frozen across redeems
+        assertEq(v.getScore(alice), sA0 + t3 * depositAmount);
+        assertEq(v.getScore(bob), sB0 + t3 * depositAmount);
+        uint256 g1 = v.getGlobalScore();
+        vm.warp(block.timestamp + 3600);
+        assertEq(v.getGlobalScore(), g1);
     }
 
-    //Can't test this properly because the vault will revert. The CTF is not mocked and gives out too many tokens for what we redeem.
-    // function test_BOTH_Redeem_Splits_UnbalancedDeposits() public {
-    //     MockBothOutcomeVault v = _deployBothVault();
+    function test_BOTH_Redeem_Splits_UnbalancedDeposits() public {
+        PolymarketAaveStakingVault v = _createVault(toBeEqualOutcomeMarket);
 
-    //     _mintOutcome(alice, v, 2_000_000);
-    //     _mintOutcome(bob, v, 6_000_000);
+        uint256 depositAmountAlice = 2_000_000;
+        uint256 depositAmountBob = 6_000_000;
 
-    //     // Alice YES 2 USDC, Bob NO 6 USDC
-    //     vm.prank(alice);
-    //     v.deposit(true, 2_000_000);
-    //     vm.prank(bob);
-    //     v.deposit(false, 6_000_000);
+        _mintOutcome(alice, v, depositAmountAlice);
+        _mintOutcome(bob, v, depositAmountBob);
 
-    //     vm.warp(block.timestamp + 500);
-    //     v.finalizeMarket();
+        // staggered deposits
+        vm.prank(alice);
+        v.deposit(true, depositAmountAlice);
+        uint256 t1 = 2400;
+        vm.warp(block.timestamp + t1);
+        vm.prank(bob);
+        v.deposit(false, depositAmountBob);
 
-    //     // 50% payout of each side
-    //     uint256 payAlice = 1_000_000; // 50% of 2M
-    //     uint256 payBob = 3_000_000; // 50% of 6M
+        // baseline scores pre-finalize
+        uint256 sA0 = v.getScore(alice);
+        uint256 sB0 = v.getScore(bob);
+        assertEq(sA0, depositAmountAlice * t1);
+        assertEq(sB0, 0);
 
-    //     uint256 aBefore = usdc.balanceOf(alice);
-    //     vm.prank(alice);
-    //     v.redeemWinningForUsd();
-    //     uint256 aAfter = usdc.balanceOf(alice);
-    //     assertEq(aAfter - aBefore, payAlice);
+        uint256 t2 = 500;
+        vm.warp(block.timestamp + t2);
+        v.finalizeMarket();
 
-    //     uint256 bBefore = usdc.balanceOf(bob);
-    //     vm.prank(bob);
-    //     v.redeemWinningForUsd();
-    //     uint256 bAfter = usdc.balanceOf(bob);
-    //     assertEq(bAfter - bBefore, payBob);
-    // }
+        // balances before
+        {
+            (uint256 ay, uint256 an) = v.getUserBalances(alice);
+            (uint256 by, uint256 bn) = v.getUserBalances(bob);
+            assertEq(ay, depositAmountAlice);
+            assertEq(an, 0);
+            assertEq(by, 0);
+            assertEq(bn, depositAmountBob);
+        }
+
+        // 50% payout of each side: 1M and 3M
+        {
+            uint256 aBefore = usdc.balanceOf(alice);
+            vm.prank(alice);
+            v.redeemWinningForUsd();
+            assertEq(usdc.balanceOf(alice) - aBefore, depositAmountAlice / 2);
+        }
+        // after Alice redeem: Alice zero; Bob unchanged at 6M NO
+        {
+            (uint256 ay, uint256 an) = v.getUserBalances(alice);
+            (uint256 by, uint256 bn) = v.getUserBalances(bob);
+            assertEq(ay, 0);
+            assertEq(an, 0);
+            assertEq(by, 0);
+            assertEq(bn, depositAmountBob);
+        }
+        {
+            uint256 bBefore = usdc.balanceOf(bob);
+            vm.prank(bob);
+            v.redeemWinningForUsd();
+            assertEq(usdc.balanceOf(bob) - bBefore, depositAmountBob / 2);
+        }
+
+        // all balances consumed
+        {
+            (uint256 ay, uint256 an) = v.getUserBalances(alice);
+            (uint256 by, uint256 bn) = v.getUserBalances(bob);
+            assertEq(ay, 0);
+            assertEq(an, 0);
+            assertEq(by, 0);
+            assertEq(bn, 0);
+        }
+
+        // scores frozen unchanged
+        assertEq(v.getScore(alice), sA0 + t2 * depositAmountAlice);
+        assertEq(v.getScore(bob), sB0 + t2 * depositAmountBob);
+    }
+
+    function test_BOTH_Redeem_Splits_BothSides_UnequalDeposits() public {
+        PolymarketAaveStakingVault v = _createVault(toBeEqualOutcomeMarket);
+
+        uint256 depositAmountAlice = 2_000_000;
+        uint256 depositAmountBob = 6_000_000;
+        uint256 depositAliceYes = 2_000_000;
+        uint256 depositAliceNo = 1_000_000;
+        uint256 depositBobYes = 1_500_000;
+        uint256 depositBobNo = 4_500_000;
+
+        // Ensure users hold enough YES/NO outcome tokens
+        _mintOutcome(alice, v, depositAmountAlice);
+        _mintOutcome(bob, v, depositAmountBob);
+
+        // Alice deposits YES=2M, NO=1M
+        vm.prank(alice);
+        v.deposit(true, depositAliceYes);
+        vm.prank(alice);
+        v.deposit(false, depositAliceNo);
+
+        // Bob deposits YES=1.5M, NO=4.5M
+        vm.prank(bob);
+        v.deposit(true, depositBobYes);
+        vm.prank(bob);
+        v.deposit(false, depositBobNo);
+
+        // Check balances prior to finalize
+        {
+            (uint256 ay, uint256 an) = v.getUserBalances(alice);
+            (uint256 by, uint256 bn) = v.getUserBalances(bob);
+            assertEq(ay, depositAliceYes);
+            assertEq(an, depositAliceNo);
+            assertEq(by, depositBobYes);
+            assertEq(bn, depositBobNo);
+        }
+
+        // Finalize equal outcome (50/50)
+        uint256 t1 = 1000;
+        vm.warp(block.timestamp + t1);
+        v.finalizeMarket();
+
+        // USD Balance before redeem
+        uint256 aliceUsdBalanceBefore = usdc.balanceOf(alice);
+        uint256 bobUsdBalanceBefore = usdc.balanceOf(bob);
+
+        // Expected payouts = 50% of each user's total (YES+NO)
+        uint256 alicePay = (depositAliceYes + depositAliceNo) / 2; // 1.5M
+        uint256 bobPay = (depositBobYes + depositBobNo) / 2; // 3.0M
+
+        // Redeem Alice then Bob; verify intermediate balances via getUserBalances
+        {
+            uint256 aBefore = usdc.balanceOf(alice);
+            vm.prank(alice);
+            v.redeemWinningForUsd();
+            assertEq(usdc.balanceOf(alice) - aBefore, alicePay);
+
+            (uint256 ay, uint256 an) = v.getUserBalances(alice);
+            assertEq(ay, 0);
+            assertEq(an, 0);
+        }
+        {
+            (uint256 by, uint256 bn) = v.getUserBalances(bob);
+            assertEq(by, depositBobYes);
+            assertEq(bn, depositBobNo);
+        }
+
+        {
+            uint256 bBefore = usdc.balanceOf(bob);
+            vm.prank(bob);
+            v.redeemWinningForUsd();
+            assertEq(usdc.balanceOf(bob) - bBefore, bobPay);
+
+            (uint256 ay, uint256 an) = v.getUserBalances(alice);
+            assertEq(ay, 0);
+            assertEq(an, 0);
+        }
+        {
+            (uint256 by, uint256 bn) = v.getUserBalances(bob);
+            assertEq(by, 0);
+            assertEq(bn, 0);
+        }
+
+        // USD Balance after redeem
+        uint256 aliceUsdBalanceAfter = usdc.balanceOf(alice);
+        uint256 bobUsdBalanceAfter = usdc.balanceOf(bob);
+        assertEq(aliceUsdBalanceAfter - aliceUsdBalanceBefore, alicePay);
+        assertEq(bobUsdBalanceAfter - bobUsdBalanceBefore, bobPay);
+    }
 }
