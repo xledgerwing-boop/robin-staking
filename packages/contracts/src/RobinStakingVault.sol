@@ -45,7 +45,7 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
         BOTH
     }
 
-    WinningPosition public winningPosition; // winning side after resolution (true=YES, false=NO)
+    WinningPosition public winningPosition; // winning position after resolution
 
     // ====== Accounting (Outcome Tokens & USD) ======
     // Unpaired outcome tokens held by the vault (awaiting a matching opposite to merge).
