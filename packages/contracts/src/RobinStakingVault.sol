@@ -156,7 +156,7 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
      * @param isYes true to deposit YES, false to deposit NO.
      * @param amount amount of outcome tokens to deposit.
      */
-    function deposit(bool isYes, uint256 amount) external nonReentrant onlyBeforeFinalize whenDepositsNotPaused {
+    function deposit(bool isYes, uint256 amount) external nonReentrant whenDepositsNotPaused onlyBeforeFinalize {
         if (amount == 0) revert InsufficientAmounts();
 
         address sender = msg.sender;
@@ -187,8 +187,8 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
         }
 
         // Update user/global balances & time-weighted scores
-        updateScore(sender, amount, true);
-        updateGlobalScore(amount, true);
+        _updateScore(sender, amount, true);
+        _updateGlobalScore(amount, true);
 
         emit Deposited(sender, isYes, amount);
 
@@ -200,7 +200,7 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
      * @notice Withdraw YES/NO tokens before market resolution.
      * @dev Pulls USD from strategy and splits if we can't satisfy from unpaired pools.
      */
-    function withdraw(uint256 yesAmount, uint256 noAmount) external nonReentrant onlyBeforeFinalize whenWithdrawalsNotPaused {
+    function withdraw(uint256 yesAmount, uint256 noAmount) external nonReentrant whenWithdrawalsNotPaused onlyBeforeFinalize {
         if (yesAmount == 0 && noAmount == 0) revert InsufficientAmounts();
 
         address sender = msg.sender;
@@ -231,8 +231,8 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
 
         // Update user/global balances & scores
         uint256 totalOut = yesAmount + noAmount;
-        updateScore(sender, totalOut, false);
-        updateGlobalScore(totalOut, false);
+        _updateScore(sender, totalOut, false);
+        _updateGlobalScore(totalOut, false);
 
         emit Withdrawn(sender, yesAmount, noAmount);
     }
@@ -244,7 +244,7 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
      *         Records the winning side, finalizes all scores at market end time,
      *         exits strategy (unlock yield), and opens harvesting/redemption.
      */
-    function finalizeMarket() external nonReentrant onlyBeforeFinalize whenGlobalNotPaused {
+    function finalizeMarket() external nonReentrant whenGlobalNotPaused onlyBeforeFinalize {
         // Confirm resolution from PM (abstract read)
         (bool resolved_, bool yesWon_) = _pmCheckResolved();
         if (!resolved_) revert MarketNotResolved();
@@ -266,14 +266,14 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
      * In case the yield startegy is not liquid enough to withdraw the entire principal, the draining will happen in batches.
      * UnlockYield will be called multiple times in that case.
      */
-    function unlockYield() public nonReentrant onlyAfterFinalize onlyBeforeUnlock whenUnlockYieldNotPaused {
+    function unlockYield() public nonReentrant whenUnlockYieldNotPaused onlyAfterFinalize onlyBeforeUnlock {
         _unlockYield();
     }
 
     /**
      * @notice Harvest time-weighted yield (single pool) after unlock.
      */
-    function harvestYield() external nonReentrant onlyAfterUnlock whenGlobalNotPaused {
+    function harvestYield() external nonReentrant whenGlobalNotPaused onlyAfterUnlock {
         address sender = msg.sender;
 
         uint256 score = _finalizeUserScore(sender); // calculates user score at finalization, resets and returns it
@@ -295,7 +295,7 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
     /**
      * @notice Harvest protocol fee after unlock.
      */
-    function harvestProtocolYield(address receiver) external nonReentrant onlyAfterUnlock onlyOwner whenGlobalNotPaused {
+    function harvestProtocolYield(address receiver) external nonReentrant whenGlobalNotPaused onlyAfterUnlock onlyOwner {
         if (protocolYield == 0) revert NoYield();
         if (protocolYieldHarvested) revert AlreadyHarvested();
         protocolYieldHarvested = true;
@@ -311,7 +311,7 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
      * redeeming tokens is subject to availability of USD in the vault while strategy is still draining.
      * @param amount Max amount of winning tokens to redeem (set high to redeem all).
      */
-    function redeemWinningForUsd(uint256 amount) external nonReentrant onlyAfterFinalize whenGlobalNotPaused {
+    function redeemWinningForUsd(uint256 amount) external nonReentrant whenGlobalNotPaused onlyAfterFinalize {
         address sender = msg.sender;
 
         // Determine user's winning balance
@@ -330,8 +330,8 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
             totalUserYes -= toRedeem;
         }
         // This will only change the users and global balances and not the scores because the scorer is already finalized
-        updateScore(sender, toRedeem, false);
-        updateGlobalScore(toRedeem, false);
+        _updateScore(sender, toRedeem, false);
+        _updateGlobalScore(toRedeem, false);
 
         // Provide USD to the user:
         uint256 toPay = _pmUsdAmountForOutcome(toRedeem);
@@ -492,7 +492,7 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
         // After this, we must be able to satisfy the user’s withdrawal from unpaired pools.
     }
 
-    function _unlockYield() internal onlyAfterFinalize onlyBeforeUnlock whenUnlockYieldNotPaused {
+    function _unlockYield() internal whenUnlockYieldNotPaused onlyAfterFinalize onlyBeforeUnlock {
         // First call: initialize draining state
         if (!unlocking) {
             unlocking = true;
