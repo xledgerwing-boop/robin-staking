@@ -15,6 +15,7 @@ import { RobinStakingVault } from '../src/RobinStakingVault.sol';
 import { VaultPausable } from '../src/VaultPausable.sol';
 import { UnsafeUpgrades } from 'openzeppelin-foundry-upgrades/Upgrades.sol';
 import { MockRobinVaultManager } from './mocks/MockRobinVaultManager.sol';
+import { MockBothOutcomeVault } from './mocks/MockBothOutcomeVault.sol';
 
 import { Constants } from './helpers/Constants.t.sol';
 import { ForkFixture } from './helpers/ForkFixture.t.sol';
@@ -36,21 +37,6 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
 
     MockRobinVaultManager internal manager;
     PolymarketAaveStakingVault internal logic;
-
-    // events mirrored from RobinStakingVault
-    event Deposited(address indexed user, bool isYes, uint256 amount);
-    event Withdrawn(address indexed user, uint256 yesAmount, uint256 noAmount);
-    event MarketFinalized(bool yesWon);
-    event YieldUnlockStarted(uint256 leftoverUsd, uint256 principalAtStart);
-    event YieldUnlockProgress(uint256 withdrawnThisCall, uint256 cumulativeWithdrawn, uint256 remainingInStrategy);
-    event YieldUnlocked(uint256 totalWithdrawnUsd, uint256 totalYield, uint256 userYield, uint256 protocolYield);
-    event RedeemedWinningForUSD(address indexed user, uint256 winningAmount, uint256 usdPaid);
-    event HarvestedYield(address indexed user, uint256 amount);
-    // VaultPausable events
-    event PausedAllSet(bool paused);
-    event PausedDepositsSet(bool paused);
-    event PausedWithdrawalsSet(bool paused);
-    event PausedUnlockYieldSet(bool paused);
 
     function setUp() public {
         _selectPolygonFork(FORK_BLOCK);
@@ -166,11 +152,11 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
 
         // expect event and state updates
         vm.expectEmit(true, true, true, true, address(vault));
-        emit MarketFinalized(resolvedMarketUsed.yesTokenWon);
+        emit RobinStakingVault.MarketFinalized(resolvedMarketUsed.winningPosition);
         vault.finalizeMarket();
 
         assertTrue(vault.finalized());
-        assertEq(vault.yesWon(), resolvedMarketUsed.yesTokenWon);
+        assertEq(uint8(vault.winningPosition()), uint8(resolvedMarketUsed.winningPosition));
         assertGt(vault.finalizationTime(), 0);
 
         uint256 g1 = vault.getGlobalScore();
@@ -215,13 +201,13 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
 
         // Expect events sequence: MarketFinalized -> YieldUnlockStarted -> YieldUnlockProgress -> YieldUnlocked
         vm.expectEmit(true, true, true, true, address(vault));
-        emit MarketFinalized(resolvedMarketUsed.yesTokenWon);
+        emit RobinStakingVault.MarketFinalized(resolvedMarketUsed.winningPosition);
         vm.expectEmit(true, true, true, true, address(vault));
-        emit YieldUnlockStarted(0, principal);
+        emit RobinStakingVault.YieldUnlockStarted(0, principal);
         vm.expectEmit(true, false, false, false, address(vault));
-        emit YieldUnlockProgress(0, 0, 0); // data unchecked
+        emit RobinStakingVault.YieldUnlockProgress(0, 0, 0); // data unchecked
         vm.expectEmit(true, false, false, false, address(vault));
-        emit YieldUnlocked(0, 0, 0, 0); // data unchecked
+        emit RobinStakingVault.YieldUnlocked(0, 0, 0, 0); // data unchecked
 
         vault.finalizeMarket();
 
@@ -280,10 +266,15 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
         vault.unlockYield();
     }
 
+    struct Winner {
+        address winner;
+        uint256 winnerAmount;
+    }
+
     // ========== Redeeming Winners ==========
     function _setupResolvedVaultWithWinners(uint256 amountYes, uint256 amountNo)
         internal
-        returns (PolymarketAaveStakingVault vault, address winner, uint256 winnerAmount)
+        returns (PolymarketAaveStakingVault vault, Winner[] memory winners)
     {
         // NO is winner on resolvedMarket per Constants
         vault = _createVault(resolvedMarketUsed);
@@ -302,33 +293,37 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
         vm.warp(block.timestamp + 500); //need a little bit of warp, otherwise 1 gwei might be missing from aave due to rounding
         vault.finalizeMarket();
 
-        // Winner is NO (alice)
-        winner = resolvedMarketUsed.yesTokenWon ? bob : alice;
-        // winner's balance equals their NO deposited (no withdrawals happened)
-        (uint256 winnerYes, uint256 winnerNo) = vault.getUserBalances(winner);
-        winnerAmount = resolvedMarketUsed.yesTokenWon ? winnerYes : winnerNo;
+        bool isBoth = resolvedMarketUsed.winningPosition == RobinStakingVault.WinningPosition.BOTH;
+        Winner[] memory winnersTmp = isBoth ? new Winner[](2) : new Winner[](1);
+        if (resolvedMarketUsed.winningPosition == RobinStakingVault.WinningPosition.YES) {
+            (uint256 bobYes,) = vault.getUserBalances(bob);
+            winnersTmp[0] = Winner({ winner: bob, winnerAmount: bobYes });
+        } else if (resolvedMarketUsed.winningPosition == RobinStakingVault.WinningPosition.NO) {
+            (, uint256 aliceNo) = vault.getUserBalances(alice);
+            winnersTmp[0] = Winner({ winner: alice, winnerAmount: aliceNo });
+        } else if (isBoth) {
+            (uint256 bobYes, uint256 bobNo) = vault.getUserBalances(bob);
+            (uint256 aliceYes, uint256 aliceNo) = vault.getUserBalances(alice);
+            winnersTmp[0] = Winner({ winner: bob, winnerAmount: bobYes + bobNo / 2 });
+            winnersTmp[1] = Winner({ winner: alice, winnerAmount: aliceYes + aliceNo / 2 });
+        }
+
+        return (vault, winnersTmp);
     }
 
     function test_Redeem_DuringOrAfterUnlock_Sufficient_And_InsufficientUSD() public {
-        (PolymarketAaveStakingVault vault, address winner,) = _setupResolvedVaultWithWinners(1_000_000, 1_000_000);
+        (PolymarketAaveStakingVault vault, Winner[] memory winners) = _setupResolvedVaultWithWinners(1_000_000, 1_000_000);
+        address winner = winners[0].winner;
 
         // simulate limited on-hand USDC via cheatcode to exercise InsufficientUSD path
         // put only 300k USDC on hand
         deal(address(usdc), address(vault), 300_000, true);
 
-        // redeem 200k succeeds
-        vm.expectEmit(true, true, true, true, address(vault));
-        emit RedeemedWinningForUSD(winner, 200_000, 200_000);
-        vm.prank(winner);
-        vault.redeemWinningForUsd(200_000);
-
-        assertEq(usdc.balanceOf(winner), 5_000_000_000 - 1_000_000 + 200_000); // 5k at start, 1 deposited, 0.2 redeemed
-
         // trying to redeem more than on-hand now should revert
         vm.prank(winner);
-        vm.expectRevert(abi.encodeWithSelector(RobinStakingVault.InsufficientUSD.selector, uint256(100_000), uint256(300_000)));
+        vm.expectRevert(abi.encodeWithSelector(RobinStakingVault.InsufficientUSD.selector, uint256(300_000), uint256(1_000_000)));
         // request 300k but only 100k left on hand (since 200k paid)
-        vault.redeemWinningForUsd(300_000);
+        vault.redeemWinningForUsd();
 
         // scores remain frozen across warps
         uint256 s1 = vault.getScore(winner);
@@ -338,31 +333,24 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
     }
 
     function test_Redeem_AfterUnlock_FullWinner() public {
-        (PolymarketAaveStakingVault vault, address winner, uint256 winnerAmt) = _setupResolvedVaultWithWinners(2_000_000, 2_000_000);
+        (PolymarketAaveStakingVault vault, Winner[] memory winners) = _setupResolvedVaultWithWinners(2_000_000, 2_000_000);
 
-        // ensure vault has enough on-hand (default after finalize is fully drained for Aave)
-        uint256 balBefore = usdc.balanceOf(winner);
+        for (uint256 i = 0; i < winners.length; i++) {
+            address winner = winners[i].winner;
+            uint256 winnerAmt = winners[i].winnerAmount;
+            // ensure vault has enough on-hand (default after finalize is fully drained for Aave)
+            uint256 balBefore = usdc.balanceOf(winner);
 
-        vm.prank(winner);
-        vault.redeemWinningForUsd(type(uint256).max); // request more than winning; contract clamps
+            vm.prank(winner);
+            vault.redeemWinningForUsd(); // request more than winning; contract clamps
 
-        uint256 balAfter = usdc.balanceOf(winner);
-        assertEq(balAfter - balBefore, winnerAmt);
+            uint256 balAfter = usdc.balanceOf(winner);
+            assertEq(balAfter - balBefore, winnerAmt);
 
-        // user's winning balance reduced to zero
-        (, uint256 noAfter) = vault.getUserBalances(winner);
-        assertEq(noAfter, 0);
-    }
-
-    function test_Redeem_ZeroAmount_DoesNothing_But_DoesNotRevert() public {
-        (PolymarketAaveStakingVault vault, address winner,) = _setupResolvedVaultWithWinners(1_000_000, 1_000_000);
-        uint256 balBefore = usdc.balanceOf(winner);
-
-        vm.prank(winner);
-        vault.redeemWinningForUsd(0);
-
-        uint256 balAfter = usdc.balanceOf(winner);
-        assertEq(balAfter, balBefore);
+            // user's winning balance reduced to zero
+            (, uint256 noAfter) = vault.getUserBalances(winner);
+            assertEq(noAfter, 0);
+        }
     }
 
     // ========== Harvesting Yield ==========
@@ -408,7 +396,7 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
 
         uint256 balBefore = usdc.balanceOf(alice);
         vm.expectEmit(true, true, true, true, address(vault));
-        emit HarvestedYield(alice, expectedA);
+        emit RobinStakingVault.HarvestedYield(alice, expectedA);
         vm.prank(alice);
         vault.harvestYield();
         uint256 balAfter = usdc.balanceOf(alice);
@@ -592,7 +580,7 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
         // pause deposits via manager
         vm.prank(owner);
         vm.expectEmit(true, true, true, true, address(v));
-        emit PausedDepositsSet(true);
+        emit VaultPausable.PausedDepositsSet(true);
         manager.pauseDepositsFrom(address(v));
 
         // deposit reverts
@@ -603,7 +591,7 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
         // unpause deposits and deposit succeeds
         vm.prank(owner);
         vm.expectEmit(true, true, true, true, address(v));
-        emit PausedDepositsSet(false);
+        emit VaultPausable.PausedDepositsSet(false);
         manager.unpauseDepositsFrom(address(v));
         vm.prank(alice);
         v.deposit(true, 1_000_000);
@@ -613,7 +601,7 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
         // deposit from alice; now pause withdrawals and attempt a small withdraw
         vm.prank(owner);
         vm.expectEmit(true, true, true, true, address(v));
-        emit PausedWithdrawalsSet(true);
+        emit VaultPausable.PausedWithdrawalsSet(true);
         manager.pauseWithdrawalsFrom(address(v));
 
         vm.prank(alice);
@@ -632,25 +620,26 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
         // pause deposits and withdrawals directly as owner (this test is owner for vmock)
         vm.prank(owner);
         vm.expectEmit(true, true, true, true, address(vmock));
-        emit PausedDepositsSet(true);
+        emit VaultPausable.PausedDepositsSet(true);
         manager.pauseDepositsFrom(address(vmock));
         vm.prank(owner);
         vm.expectEmit(true, true, true, true, address(vmock));
-        emit PausedWithdrawalsSet(true);
+        emit VaultPausable.PausedWithdrawalsSet(true);
         manager.pauseWithdrawalsFrom(address(vmock));
 
+        vm.warp(block.timestamp + 10 days);
         // finalize allowed
         vmock.finalizeMarket();
         // unlock allowed (already done inside finalize in our implementation)
         assertTrue(vmock.yieldUnlocked());
         // harvest allowed (if any userYield; may be zero depending on APY/time)
         // redeem allowed
-        if (resolvedMarketUsed.yesTokenWon) {
+        if (resolvedMarketUsed.winningPosition == RobinStakingVault.WinningPosition.YES) {
             vm.prank(bob);
-            vmock.redeemWinningForUsd(1); // no-op allowed
+            vmock.redeemWinningForUsd(); // no-op allowed
         } else {
             vm.prank(alice);
-            vmock.redeemWinningForUsd(1); // no-op allowed
+            vmock.redeemWinningForUsd(); // no-op allowed
         }
     }
 
@@ -665,7 +654,7 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
         // pause all via vault owner -> blocks everything
         vm.prank(owner);
         vm.expectEmit(true, true, true, true, address(v));
-        emit PausedAllSet(true);
+        emit VaultPausable.PausedAllSet(true);
         manager.pauseAllFrom(address(v));
 
         // deposit blocked
@@ -689,12 +678,12 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
         // redeem blocked
         vm.prank(alice);
         vm.expectRevert(abi.encodeWithSelector(VaultPausable.PausedAll.selector));
-        v.redeemWinningForUsd(1);
+        v.redeemWinningForUsd();
 
         // unpause all via vault owner
         vm.prank(owner);
         vm.expectEmit(true, true, true, true, address(v));
-        emit PausedAllSet(false);
+        emit VaultPausable.PausedAllSet(false);
         manager.unpauseAllFrom(address(v));
 
         // finalize now succeeds (market already resolved)
@@ -995,7 +984,7 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
 
         // Expect deposit event from vault
         vm.expectEmit(true, true, true, true, address(vault));
-        emit Deposited(alice, true, amount);
+        emit RobinStakingVault.Deposited(alice, true, amount);
 
         vm.prank(alice);
         vault.deposit(true, amount);
@@ -1105,7 +1094,7 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
         (uint256 uYesPre, uint256 uNoPre) = vault.getVaultUnpaired();
 
         vm.expectEmit(true, true, true, true, address(vault));
-        emit Withdrawn(alice, yesToWithdraw, 0);
+        emit RobinStakingVault.Withdrawn(alice, yesToWithdraw, 0);
         vm.prank(alice);
         vault.withdraw(yesToWithdraw, 0);
 
@@ -1147,7 +1136,7 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
 
         // bob withdraws NO forcing split
         vm.expectEmit(true, true, true, true, address(vault));
-        emit Withdrawn(bob, 0, amount);
+        emit RobinStakingVault.Withdrawn(bob, 0, amount);
         vm.prank(bob);
         vault.withdraw(0, amount);
 
@@ -1303,4 +1292,116 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
         vm.expectRevert(abi.encodeWithSelector(RobinStakingVault.DepositLimitExceeded.selector));
         v.deposit(false, attempt);
     }
+
+    // ========== BOTH (50/50) Outcome Simulation ==========
+    function _deployBothVault() internal returns (MockBothOutcomeVault v) {
+        v = new MockBothOutcomeVault();
+        v.initialize(
+            PROTOCOL_FEE_BPS,
+            UNDERLYING_USD,
+            CTF,
+            resolvedMarket.conditionId,
+            NEG_RISK_ADAPTER,
+            resolvedMarket.negRisk,
+            resolvedMarket.collateral,
+            false,
+            AAVE_POOL,
+            DATA_PROVIDER
+        );
+
+        vm.prank(alice);
+        ctf.setApprovalForAll(address(v), true);
+        vm.prank(bob);
+        ctf.setApprovalForAll(address(v), true);
+    }
+
+    function test_BOTH_Finalize_EmitsAndFreezes() public {
+        MockBothOutcomeVault v = _deployBothVault();
+
+        _mintOutcome(alice, v, 1_000_000);
+        _mintOutcome(bob, v, 1_000_000);
+
+        // deposits
+        vm.prank(alice);
+        v.deposit(true, 1_000_000);
+        vm.prank(bob);
+        v.deposit(false, 1_000_000);
+
+        // expect BOTH event
+        vm.expectEmit(true, true, true, true, address(v));
+        emit RobinStakingVault.MarketFinalized(RobinStakingVault.WinningPosition.BOTH);
+        v.finalizeMarket();
+        assertTrue(v.finalized());
+        assertTrue(v.yieldUnlocked());
+
+        uint256 g1 = v.getGlobalScore();
+        vm.warp(block.timestamp + 1 hours);
+        uint256 g2 = v.getGlobalScore();
+        assertEq(g1, g2);
+    }
+
+    function test_BOTH_Redeem_Splits_EqualDeposits() public {
+        MockBothOutcomeVault v = _deployBothVault();
+
+        _mintOutcome(alice, v, 2_000_000);
+        _mintOutcome(bob, v, 2_000_000);
+
+        // Alice YES 2 USDC, Bob NO 2 USDC
+        vm.prank(alice);
+        v.deposit(true, 2_000_000);
+        vm.prank(bob);
+        v.deposit(false, 2_000_000);
+
+        vm.warp(block.timestamp + 500);
+        v.finalizeMarket();
+
+        // Expected 50% each
+        uint256 payAlice = 1_000_000;
+        uint256 payBob = 1_000_000;
+
+        uint256 aBefore = usdc.balanceOf(alice);
+        vm.prank(alice);
+        v.redeemWinningForUsd();
+        uint256 aAfter = usdc.balanceOf(alice);
+        assertEq(aAfter - aBefore, payAlice);
+
+        uint256 bBefore = usdc.balanceOf(bob);
+        vm.prank(bob);
+        v.redeemWinningForUsd();
+        uint256 bAfter = usdc.balanceOf(bob);
+        assertEq(bAfter - bBefore, payBob);
+    }
+
+    //Can't test this properly because the vault will revert. The CTF is not mocked and gives out too many tokens for what we redeem.
+    // function test_BOTH_Redeem_Splits_UnbalancedDeposits() public {
+    //     MockBothOutcomeVault v = _deployBothVault();
+
+    //     _mintOutcome(alice, v, 2_000_000);
+    //     _mintOutcome(bob, v, 6_000_000);
+
+    //     // Alice YES 2 USDC, Bob NO 6 USDC
+    //     vm.prank(alice);
+    //     v.deposit(true, 2_000_000);
+    //     vm.prank(bob);
+    //     v.deposit(false, 6_000_000);
+
+    //     vm.warp(block.timestamp + 500);
+    //     v.finalizeMarket();
+
+    //     // 50% payout of each side
+    //     uint256 payAlice = 1_000_000; // 50% of 2M
+    //     uint256 payBob = 3_000_000; // 50% of 6M
+
+    //     uint256 aBefore = usdc.balanceOf(alice);
+    //     vm.prank(alice);
+    //     v.redeemWinningForUsd();
+    //     uint256 aAfter = usdc.balanceOf(alice);
+    //     assertEq(aAfter - aBefore, payAlice);
+
+    //     uint256 bBefore = usdc.balanceOf(bob);
+    //     vm.prank(bob);
+    //     v.redeemWinningForUsd();
+    //     uint256 bAfter = usdc.balanceOf(bob);
+    //     assertEq(bAfter - bBefore, payBob);
+    // }
 }

@@ -70,11 +70,11 @@ contract MockPolyMarketAaveVault is AaveStakingVault, PolymarketStakingVault {
         _pmSplit(amount);
     }
 
-    function harnessPmRedeemWinningToUsd(bool isYes) external returns (uint256) {
-        return _pmRedeemWinningToUsd(isYes);
+    function harnessPmRedeemWinningToUsd() external returns (uint256) {
+        return _pmRedeemWinningToUsd();
     }
 
-    function harnessPmCheckResolved() external view returns (bool, bool) {
+    function harnessPmCheckResolved() external view returns (bool, WinningPosition) {
         return _pmCheckResolved();
     }
 

@@ -131,13 +131,20 @@ abstract contract PolymarketStakingVault is RobinStakingVault, ERC1155HolderUpgr
         // Outcome tokens minted to this contract
     }
 
-    function _pmRedeemWinningToUsd(bool isYes) internal override returns (uint256 redeemedUsd) {
+    function _pmRedeemWinningToUsd() internal override returns (uint256 redeemedUsd) {
         // CTF's redeemPositions burns ALL valuable tokens for the given indexSets.
         // We redemption-all during unlock, so that's what we want.
         uint256 beforeBal = underlyingUsd.balanceOf(address(this));
 
-        uint256[] memory indexSets = new uint256[](1);
-        indexSets[0] = isYes ? YES_INDEX_SET : NO_INDEX_SET;
+        uint256[] memory indexSets = new uint256[](winningPosition == WinningPosition.BOTH ? 2 : 1);
+        if (winningPosition == WinningPosition.YES) {
+            indexSets[0] = YES_INDEX_SET;
+        } else if (winningPosition == WinningPosition.NO) {
+            indexSets[0] = NO_INDEX_SET;
+        } else if (winningPosition == WinningPosition.BOTH) {
+            indexSets[0] = YES_INDEX_SET;
+            indexSets[1] = NO_INDEX_SET;
+        }
         ctf.redeemPositions(address(polymarketCollateral), PARENT_COLLECTION_ID, conditionId, indexSets);
 
         //If market uses WCOL, we have to unwrap the WCOL into USDC after redemption.
@@ -150,20 +157,20 @@ abstract contract PolymarketStakingVault is RobinStakingVault, ERC1155HolderUpgr
         return redeemedUsd;
     }
 
-    function _pmCheckResolved() internal view override returns (bool resolved, bool yesWon_) {
+    function _pmCheckResolved() internal view virtual override returns (bool resolved, WinningPosition winningPosition_) {
         uint256 denom = ctf.payoutDenominator(conditionId);
         if (denom == 0) {
-            return (false, false);
+            return (false, WinningPosition.UNRESOLVED);
         }
         // Binary: winner has numerator == denom, loser == 0 (Polymarket pays $1 to winner per share).
         uint256 numYes = ctf.payoutNumerators(conditionId, YES_INDEX);
         uint256 numNo = ctf.payoutNumerators(conditionId, NO_INDEX);
         // Be tolerant: if fractions ever show up, pick the larger numerator.
         if (numYes == numNo) {
-            // Shouldn't happen in binary; default to YES=false
-            return (true, false);
+            // Can happen, idk if it ever did on Polymarket; Can not happen on NegRisk markets
+            return (true, WinningPosition.BOTH);
         }
-        return (true, numYes > numNo);
+        return (true, numYes > numNo ? WinningPosition.YES : WinningPosition.NO);
     }
 
     // For Polymarket CTF, outcome token units equal collateral units (USDC) -> identity mapping.

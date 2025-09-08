@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
+import { RobinStakingVault } from '../../src/RobinStakingVault.sol';
+
 abstract contract Constants {
     struct BettingMarketInfo {
         bytes32 conditionId;
         uint256 yesPositionId;
         uint256 noPositionId;
-        bool yesTokenWon;
+        RobinStakingVault.WinningPosition winningPosition;
         bool negRisk;
         address collateral;
         string slug;
@@ -27,7 +29,7 @@ abstract contract Constants {
         conditionId: bytes32(0xaab02139315db94c3eadc03d846432500a8c247f0e13553e8cbc46bc59cf2338),
         yesPositionId: 84177889493814827752048113132929065253932784708123699844884859860864739198441,
         noPositionId: 8421620629043347250979721875320061590510585209845808126965481249038797546560,
-        yesTokenWon: false,
+        winningPosition: RobinStakingVault.WinningPosition.NO,
         negRisk: false,
         collateral: UNDERLYING_USD
     });
@@ -37,7 +39,7 @@ abstract contract Constants {
         conditionId: bytes32(0x92c26cb6d2a6f5044040c38cc7d1662339b26570b9ff3d984599eadda1315780),
         yesPositionId: 103306951930268658448774978679962063472511045246347594041010803592626050310864,
         noPositionId: 38857608965718404405359738602509975769823110055188690843037274362076932890539,
-        yesTokenWon: true,
+        winningPosition: RobinStakingVault.WinningPosition.YES,
         negRisk: true,
         collateral: WCOL
     });
@@ -47,7 +49,7 @@ abstract contract Constants {
         conditionId: bytes32(0xc319ae3e39f6a0b441fd02d37058ee8af4133967a205c88c9243972deceddbee),
         yesPositionId: 42334954850219754195241248003172889699504912694714162671145392673031415571339,
         noPositionId: 36712164784060438704997454837621402414428053497881693129968518217985319932773,
-        yesTokenWon: false, //irrelevant for running market
+        winningPosition: RobinStakingVault.WinningPosition.UNRESOLVED, //irrelevant for running market
         negRisk: true,
         collateral: WCOL
     });

@@ -8,8 +8,9 @@ import { IConditionalTokens } from '../src/interfaces/IConditionalTokens.sol';
 import { MockPolyMarketAaveVault } from './mocks/MockPolyMarketAaveVault.sol';
 import { Constants } from './helpers/Constants.t.sol';
 import { ForkFixture } from './helpers/ForkFixture.t.sol';
+import { RobinStakingVault } from '../src/RobinStakingVault.sol';
 
-contract PolymarketStakingVaultForkTest is Test, ForkFixture, Constants {
+contract PolymarketStakingVaultTest is Test, ForkFixture, Constants {
     // Fork settings
     uint256 internal constant FORK_BLOCK = 76163124; // e.g., 61500000
 
@@ -119,11 +120,13 @@ contract PolymarketStakingVaultForkTest is Test, ForkFixture, Constants {
 
         _fundVaultWithUsdc(address(vault), AMOUNT_TO_SPLIT);
 
+        vault.finalizeMarket();
+
         // Mint both sides
         vault.harnessPmSplit(AMOUNT_TO_SPLIT);
 
         // Verify resolved and determine winner
-        (bool resolved, bool yesWon) = vault.harnessPmCheckResolved();
+        (bool resolved, RobinStakingVault.WinningPosition winningPosition) = vault.harnessPmCheckResolved();
         assertTrue(resolved, 'market not resolved');
 
         uint256 yesId = vault.yesPositionId();
@@ -133,23 +136,28 @@ contract PolymarketStakingVaultForkTest is Test, ForkFixture, Constants {
         uint256 beforeNo = ctf.balanceOf(address(vault), noId);
 
         // Redeem ALL winning tokens directly via hook
-        uint256 redeemed = vault.harnessPmRedeemWinningToUsd(yesWon);
+        uint256 redeemed = vault.harnessPmRedeemWinningToUsd();
 
         uint256 afterUsd = IERC20(UNDERLYING_USD).balanceOf(address(vault));
         uint256 afterYes = ctf.balanceOf(address(vault), yesId);
         uint256 afterNo = ctf.balanceOf(address(vault), noId);
 
         // Winner’s tokens burned; loser’s remain; USDC increased by winning amount
-        if (yesWon) {
+        if (winningPosition == RobinStakingVault.WinningPosition.YES) {
             assertEq(beforeYes, AMOUNT_TO_SPLIT, 'pre: YES amount');
             assertEq(beforeNo, AMOUNT_TO_SPLIT, 'pre: NO amount');
             assertEq(afterYes, 0, 'post: YES burned');
             assertEq(afterNo, AMOUNT_TO_SPLIT, 'post: NO kept');
-        } else {
+        } else if (winningPosition == RobinStakingVault.WinningPosition.NO) {
             assertEq(beforeYes, AMOUNT_TO_SPLIT, 'pre: YES amount');
             assertEq(beforeNo, AMOUNT_TO_SPLIT, 'pre: NO amount');
             assertEq(afterNo, 0, 'post: NO burned');
             assertEq(afterYes, AMOUNT_TO_SPLIT, 'post: YES kept');
+        } else {
+            assertEq(beforeYes, AMOUNT_TO_SPLIT, 'pre: YES amount');
+            assertEq(beforeNo, AMOUNT_TO_SPLIT, 'pre: NO amount');
+            assertEq(afterYes, 0, 'post: YES burned');
+            assertEq(afterNo, 0, 'post: NO burned');
         }
 
         assertEq(redeemed, AMOUNT_TO_SPLIT, 'redeemed amount');
@@ -166,8 +174,8 @@ contract PolymarketStakingVaultForkTest is Test, ForkFixture, Constants {
 
         // Resolved should report true and the winner should match the expected winner
         MockPolyMarketAaveVault vaultRes = _deployVault(resolvedMarket);
-        (bool resolved, bool yesWon) = vaultRes.harnessPmCheckResolved();
+        (bool resolved, RobinStakingVault.WinningPosition winningPosition) = vaultRes.harnessPmCheckResolved();
         assertTrue(resolved, 'expected resolved');
-        assertEq(yesWon, resolvedMarket.yesTokenWon, 'winner mismatch');
+        assertEq(uint8(winningPosition), uint8(resolvedMarket.winningPosition), 'winner mismatch');
     }
 }

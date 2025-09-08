@@ -36,8 +36,16 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
     bool public unlocking; // draining in progress
     uint256 public unlockedUsd; // cumulative USD withdrawn from strategy since unlock started
     bool public yieldUnlocked; // set after strategy exit & yield computation
-    bool public yesWon; // winning side after resolution (true=YES, false=NO)
     uint256 internal constant STRATEGY_EXIT_DUST = 1;
+
+    enum WinningPosition {
+        UNRESOLVED,
+        YES,
+        NO,
+        BOTH
+    }
+
+    WinningPosition public winningPosition; // winning side after resolution (true=YES, false=NO)
 
     // ====== Accounting (Outcome Tokens & USD) ======
     // Unpaired outcome tokens held by the vault (awaiting a matching opposite to merge).
@@ -90,7 +98,7 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
     event Deposited(address indexed user, bool isYes, uint256 amount);
     event Withdrawn(address indexed user, uint256 yesAmount, uint256 noAmount);
 
-    event MarketFinalized(bool yesWon);
+    event MarketFinalized(WinningPosition winningPosition);
     event YieldUnlockStarted(uint256 leftoverUsd, uint256 principalAtStart);
     event YieldUnlockProgress(uint256 withdrawnThisCall, uint256 cumulativeWithdrawn, uint256 remainingInStrategy);
     event YieldUnlocked(uint256 totalWithdrawnUsd, uint256 totalYield, uint256 userYield, uint256 protocolYield);
@@ -144,7 +152,7 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
         protocolYield = 0;
         protocolYieldHarvested = false;
 
-        yesWon = false;
+        winningPosition = WinningPosition.UNRESOLVED;
 
         totalUserYes = 0;
     }
@@ -246,12 +254,12 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
      */
     function finalizeMarket() external nonReentrant whenGlobalNotPaused onlyBeforeFinalize {
         // Confirm resolution from PM (abstract read)
-        (bool resolved_, bool yesWon_) = _pmCheckResolved();
+        (bool resolved_, WinningPosition winningPosition_) = _pmCheckResolved();
         if (!resolved_) revert MarketNotResolved();
 
-        yesWon = yesWon_;
+        winningPosition = winningPosition_;
         finalized = true;
-        emit MarketFinalized(yesWon);
+        emit MarketFinalized(winningPosition);
 
         // Stop time for scoring (at finalization time inside TimeWeighedScorer)
         _finalizeGlobalScore();
@@ -309,9 +317,8 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
      * @notice After resolution, redeem the user's winning tokens for USD directly here.
      *         This consumes the user's winning token balances tracked in the vault.
      * redeeming tokens is subject to availability of USD in the vault while strategy is still draining.
-     * @param amount Max amount of winning tokens to redeem (set high to redeem all).
      */
-    function redeemWinningForUsd(uint256 amount) external nonReentrant whenGlobalNotPaused onlyAfterFinalize {
+    function redeemWinningForUsd() external nonReentrant whenGlobalNotPaused onlyAfterFinalize {
         address sender = msg.sender;
 
         // Determine user's winning balance
@@ -319,27 +326,31 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
         uint256 userTotal = getBalance(sender);
         uint256 userNo = userTotal - userYes;
 
-        uint256 winning = yesWon ? userYes : userNo;
-        if (winning == 0) revert InsufficientAmounts();
-
-        uint256 toRedeem = amount > winning ? winning : amount;
+        uint256 toPayUsd = winningPosition == WinningPosition.YES ? userYes : userNo;
+        uint256 tokensConsumed = toPayUsd;
+        //if both tokens equally won, we payout 0.5 for each from both sides and burn both
+        if (winningPosition == WinningPosition.BOTH) {
+            toPayUsd = (userYes + userNo) / 2;
+            tokensConsumed = userYes + userNo;
+        }
+        if (toPayUsd == 0) revert InsufficientAmounts();
 
         // Burn user’s claim to those winning tokens in vault accounting
-        if (yesWon) {
-            yesBalance[sender] = userYes - toRedeem;
-            totalUserYes -= toRedeem;
+        if (winningPosition == WinningPosition.YES || winningPosition == WinningPosition.BOTH) {
+            yesBalance[sender] = 0;
+            totalUserYes -= userYes;
         }
         // This will only change the users and global balances and not the scores because the scorer is already finalized
-        _updateScore(sender, toRedeem, false);
-        _updateGlobalScore(toRedeem, false);
+        _updateScore(sender, tokensConsumed, false);
+        _updateGlobalScore(tokensConsumed, false);
 
         // Provide USD to the user:
-        uint256 toPay = _pmUsdAmountForOutcome(toRedeem);
+        uint256 toPay = _pmUsdAmountForOutcome(toPayUsd);
         uint256 usdBalance = _usdBalanceOfThis();
         if (toPay > usdBalance) revert InsufficientUSD(usdBalance, toPay);
         _usdTransfer(sender, toPay);
 
-        emit RedeemedWinningForUSD(sender, toRedeem, toPay);
+        emit RedeemedWinningForUSD(sender, toPayUsd, toPay);
     }
 
     /// @notice Set the per-side deposit limit (in outcome units). 0 = unlimited.
@@ -392,8 +403,12 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
             uint256 convertibleTokens = 0;
             if (!finalized) {
                 convertibleTokens = unpairedYes < unpairedNo ? unpairedYes : unpairedNo; // pre-resolution: pairs can be merged 1:1 to USD
+            } else if (winningPosition == WinningPosition.YES) {
+                convertibleTokens = unpairedYes;
+            } else if (winningPosition == WinningPosition.NO) {
+                convertibleTokens = unpairedNo;
             } else {
-                convertibleTokens = yesWon ? unpairedYes : unpairedNo;
+                convertibleTokens = (unpairedYes + unpairedNo) / 2;
             }
             convertibleUsd = _pmUsdAmountForOutcome(convertibleTokens);
             tvlUsd = onHandUsd + inStrategyUsd + convertibleUsd;
@@ -536,13 +551,19 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
         unlocking = false;
 
         // Redeem all leftover winning tokens to USDC so all liabilities are in USDC
-        uint256 winLeft = yesWon ? unpairedYes : unpairedNo;
+        uint256 winLeft = winningPosition == WinningPosition.YES ? unpairedYes : unpairedNo;
+        if (winningPosition == WinningPosition.BOTH) {
+            winLeft = (unpairedYes + unpairedNo) / 2;
+        }
         if (winLeft > 0) {
-            uint256 got = _pmRedeemWinningToUsd(yesWon);
+            uint256 got = _pmRedeemWinningToUsd();
             if (got != _pmUsdAmountForOutcome(winLeft)) revert RedeemMismatch();
-            if (yesWon) {
+            if (winningPosition == WinningPosition.YES) {
                 unpairedYes = 0;
+            } else if (winningPosition == WinningPosition.NO) {
+                unpairedNo = 0;
             } else {
+                unpairedYes = 0;
                 unpairedNo = 0;
             }
         }
@@ -585,13 +606,12 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
     function _pmSplit(uint256 pairs) internal virtual;
 
     /// @dev After resolution, redeem all winning outcome tokens for USD.
-    /// @param isYes true if YES is the winner.
     /// @return redeemedUsd amount of USD obtained.
-    function _pmRedeemWinningToUsd(bool isYes) internal virtual returns (uint256 redeemedUsd);
+    function _pmRedeemWinningToUsd() internal virtual returns (uint256 redeemedUsd);
 
     /// @dev Read on-chain resolution status & winner from PM.
-    /// @return resolved true if resolved, and yesWon_ the winning side.
-    function _pmCheckResolved() internal view virtual returns (bool resolved, bool yesWon_);
+    /// @return resolved true if resolved, and winningPosition_ the winning side.
+    function _pmCheckResolved() internal view virtual returns (bool resolved, WinningPosition winningPosition_);
 
     /// @notice Convert outcome token amount → USDC amount (both in smallest units).
     function _pmUsdAmountForOutcome(uint256 outcomeAmount) internal pure virtual returns (uint256 usdAmount);
