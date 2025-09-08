@@ -33,11 +33,11 @@ abstract contract Constants {
     });
 
     BettingMarketInfo internal resolvedNegRiskMarket = BettingMarketInfo({
-        slug: 'golden-lion-2025-winner',
-        conditionId: bytes32(0xb94197efd814c2d4f55b4621a9bde8343586c46434642c7295faafcf7d6a68be),
-        yesPositionId: 18590818223632553533267643574911239572672845228584663847821105092201646449153,
-        noPositionId: 20060999243159133065985940664634978143034162508422893854039309626950650616170,
-        yesTokenWon: false,
+        slug: 'golden-lion-2025-winner', //father-mother-sister-brother
+        conditionId: bytes32(0x92c26cb6d2a6f5044040c38cc7d1662339b26570b9ff3d984599eadda1315780),
+        yesPositionId: 103306951930268658448774978679962063472511045246347594041010803592626050310864,
+        noPositionId: 38857608965718404405359738602509975769823110055188690843037274362076932890539,
+        yesTokenWon: true,
         negRisk: true,
         collateral: WCOL
     });

@@ -138,7 +138,7 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
     /// @notice Claim protocol fees from the vault for `conditionId` to `to`.
     function claimProtocolFee(bytes32 conditionId, address to) external onlyOwner {
         address vault = vaultOf[conditionId];
-        if (vault == address(0)) revert VaultExists(conditionId, address(0)); // reuse for "no vault yet"
+        if (vault == address(0)) revert UnknownVault(vault);
         IPolymarketAaveStakingVault(vault).harvestProtocolYield(to);
         emit ProtocolFeeClaimed(conditionId, vault, to, block.timestamp);
     }
