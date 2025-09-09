@@ -10,6 +10,8 @@ import { PausableUpgradeable } from '@openzeppelin/contracts-upgradeable/utils/P
 
 import { IPolymarketAaveStakingVault } from './interfaces/IPolymarketAaveStakingVault.sol';
 import { IRobinVaultPausing } from './interfaces/IRobinVaultPausing.sol';
+import { IRegistry } from './interfaces/IRegistry.sol';
+import { IConditionalTokens } from './interfaces/IConditionalTokens.sol';
 
 contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable, AccessControlUpgradeable, PausableUpgradeable {
     using Clones for address;
@@ -24,6 +26,8 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
     address public polymarketWcol; // WCOL (collateral)
     address public ctf; // Conditional Tokens Framework
     address public negRiskAdapter; // Polymarket WCOL adapter
+    address public negRiskCtfExchange; // Polymarket NegRisk CTF exchange
+    address public ctfExchange; // Polymarket CTF exchange
     address public aavePool; // Aave v3 Pool
     address public aaveDataProv; // Aave data provider
 
@@ -44,6 +48,8 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
         address polymarketWcol,
         address ctf,
         address negRiskAdapter,
+        address negRiskCtfExchange,
+        address ctfExchange,
         address aavePool,
         address aaveDataProv
     );
@@ -55,6 +61,7 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
     error InvalidFee(uint256 bps);
     error UnknownVault(address vault);
     error InvalidCollateral(address collateral);
+    error UnlistedCondition(bytes32 conditionId);
 
     // -------- constructor (logic) --------
     /// @dev Prevent initializing the logic contract directly.
@@ -71,6 +78,8 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
         address _polymarketWcol,
         address _ctf,
         address _negRiskAdapter,
+        address _negRiskCtfExchange,
+        address _ctfExchange,
         address _aavePool,
         address _aaveDataProv
     ) external initializer {
@@ -85,6 +94,8 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
         _setPolymarketWcol(_polymarketWcol);
         _setCtf(_ctf);
         _setNegRiskAdapter(_negRiskAdapter);
+        _setNegRiskCtfExchange(_negRiskCtfExchange);
+        _setCtfExchange(_ctfExchange);
         _setAavePool(_aavePool);
         _setAaveDataProv(_aaveDataProv);
 
@@ -94,16 +105,28 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
 
         checkPoolResolved = true;
 
-        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, polymarketWcol, ctf, negRiskAdapter, aavePool, aaveDataProv);
+        emit ConfigUpdated(
+            implementation,
+            protocolFeeBps,
+            underlyingUsd,
+            polymarketWcol,
+            ctf,
+            negRiskAdapter,
+            negRiskCtfExchange,
+            ctfExchange,
+            aavePool,
+            aaveDataProv
+        );
     }
 
     // ============ Permissionless creation ============
     /// @notice Create a vault for `conditionId`. Reverts if one already exists.
-    function createVault(bytes32 conditionId, bool negRisk, address collateral) external whenNotPaused returns (address vault) {
+    function createVault(bytes32 conditionId) external whenNotPaused returns (address vault) {
         if (vaultOf[conditionId] != address(0)) revert VaultExists(conditionId, vaultOf[conditionId]);
-        if (negRisk && negRiskAdapter == address(0)) revert ZeroAddress();
-        if (!negRisk && collateral != underlyingUsd) revert InvalidCollateral(collateral);
-        if (negRisk && collateral != polymarketWcol) revert InvalidCollateral(collateral);
+
+        // Decide if the vault is a NegRisk vault based on the conditionId
+        bool negRisk = _decideVaultMode(conditionId);
+        address collateral = negRisk ? polymarketWcol : underlyingUsd;
 
         // Deterministic address per (implementation, salt, deployer=this manager proxy)
         vault = Clones.cloneDeterministic(implementation, conditionId);
@@ -217,42 +240,162 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
     // ============ Owner config setters ============
     function setImplementation(address _implementation) external onlyOwner {
         _setImplementation(_implementation);
-        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, polymarketWcol, ctf, negRiskAdapter, aavePool, aaveDataProv);
+        emit ConfigUpdated(
+            implementation,
+            protocolFeeBps,
+            underlyingUsd,
+            polymarketWcol,
+            ctf,
+            negRiskAdapter,
+            negRiskCtfExchange,
+            ctfExchange,
+            aavePool,
+            aaveDataProv
+        );
     }
 
     function setProtocolFeeBps(uint256 _bps) external onlyOwner {
         _setProtocolFeeBps(_bps);
-        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, polymarketWcol, ctf, negRiskAdapter, aavePool, aaveDataProv);
+        emit ConfigUpdated(
+            implementation,
+            protocolFeeBps,
+            underlyingUsd,
+            polymarketWcol,
+            ctf,
+            negRiskAdapter,
+            negRiskCtfExchange,
+            ctfExchange,
+            aavePool,
+            aaveDataProv
+        );
     }
 
     function setUnderlyingUsd(address _underlying) external onlyOwner {
         _setUnderlyingUsd(_underlying);
-        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, polymarketWcol, ctf, negRiskAdapter, aavePool, aaveDataProv);
+        emit ConfigUpdated(
+            implementation,
+            protocolFeeBps,
+            underlyingUsd,
+            polymarketWcol,
+            ctf,
+            negRiskAdapter,
+            negRiskCtfExchange,
+            ctfExchange,
+            aavePool,
+            aaveDataProv
+        );
     }
 
     function setPolymarketWcol(address _wcol) external onlyOwner {
         _setPolymarketWcol(_wcol);
-        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, polymarketWcol, ctf, negRiskAdapter, aavePool, aaveDataProv);
+        emit ConfigUpdated(
+            implementation,
+            protocolFeeBps,
+            underlyingUsd,
+            polymarketWcol,
+            ctf,
+            negRiskAdapter,
+            negRiskCtfExchange,
+            ctfExchange,
+            aavePool,
+            aaveDataProv
+        );
     }
 
     function setCtf(address _ctf) external onlyOwner {
         _setCtf(_ctf);
-        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, polymarketWcol, ctf, negRiskAdapter, aavePool, aaveDataProv);
+        emit ConfigUpdated(
+            implementation,
+            protocolFeeBps,
+            underlyingUsd,
+            polymarketWcol,
+            ctf,
+            negRiskAdapter,
+            negRiskCtfExchange,
+            ctfExchange,
+            aavePool,
+            aaveDataProv
+        );
     }
 
     function setNegRiskAdapter(address _negRiskAdapter) external onlyOwner {
         _setNegRiskAdapter(_negRiskAdapter);
-        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, polymarketWcol, ctf, negRiskAdapter, aavePool, aaveDataProv);
+        emit ConfigUpdated(
+            implementation,
+            protocolFeeBps,
+            underlyingUsd,
+            polymarketWcol,
+            ctf,
+            negRiskAdapter,
+            negRiskCtfExchange,
+            ctfExchange,
+            aavePool,
+            aaveDataProv
+        );
+    }
+
+    function setNegRiskCtfExchange(address _negRiskCtfExchange) external onlyOwner {
+        _setNegRiskCtfExchange(_negRiskCtfExchange);
+        emit ConfigUpdated(
+            implementation,
+            protocolFeeBps,
+            underlyingUsd,
+            polymarketWcol,
+            ctf,
+            negRiskAdapter,
+            negRiskCtfExchange,
+            ctfExchange,
+            aavePool,
+            aaveDataProv
+        );
+    }
+
+    function setCtfExchange(address _ctfExchange) external onlyOwner {
+        _setCtfExchange(_ctfExchange);
+        emit ConfigUpdated(
+            implementation,
+            protocolFeeBps,
+            underlyingUsd,
+            polymarketWcol,
+            ctf,
+            negRiskAdapter,
+            negRiskCtfExchange,
+            ctfExchange,
+            aavePool,
+            aaveDataProv
+        );
     }
 
     function setAavePool(address _pool) external onlyOwner {
         _setAavePool(_pool);
-        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, polymarketWcol, ctf, negRiskAdapter, aavePool, aaveDataProv);
+        emit ConfigUpdated(
+            implementation,
+            protocolFeeBps,
+            underlyingUsd,
+            polymarketWcol,
+            ctf,
+            negRiskAdapter,
+            negRiskCtfExchange,
+            ctfExchange,
+            aavePool,
+            aaveDataProv
+        );
     }
 
     function setAaveDataProv(address _dp) external onlyOwner {
         _setAaveDataProv(_dp);
-        emit ConfigUpdated(implementation, protocolFeeBps, underlyingUsd, polymarketWcol, ctf, negRiskAdapter, aavePool, aaveDataProv);
+        emit ConfigUpdated(
+            implementation,
+            protocolFeeBps,
+            underlyingUsd,
+            polymarketWcol,
+            ctf,
+            negRiskAdapter,
+            negRiskCtfExchange,
+            ctfExchange,
+            aavePool,
+            aaveDataProv
+        );
     }
 
     // ============ Internal setters ============
@@ -286,6 +429,16 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
         negRiskAdapter = _na;
     }
 
+    function _setNegRiskCtfExchange(address _nre) internal {
+        if (_nre == address(0)) revert ZeroAddress();
+        negRiskCtfExchange = _nre;
+    }
+
+    function _setCtfExchange(address _ce) internal {
+        if (_ce == address(0)) revert ZeroAddress();
+        ctfExchange = _ce;
+    }
+
     function _setAavePool(address _p) internal {
         if (_p == address(0)) revert ZeroAddress();
         aavePool = _p;
@@ -298,4 +451,60 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
 
     // ============ UUPS authorization ============
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner { }
+
+    // ============ Internal ============
+
+    /// @dev Decide vault mode from a conditionId by consulting the exchanges' registries.
+    ///      Returns true  = NegRisk (uses WCOL collateral)
+    ///              false = Regular  (uses USDC.e collateral)
+    function _decideVaultMode(bytes32 conditionId) internal view returns (bool isNegRisk) {
+        IConditionalTokens ictf = IConditionalTokens(ctf);
+
+        // Build collections once
+        bytes32 yesColl = ictf.getCollectionId(bytes32(0), conditionId, 1); // YES bitmask
+        bytes32 noColl = ictf.getCollectionId(bytes32(0), conditionId, 2); // NO  bitmask
+
+        // Check NegRisk (WCOL-backed) first and early-return if listed
+        uint256 yesId = ictf.getPositionId(polymarketWcol, yesColl);
+        uint256 noId = ictf.getPositionId(polymarketWcol, noColl);
+        bool negRiskListed = _listedOn(negRiskCtfExchange, yesId, noId, conditionId) || _listedOn(negRiskCtfExchange, noId, yesId, conditionId);
+
+        // Otherwise check Regular (USDC.e-backed)
+        yesId = ictf.getPositionId(underlyingUsd, yesColl);
+        noId = ictf.getPositionId(underlyingUsd, noColl);
+        bool regularListed = _listedOn(ctfExchange, yesId, noId, conditionId) || _listedOn(ctfExchange, noId, yesId, conditionId);
+
+        assert(!(negRiskListed && regularListed)); // Should never be listed on both exchanges
+        if (negRiskListed) {
+            return true; // NegRisk → WCOL
+        } else if (regularListed) {
+            return false; // Regular → USDC.e
+        }
+
+        // If neither exchange recognizes the IDs yet, the market isn't listed on-chain.
+        revert UnlistedCondition(conditionId);
+    }
+
+    function _listedOn(address ex, uint256 id, uint256 complement, bytes32 cond) internal view returns (bool) {
+        if (ex == address(0)) return false;
+        // Must be registered AND point to the same conditionId
+        try IRegistry(ex).getConditionId(id) returns (bytes32 c) {
+            if (c != cond) return false;
+        } catch {
+            return false;
+        }
+
+        // Also require a registered complement that maps to the same condition
+        try IRegistry(ex).getComplement(id) returns (uint256 comp) {
+            if (comp == 0) return false;
+            if (comp != complement) return false;
+            try IRegistry(ex).getConditionId(comp) returns (bytes32 c2) {
+                return c2 == cond;
+            } catch {
+                return false;
+            }
+        } catch {
+            return false;
+        }
+    }
 }

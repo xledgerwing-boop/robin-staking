@@ -9,6 +9,7 @@ import { RobinVaultManager } from '../src/RobinVaultManager.sol';
 import { MockRobinVaultManager } from './mocks/MockRobinVaultManager.sol';
 import { RobinStakingVault } from '../src/RobinStakingVault.sol';
 import { MockVaultForManager } from './mocks/MockVaultForManager.sol';
+import { PolymarketAaveStakingVault } from '../src/PolymarketAaveStakingVault.sol';
 import { IPolymarketAaveStakingVault } from '../src/interfaces/IPolymarketAaveStakingVault.sol';
 import { IConditionalTokens } from '../src/interfaces/IConditionalTokens.sol';
 
@@ -71,7 +72,18 @@ contract RobinVaultManagerTest is Test, ForkFixture, Constants {
         vm.startPrank(owner);
         bytes memory initData = abi.encodeCall(
             RobinVaultManager.initialize,
-            (address(vaultImpl), PROTOCOL_FEE_BPS, UNDERLYING_USD, WCOL, CTF, NEG_RISK_ADAPTER, AAVE_POOL, DATA_PROVIDER)
+            (
+                address(vaultImpl),
+                PROTOCOL_FEE_BPS,
+                UNDERLYING_USD,
+                WCOL,
+                CTF,
+                NEG_RISK_ADAPTER,
+                NEG_RISK_CTF_EXCHANGE,
+                CTF_EXCHANGE,
+                AAVE_POOL,
+                DATA_PROVIDER
+            )
         );
         address implementation = address(new MockRobinVaultManager());
         manager = MockRobinVaultManager(UnsafeUpgrades.deployUUPSProxy(implementation, initData)); //UnsafeUpgrades only for tests
@@ -89,7 +101,7 @@ contract RobinVaultManagerTest is Test, ForkFixture, Constants {
         vm.stopPrank();
     }
 
-    // ========== 1.1 Creation & config ==========
+    // ========== Creation & config ==========
 
     function test_Manager_Initial_Config_Getters() public view {
         // read public storage vars
@@ -110,48 +122,80 @@ contract RobinVaultManagerTest is Test, ForkFixture, Constants {
         address newWcol = bob;
         address newCtf = carol;
         address newNegRisk = treasury;
+        address newNegRiskCtfExchange = address(0x9999);
+        address newCtfExchange = address(0x8888);
         address newPool = address(0x9999);
         address newDp = address(0x8888);
 
         vm.startPrank(owner);
         // setImplementation emits with old config values except implementation
         vm.expectEmit(true, true, true, true);
-        emit RobinVaultManager.ConfigUpdated(newImpl, PROTOCOL_FEE_BPS, UNDERLYING_USD, WCOL, CTF, NEG_RISK_ADAPTER, AAVE_POOL, DATA_PROVIDER);
+        emit RobinVaultManager.ConfigUpdated(
+            newImpl, PROTOCOL_FEE_BPS, UNDERLYING_USD, WCOL, CTF, NEG_RISK_ADAPTER, NEG_RISK_CTF_EXCHANGE, CTF_EXCHANGE, AAVE_POOL, DATA_PROVIDER
+        );
         manager.setImplementation(newImpl);
 
         // setProtocolFeeBps
         vm.expectEmit(true, true, true, true);
-        emit RobinVaultManager.ConfigUpdated(newImpl, newFee, UNDERLYING_USD, WCOL, CTF, NEG_RISK_ADAPTER, AAVE_POOL, DATA_PROVIDER);
+        emit RobinVaultManager.ConfigUpdated(
+            newImpl, newFee, UNDERLYING_USD, WCOL, CTF, NEG_RISK_ADAPTER, NEG_RISK_CTF_EXCHANGE, CTF_EXCHANGE, AAVE_POOL, DATA_PROVIDER
+        );
         manager.setProtocolFeeBps(newFee);
 
         // setUnderlyingUsd
         vm.expectEmit(true, true, true, true);
-        emit RobinVaultManager.ConfigUpdated(newImpl, newFee, newUsd, WCOL, CTF, NEG_RISK_ADAPTER, AAVE_POOL, DATA_PROVIDER);
+        emit RobinVaultManager.ConfigUpdated(
+            newImpl, newFee, newUsd, WCOL, CTF, NEG_RISK_ADAPTER, NEG_RISK_CTF_EXCHANGE, CTF_EXCHANGE, AAVE_POOL, DATA_PROVIDER
+        );
         manager.setUnderlyingUsd(newUsd);
 
         // setPolymarketWcol
         vm.expectEmit(true, true, true, true);
-        emit RobinVaultManager.ConfigUpdated(newImpl, newFee, newUsd, newWcol, CTF, NEG_RISK_ADAPTER, AAVE_POOL, DATA_PROVIDER);
+        emit RobinVaultManager.ConfigUpdated(
+            newImpl, newFee, newUsd, newWcol, CTF, NEG_RISK_ADAPTER, NEG_RISK_CTF_EXCHANGE, CTF_EXCHANGE, AAVE_POOL, DATA_PROVIDER
+        );
         manager.setPolymarketWcol(newWcol);
 
         // setCtf
         vm.expectEmit(true, true, true, true);
-        emit RobinVaultManager.ConfigUpdated(newImpl, newFee, newUsd, newWcol, newCtf, NEG_RISK_ADAPTER, AAVE_POOL, DATA_PROVIDER);
+        emit RobinVaultManager.ConfigUpdated(
+            newImpl, newFee, newUsd, newWcol, newCtf, NEG_RISK_ADAPTER, NEG_RISK_CTF_EXCHANGE, CTF_EXCHANGE, AAVE_POOL, DATA_PROVIDER
+        );
         manager.setCtf(newCtf);
 
         // setNegRiskAdapter
         vm.expectEmit(true, true, true, true);
-        emit RobinVaultManager.ConfigUpdated(newImpl, newFee, newUsd, newWcol, newCtf, newNegRisk, AAVE_POOL, DATA_PROVIDER);
+        emit RobinVaultManager.ConfigUpdated(
+            newImpl, newFee, newUsd, newWcol, newCtf, newNegRisk, NEG_RISK_CTF_EXCHANGE, CTF_EXCHANGE, AAVE_POOL, DATA_PROVIDER
+        );
         manager.setNegRiskAdapter(newNegRisk);
+
+        // setNegRiskCtfExchange
+        vm.expectEmit(true, true, true, true);
+        emit RobinVaultManager.ConfigUpdated(
+            newImpl, newFee, newUsd, newWcol, newCtf, newNegRisk, newNegRiskCtfExchange, CTF_EXCHANGE, AAVE_POOL, DATA_PROVIDER
+        );
+        manager.setNegRiskCtfExchange(newNegRiskCtfExchange);
+
+        // setCtfExchange
+        vm.expectEmit(true, true, true, true);
+        emit RobinVaultManager.ConfigUpdated(
+            newImpl, newFee, newUsd, newWcol, newCtf, newNegRisk, newNegRiskCtfExchange, newCtfExchange, AAVE_POOL, DATA_PROVIDER
+        );
+        manager.setCtfExchange(newCtfExchange);
 
         // setAavePool
         vm.expectEmit(true, true, true, true);
-        emit RobinVaultManager.ConfigUpdated(newImpl, newFee, newUsd, newWcol, newCtf, newNegRisk, newPool, DATA_PROVIDER);
+        emit RobinVaultManager.ConfigUpdated(
+            newImpl, newFee, newUsd, newWcol, newCtf, newNegRisk, newNegRiskCtfExchange, newCtfExchange, newPool, DATA_PROVIDER
+        );
         manager.setAavePool(newPool);
 
         // setAaveDataProv
         vm.expectEmit(true, true, true, true);
-        emit RobinVaultManager.ConfigUpdated(newImpl, newFee, newUsd, newWcol, newCtf, newNegRisk, newPool, newDp);
+        emit RobinVaultManager.ConfigUpdated(
+            newImpl, newFee, newUsd, newWcol, newCtf, newNegRisk, newNegRiskCtfExchange, newCtfExchange, newPool, newDp
+        );
         manager.setAaveDataProv(newDp);
         vm.stopPrank();
 
@@ -189,25 +233,27 @@ contract RobinVaultManagerTest is Test, ForkFixture, Constants {
         vm.expectRevert(abi.encodeWithSelector(RobinVaultManager.ZeroAddress.selector));
         manager.setNegRiskAdapter(address(0));
         vm.expectRevert(abi.encodeWithSelector(RobinVaultManager.ZeroAddress.selector));
+        manager.setNegRiskCtfExchange(address(0));
+        vm.expectRevert(abi.encodeWithSelector(RobinVaultManager.ZeroAddress.selector));
+        manager.setCtfExchange(address(0));
+        vm.expectRevert(abi.encodeWithSelector(RobinVaultManager.ZeroAddress.selector));
         manager.setAavePool(address(0));
         vm.expectRevert(abi.encodeWithSelector(RobinVaultManager.ZeroAddress.selector));
         manager.setAaveDataProv(address(0));
         vm.stopPrank();
     }
 
-    // ========== 1.2 Vault creation per condition ==========
+    // ========== Vault creation per condition ==========
 
     function test_CreateVault_Records_Registry_And_Emits() public {
         bytes32 conditionId = runningMarket.conditionId;
-        bool negRisk = runningMarket.negRisk; // false in constants for resolvedMarket
-        address collateral = runningMarket.collateral; // USDC
 
         // unknown vault address at this point; check conditionId and creator only
         vm.expectEmit(true, false, true, false);
         emit RobinVaultManager.VaultCreated(conditionId, address(0), bob);
 
         vm.prank(bob); // anyone can call; use bob here
-        address vault = manager.createVault(conditionId, negRisk, collateral);
+        address vault = manager.createVault(conditionId);
 
         // Registry returns the same vault
         assertEq(manager.vaultForConditionId(conditionId), vault);
@@ -224,21 +270,21 @@ contract RobinVaultManagerTest is Test, ForkFixture, Constants {
     function test_CreateVault_Revert_On_Duplicate() public {
         bytes32 conditionId = runningMarket.conditionId;
         vm.prank(bob);
-        manager.createVault(conditionId, runningMarket.negRisk, runningMarket.collateral);
+        manager.createVault(conditionId);
 
         vm.expectRevert(abi.encodeWithSelector(RobinVaultManager.VaultExists.selector, conditionId, manager.vaultOf(conditionId)));
         vm.prank(alice);
-        manager.createVault(conditionId, runningMarket.negRisk, runningMarket.collateral);
+        manager.createVault(conditionId);
     }
 
-    // ========== 1.3 Protocol fee claim via manager ==========
+    // ========== Protocol fee claim via manager ==========
 
     function test_ClaimProtocolFee_Via_Manager() public {
         manager.setCheckPoolResolved(false);
 
         bytes32 conditionId = resolvedMarket.conditionId;
         vm.prank(alice);
-        MockVaultForManager vault = MockVaultForManager(manager.createVault(conditionId, resolvedMarket.negRisk, resolvedMarket.collateral));
+        MockVaultForManager vault = MockVaultForManager(manager.createVault(conditionId));
 
         // manager is owner of vault; set a pretend protocol yield and fund vault with USDC to pay it
         vm.startPrank(owner);
@@ -266,7 +312,7 @@ contract RobinVaultManagerTest is Test, ForkFixture, Constants {
 
         bytes32 conditionId = resolvedMarket.conditionId;
         vm.prank(bob);
-        MockVaultForManager vault = MockVaultForManager(manager.createVault(conditionId, resolvedMarket.negRisk, resolvedMarket.collateral));
+        MockVaultForManager vault = MockVaultForManager(manager.createVault(conditionId));
         vault.finalizeMarket();
 
         // non-owner cannot claim
@@ -285,7 +331,7 @@ contract RobinVaultManagerTest is Test, ForkFixture, Constants {
         manager.claimProtocolFeeFrom(address(vault), treasury);
     }
 
-    // ========== 1.4 Manager-level pause ==========
+    // ========== Manager-level pause ==========
 
     function test_Manager_Pause_Flows() public {
         // owner has PAUSER_ROLE by default
@@ -294,7 +340,7 @@ contract RobinVaultManagerTest is Test, ForkFixture, Constants {
 
         // createVault should revert due to whenNotPaused
         vm.expectRevert();
-        manager.createVault(runningMarket.conditionId, runningMarket.negRisk, runningMarket.collateral);
+        manager.createVault(runningMarket.conditionId);
 
         // config setters still allowed while paused (per implementation). Verify one works
         vm.prank(owner);
@@ -306,7 +352,26 @@ contract RobinVaultManagerTest is Test, ForkFixture, Constants {
         manager.unpause();
 
         vm.prank(alice);
-        address v = manager.createVault(runningMarket.conditionId, runningMarket.negRisk, runningMarket.collateral);
+        address v = manager.createVault(runningMarket.conditionId);
         assertTrue(v != address(0));
+    }
+
+    // ========== Vault Creation Correct NegRisk Detection ==========
+
+    function test_CreateVault_Correct_NegRisk_Detection() public {
+        BettingMarketInfo[] memory markets = new BettingMarketInfo[](4);
+        markets[0] = runningMarket;
+        markets[1] = resolvedMarket;
+        markets[2] = resolvedNegRiskMarket;
+        markets[3] = toBeEqualOutcomeMarket;
+
+        manager.setCheckPoolResolved(false);
+        for (uint256 i = 0; i < markets.length; i++) {
+            vm.prank(bob);
+            address v = manager.createVault(markets[i].conditionId);
+            assertTrue(v != address(0));
+            assertEq(PolymarketAaveStakingVault(v).negRisk(), markets[i].negRisk);
+            assertEq(address(PolymarketAaveStakingVault(v).polymarketCollateral()), markets[i].collateral);
+        }
     }
 }

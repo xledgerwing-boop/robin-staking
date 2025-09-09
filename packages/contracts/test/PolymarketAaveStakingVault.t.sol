@@ -72,7 +72,19 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
         logic = new PolymarketAaveStakingVault();
         vm.startPrank(owner);
         bytes memory initData = abi.encodeCall(
-            RobinVaultManager.initialize, (address(logic), PROTOCOL_FEE_BPS, UNDERLYING_USD, WCOL, CTF, NEG_RISK_ADAPTER, AAVE_POOL, DATA_PROVIDER)
+            RobinVaultManager.initialize,
+            (
+                address(logic),
+                PROTOCOL_FEE_BPS,
+                UNDERLYING_USD,
+                WCOL,
+                CTF,
+                NEG_RISK_ADAPTER,
+                NEG_RISK_CTF_EXCHANGE,
+                CTF_EXCHANGE,
+                AAVE_POOL,
+                DATA_PROVIDER
+            )
         );
         address implementation = address(new MockRobinVaultManager());
         manager = MockRobinVaultManager(UnsafeUpgrades.deployUUPSProxy(implementation, initData)); //UnsafeUpgrades only for tests
@@ -746,7 +758,7 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
 
         // createVault blocked for new condition (use resolved)
         vm.expectRevert();
-        manager.createVault(resolvedMarket.conditionId, resolvedMarket.negRisk, resolvedMarket.collateral);
+        manager.createVault(resolvedMarket.conditionId);
 
         // existing vault operations unaffected
         _mintOutcome(alice, v, 1_000);
@@ -976,7 +988,7 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
 
     function _createVault(BettingMarketInfo memory market) internal returns (PolymarketAaveStakingVault vault) {
         vm.prank(owner);
-        address v = manager.createVault(market.conditionId, market.negRisk, market.collateral);
+        address v = manager.createVault(market.conditionId);
         vault = PolymarketAaveStakingVault(payable(v));
         // holders approve vault to pull ERC1155 outcome tokens
         vm.prank(alice);

@@ -40,6 +40,16 @@ contract UpdateManagerConfig is Script, ChangeConstants {
             console2.log('Updated negRiskAdapter to', NEW_NEG_RISK_ADAPTER);
         }
 
+        if (NEW_NEG_RISK_CTF_EXCHANGE != address(0)) {
+            manager.setNegRiskCtfExchange(NEW_NEG_RISK_CTF_EXCHANGE);
+            console2.log('Updated negRiskCtfExchange to', NEW_NEG_RISK_CTF_EXCHANGE);
+        }
+
+        if (NEW_CTF_EXCHANGE != address(0)) {
+            manager.setCtfExchange(NEW_CTF_EXCHANGE);
+            console2.log('Updated ctfExchange to', NEW_CTF_EXCHANGE);
+        }
+
         if (NEW_AAVE_POOL != address(0)) {
             manager.setAavePool(NEW_AAVE_POOL);
             console2.log('Updated aavePool to', NEW_AAVE_POOL);

@@ -23,7 +23,18 @@ contract DeployManagerAndVaultImpl is Script, Constants {
         // Prepare initializer calldata for the UUPS Manager proxy
         bytes memory initData = abi.encodeCall(
             RobinVaultManager.initialize,
-            (vaultImplementation, PROTOCOL_FEE_BPS, UNDERLYING_USD, WCOL, CONDITIONAL_TOKENS, NEG_RISK_ADAPTER, AAVE_V3_POOL, AAVE_DATA_PROVIDER)
+            (
+                vaultImplementation,
+                PROTOCOL_FEE_BPS,
+                UNDERLYING_USD,
+                WCOL,
+                CONDITIONAL_TOKENS,
+                NEG_RISK_ADAPTER,
+                NEG_RISK_CTF_EXCHANGE,
+                CTF_EXCHANGE,
+                AAVE_V3_POOL,
+                AAVE_DATA_PROVIDER
+            )
         );
 
         // Deploy the UUPS proxy for the manager using OZ upgrades helper
