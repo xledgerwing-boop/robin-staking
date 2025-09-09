@@ -33,6 +33,9 @@ contract RobinVaultManager is Initializable, UUPSUpgradeable, OwnableUpgradeable
     mapping(bytes32 => address) public vaultOf; // conditionId => vault
     address[] public allVaults;
 
+    // ============ Storage Gap ============
+    uint256[50] private __gap;
+
     // ============ Events / Errors ============
     event ConfigUpdated(
         address implementation,
