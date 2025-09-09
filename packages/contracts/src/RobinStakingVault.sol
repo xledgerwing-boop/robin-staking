@@ -274,7 +274,7 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
      * In case the yield startegy is not liquid enough to withdraw the entire principal, the draining will happen in batches.
      * UnlockYield will be called multiple times in that case.
      */
-    function unlockYield() public nonReentrant whenUnlockYieldNotPaused onlyAfterFinalize onlyBeforeUnlock {
+    function unlockYield() public nonReentrant onlyAfterFinalize onlyBeforeUnlock {
         _unlockYield();
     }
 
@@ -507,7 +507,7 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
         // After this, we must be able to satisfy the user’s withdrawal from unpaired pools.
     }
 
-    function _unlockYield() internal whenUnlockYieldNotPaused onlyAfterFinalize onlyBeforeUnlock {
+    function _unlockYield() internal whenUnlockYieldNotPaused {
         // First call: initialize draining state
         if (!unlocking) {
             unlocking = true;
