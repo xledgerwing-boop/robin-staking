@@ -12,12 +12,12 @@ import { RobinStakingVault } from './RobinStakingVault.sol';
 /**
  * @title AaveStakingVault
  * @notice Plug-in strategy that satisfies RobinStakingVault's yield hooks using Aave v3 on Polygon.
- * @dev Keep it abstract so you can compose with your Polymarket adapter
+ * @dev Keep it abstract so you can compose with your Prediction Market adapter
  */
 abstract contract AaveStakingVault is RobinStakingVault {
     IPool public aavePool;
     IAToken public aToken; // interest-bearing token for underlyingUsd
-    IPoolDataProvider public dataProvider; // optional; set to Aave ProtocolDataProvider if you want APY
+    IPoolDataProvider public dataProvider;
 
     error InvalidUnderlyingAsset();
     error InvalidPool();
@@ -27,7 +27,7 @@ abstract contract AaveStakingVault is RobinStakingVault {
     /**
      * @param _underlyingAsset address for the given underlyingUsd
      * @param _pool        Aave v3 Pool address (Polygon)
-     * @param _dataProv    (optional) Aave ProtocolDataProvider-like; pass address(0) to skip APY
+     * @param _dataProv    Aave ProtocolDataProvider-like
      */
     /// forge-lint: disable-next-line(mixed-case-function)
     function __AaveStakingVault_init(address _underlyingAsset, address _pool, address _dataProv) internal onlyInitializing {

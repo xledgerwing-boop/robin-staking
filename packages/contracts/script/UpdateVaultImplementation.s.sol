@@ -9,7 +9,6 @@ import { ChangeConstants } from './Constants.s.sol';
 
 /// @notice Script to deploy a new vault implementation and set it in the manager.
 /// - Broadcasts a tx that calls manager.setImplementation(newImpl)
-/// - Optionally prints predicted clone address for a sample conditionId.
 contract UpdateVaultImplementation is Script, ChangeConstants {
     function run() external {
         vm.startBroadcast();
