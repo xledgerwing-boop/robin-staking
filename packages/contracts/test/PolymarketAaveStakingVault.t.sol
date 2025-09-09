@@ -646,11 +646,36 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
 
     function test_Pausable_GlobalPauseBlocks_All_And_UnpauseByOwner() public {
         // resolved vault for exercising all entry points
-        PolymarketAaveStakingVault v = _createVault(resolvedMarketUsed);
+        //Using Partial exit vault ot be able to call unlockYield
+        vm.prank(address(manager));
+        MockPartialExitVault v = new MockPartialExitVault();
+        vm.prank(address(manager));
+        v.initialize(
+            PROTOCOL_FEE_BPS,
+            UNDERLYING_USD,
+            CTF,
+            resolvedMarket.conditionId,
+            NEG_RISK_ADAPTER,
+            resolvedMarket.negRisk,
+            resolvedMarket.collateral,
+            false,
+            AAVE_POOL,
+            DATA_PROVIDER
+        );
+        vm.prank(address(manager));
+        v.setExitFractionBps(5000);
+        vm.prank(alice);
+        IConditionalTokens(CTF).setApprovalForAll(address(v), true);
+        vm.prank(bob);
+        IConditionalTokens(CTF).setApprovalForAll(address(v), true);
+
         _mintOutcome(alice, v, 1_000_000);
+        _mintOutcome(bob, v, 1_000_000);
 
         vm.prank(alice);
         v.deposit(true, 1_000_000);
+        vm.prank(bob);
+        v.deposit(false, 1_000_000);
 
         // pause all via vault owner -> blocks everything
         vm.prank(owner);
@@ -669,9 +694,29 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
         // finalize blocked
         vm.expectRevert(abi.encodeWithSelector(VaultPausable.PausedAll.selector));
         v.finalizeMarket();
+
+        //Finalize and unlock partially
+        vm.prank(owner);
+        manager.unpauseAllFrom(address(v));
+        vm.warp(block.timestamp + 10 days); //yield accrual
+        v.finalizeMarket();
+        assertTrue(v.finalized());
+        assertFalse(v.yieldUnlocked());
+        vm.prank(owner);
+        manager.pauseAllFrom(address(v));
+
         // unlock blocked
         vm.expectRevert(abi.encodeWithSelector(VaultPausable.PausedAll.selector));
         v.unlockYield();
+
+        //unlock fully
+        vm.prank(owner);
+        manager.unpauseAllFrom(address(v));
+        v.unlockYield();
+        assertTrue(v.yieldUnlocked());
+        vm.prank(owner);
+        manager.pauseAllFrom(address(v));
+
         // harvest blocked
         vm.prank(alice);
         vm.expectRevert(abi.encodeWithSelector(VaultPausable.PausedAll.selector));
@@ -682,14 +727,14 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
         v.redeemWinningForUsd();
 
         // unpause all via vault owner
-        vm.prank(owner);
         vm.expectEmit(true, true, true, true, address(v));
         emit VaultPausable.PausedAllSet(false);
+        vm.prank(owner);
         manager.unpauseAllFrom(address(v));
 
-        // finalize now succeeds (market already resolved)
-        v.finalizeMarket();
-        assertTrue(v.finalized());
+        //Harvesting now succeeds
+        vm.prank(alice);
+        v.harvestYield();
     }
 
     function test_ManagerLevelPause_BlocksCreateVault_NotVaultOps() public {
