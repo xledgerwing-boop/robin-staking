@@ -557,7 +557,7 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
         }
         if (winLeft > 0) {
             uint256 got = _pmRedeemWinningToUsd();
-            if (got != _pmUsdAmountForOutcome(winLeft)) revert RedeemMismatch();
+            if (got < _pmUsdAmountForOutcome(winLeft)) revert RedeemMismatch();
             if (winningPosition == WinningPosition.YES) {
                 unpairedYes = 0;
             } else if (winningPosition == WinningPosition.NO) {
