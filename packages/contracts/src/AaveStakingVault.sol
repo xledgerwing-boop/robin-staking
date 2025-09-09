@@ -6,6 +6,7 @@ import { IPool } from '@aave-dao/aave-v3-origin/src/contracts/interfaces/IPool.s
 import { IPoolDataProvider } from '@aave-dao/aave-v3-origin/src/contracts/interfaces/IPoolDataProvider.sol';
 import { IAToken } from '@aave-dao/aave-v3-origin/src/contracts/interfaces/IAToken.sol';
 import { Errors } from '@aave-dao/aave-v3-origin/src/contracts/protocol/libraries/helpers/Errors.sol';
+import { SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 
 import { RobinStakingVault } from './RobinStakingVault.sol';
 
@@ -15,6 +16,8 @@ import { RobinStakingVault } from './RobinStakingVault.sol';
  * @dev Keep it abstract so you can compose with your Prediction Market adapter
  */
 abstract contract AaveStakingVault is RobinStakingVault {
+    using SafeERC20 for IERC20;
+
     IPool public aavePool;
     IAToken public aToken; // interest-bearing token for underlyingUsd
     IPoolDataProvider public dataProvider;
@@ -41,7 +44,7 @@ abstract contract AaveStakingVault is RobinStakingVault {
         dataProvider = IPoolDataProvider(_dataProv);
 
         // Approve pool to pull unlimited underlying
-        IERC20(address(underlyingUsd)).approve(_pool, type(uint256).max);
+        underlyingUsd.safeIncreaseAllowance(_pool, type(uint256).max);
     }
 
     // ===================== AaveStakingVault strategy hooks =====================

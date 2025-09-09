@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import { SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import { ERC1155HolderUpgradeable } from '@openzeppelin/contracts-upgradeable/token/ERC1155/utils/ERC1155HolderUpgradeable.sol';
 
 import { RobinStakingVault } from './RobinStakingVault.sol';
@@ -13,6 +14,8 @@ import { INegRiskAdapter } from './interfaces/INegRiskAdapter.sol';
 /// @notice PM adapter for Polymarket (Gnosis CTF) that implements the prediction-market hooks of RobinStakingVault.
 /// @dev Yield strategy hooks remain abstract and must be implemented in a subclass (e.g., Aave/Dolomite).
 abstract contract PolymarketStakingVault is RobinStakingVault, ERC1155HolderUpgradeable {
+    using SafeERC20 for IERC20;
+
     uint256 public constant YES_INDEX = 0;
     uint256 public constant NO_INDEX = 1;
     uint256 public constant YES_INDEX_SET = 1; // YES is always the first index set for us
@@ -71,10 +74,10 @@ abstract contract PolymarketStakingVault is RobinStakingVault, ERC1155HolderUpgr
         }
 
         // Allow CTF to pull USDC for splits/merges/redemptions
-        polymarketCollateral.approve(address(ctf), type(uint256).max);
+        polymarketCollateral.safeIncreaseAllowance(address(ctf), type(uint256).max);
         if (negRisk) {
             ctf.setApprovalForAll(address(negRiskAdapter), true);
-            underlyingUsd.approve(address(negRiskAdapter), type(uint256).max); // If negRisk, the collateral is Polymarket's WCOL which needs to be approved for wrapping USDC.
+            underlyingUsd.safeIncreaseAllowance(address(negRiskAdapter), type(uint256).max); // If negRisk, the collateral is Polymarket's WCOL which needs to be approved for wrapping USDC.
         }
     }
 
