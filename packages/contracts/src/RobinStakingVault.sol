@@ -458,10 +458,6 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
 
             // Increase recorded principal
             pairedUsdPrincipal += usdFromPairs;
-        } else if (leftoverUsd > 0) {
-            // No pairs but we have USD to (re-)supply
-            _yieldStrategySupply(leftoverUsd);
-            leftoverUsd = 0;
         }
     }
 
