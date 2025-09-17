@@ -14,7 +14,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { fetchWalletPositions } from '@/lib/polymarket';
 import { DateTime } from 'luxon';
 import { getStatusBadge, Market, MarketRow, MarketRowToMarket } from '@/types/market';
-import { useProxyAccount } from '@/hooks/useProxyAccount';
+import { useProxyAccount } from '@/hooks/use-proxy-account';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 export default function StakingPage() {

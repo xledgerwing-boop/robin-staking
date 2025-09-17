@@ -3,7 +3,7 @@
 import { ConnectButton as RainbowKitConnectButton } from '@rainbow-me/rainbowkit';
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
-import { useProxyAccount } from '@/hooks/useProxyAccount';
+import { useProxyAccount } from '@/hooks/use-proxy-account';
 
 export function ConnectButton({ className, connectTitle = 'Connect Wallet' }: { className?: string; connectTitle?: string }) {
     const { proxyAddress } = useProxyAccount();
