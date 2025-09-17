@@ -16,6 +16,7 @@ import dolomiteLogo from '@/public/dolomite.png';
 import Activities from '@/components/activities';
 import ManagePositionCard from '@/components/market/manage-position-card';
 import CompletedMarketCard from '@/components/market/completed-market-card';
+import InitializeMarketCard from '@/components/market/initialize-market-card';
 
 export default function MarketDetailPage() {
     const params = useParams();
@@ -41,8 +42,7 @@ export default function MarketDetailPage() {
 
     if (!market) return <div>Loading...</div>;
 
-    const isActive = true; //market ? (market.endDate ? Date.now() < market.endDate : true) : true;
-    const computedStatus: 'active' | 'completed' = isActive ? 'active' : 'completed';
+    const computedStatus: 'active' | 'completed' | 'pending' = 'active';
 
     return (
         <div className="min-h-screen bg-background">
@@ -157,7 +157,9 @@ export default function MarketDetailPage() {
 
                     {/* Right Column - Interaction Interface */}
                     <div>
-                        {isActive ? (
+                        {!market.initialized ? (
+                            <InitializeMarketCard market={market} />
+                        ) : computedStatus === 'active' ? (
                             <ManagePositionCard market={market} userPosition={userPosition} />
                         ) : (
                             <CompletedMarketCard market={market} userPosition={userPosition} />
