@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { TrendingUp, DollarSign, BarChart3, Clock, ArrowUpRight, Search, ArrowUpDown, ArrowUp, ArrowDown, User, Loader } from 'lucide-react';
+import { TrendingUp, DollarSign, BarChart3, Clock, ArrowUpRight, Search, ArrowUpDown, ArrowUp, ArrowDown, User, Loader, X } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
@@ -35,6 +35,7 @@ export default function StakingPage() {
     const [walletConditionIds, setWalletConditionIds] = useState<string[]>([]);
     const [marketsLoading, setMarketsLoading] = useState(false);
     const [queryParamsLoaded, setQueryParamsLoaded] = useState(false);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     // Sorting state
     type SortField = 'apy' | 'tvl' | 'liquidationDate' | 'title';
@@ -167,6 +168,12 @@ export default function StakingPage() {
         updateQueryParams({ search: trimmed || null });
     };
 
+    const handleClearSearch = () => {
+        setSearchQuery('');
+        updateQueryParams({ search: null });
+        inputRef.current?.focus();
+    };
+
     const handleWalletOnlyChange = (checked: boolean) => {
         setShowWalletOnly(checked);
         updateQueryParams({ walletOnly: checked ? '1' : null });
@@ -258,8 +265,21 @@ export default function StakingPage() {
                                     placeholder="Search by condition ID, name or Polymarket url..."
                                     value={searchQuery}
                                     onChange={e => handleSearchInputChange(e.target.value)}
-                                    className="pl-10"
+                                    ref={inputRef}
+                                    className="pl-10 pr-10"
                                 />
+                                {searchQuery && (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={handleClearSearch}
+                                        aria-label="Clear search"
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </Button>
+                                )}
                             </div>
                             <div className="flex items-center space-x-2">
                                 <Switch id="wallet-only" checked={showWalletOnly} onCheckedChange={handleWalletOnlyChange} />
