@@ -17,9 +17,7 @@ export function useProxyAccount() {
         },
     });
 
-    useEffect(() => {
-        console.log('proxyAddress', proxyAddress, isLoading, error);
-    }, [account.isConnected, account.address, isLoading, error]);
+    useEffect(() => {}, [account.isConnected, account.address, isLoading, error]);
 
     return { ...account, proxyAddress };
 }

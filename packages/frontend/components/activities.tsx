@@ -9,6 +9,7 @@ import { Switch } from './ui/switch';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { DateTime } from 'luxon';
 
 export default function Activities({ market: _market }: { market: MarketWithEvent }) {
     const [showUserActivityOnly, setShowUserActivityOnly] = useState(false);
@@ -59,7 +60,7 @@ export default function Activities({ market: _market }: { market: MarketWithEven
                 type: 'deposit',
                 position: 'yes',
                 info: 'Deposited 500 USDC',
-                time: '2024-01-15 14:30',
+                time: DateTime.now().minus({ hours: 4 }).toLocaleString(DateTime.DATETIME_MED),
                 txHash: '0xabc123...',
                 isCurrentUser: true,
             },
@@ -69,7 +70,7 @@ export default function Activities({ market: _market }: { market: MarketWithEven
                 type: 'withdraw',
                 position: 'no',
                 info: 'Withdrew 250 USDC',
-                time: '2024-01-15 12:15',
+                time: DateTime.now().minus({ hours: 3 }).toLocaleString(DateTime.DATETIME_MED),
                 txHash: '0xdef456...',
                 isCurrentUser: false,
             },
@@ -79,7 +80,7 @@ export default function Activities({ market: _market }: { market: MarketWithEven
                 type: 'harvest',
                 position: 'both',
                 info: 'Harvested $47.50 yield',
-                time: '2024-01-14 16:45',
+                time: DateTime.now().minus({ hours: 2 }).toLocaleString(DateTime.DATETIME_MED),
                 txHash: '0xghi789...',
                 isCurrentUser: true,
             },
@@ -89,7 +90,7 @@ export default function Activities({ market: _market }: { market: MarketWithEven
                 type: 'deposit',
                 position: 'no',
                 info: 'Deposited 1000 USDC',
-                time: '2024-01-14 09:20',
+                time: DateTime.now().minus({ hours: 1 }).toLocaleString(DateTime.DATETIME_MED),
                 txHash: '0xjkl012...',
                 isCurrentUser: false,
             },

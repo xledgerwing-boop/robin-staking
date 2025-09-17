@@ -20,7 +20,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 export default function StakingPage() {
     // Mock data for demonstration
     const keyMetrics = {
-        averageAPY: '24.5%',
+        averageAPY: '7.5%',
         numberOfMarkets: 47,
         totalTVL: '$12.4M',
         totalUsers: 2847,
@@ -379,7 +379,7 @@ export default function StakingPage() {
                                                 <div className="flex justify-between">
                                                     <span className="text-sm text-muted-foreground">APY</span>
                                                     <span className="font-bold text-primary">
-                                                        {market.initialized ? `${market.apyBps.toFixed(2)}%` : 'Uninitialized'}
+                                                        {market.initialized ? `${((market.apyBps / 10_000) * 100).toFixed(2)}%` : 'Uninitialized'}
                                                     </span>
                                                 </div>
 

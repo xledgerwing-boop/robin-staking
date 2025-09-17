@@ -25,8 +25,8 @@ export default function MarketDetailPage() {
 
     const userPosition = {
         yesTokens: '1,250',
-        noTokens: '1,250',
-        earnedYield: '$247.50',
+        noTokens: '0',
+        earnedYield: '$50.50',
         balance: '5,420.00',
         withdrawableAmount: '2,847.30',
     };
@@ -97,7 +97,7 @@ export default function MarketDetailPage() {
     const calculateExpectedYield = (amount: string) => {
         const numAmount = Number.parseFloat(amount) || 0;
         const apy = market.apyBps / 10_000;
-        const daysUntilResolution = Math.ceil((market.endDate ?? Date.now() - Date.now()) / (1000 * 60 * 60 * 24));
+        const daysUntilResolution = DateTime.fromMillis(market.endDate ?? Date.now()).diff(DateTime.now(), 'days').days;
         const expectedYield = (numAmount * apy * daysUntilResolution) / 365;
         return expectedYield.toFixed(2);
     };
@@ -160,7 +160,7 @@ export default function MarketDetailPage() {
                         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                             <div className="text-center p-4 bg-muted/50 rounded-lg">
                                 <p className="text-sm text-muted-foreground">Current APY</p>
-                                <p className="text-xl font-bold text-primary">{market.apyBps.toFixed(2)}%</p>
+                                <p className="text-xl font-bold text-primary">{((market.apyBps / 10_000) * 100).toFixed(2)}%</p>
                             </div>
                             <div className="text-center p-4 bg-muted/50 rounded-lg">
                                 <p className="text-sm text-muted-foreground">Yield Sources</p>
@@ -184,7 +184,8 @@ export default function MarketDetailPage() {
                             <div className="text-center p-4 bg-muted/50 rounded-lg">
                                 <p className="text-sm text-muted-foreground">Unmatched Tokens</p>
                                 <p className="text-xl font-bold">
-                                    {market.unmatchedYesTokens} yes / {market.unmatchedNoTokens} no
+                                    {market.unmatchedYesTokens > 0 ? `${market.unmatchedYesTokens} Yes` : ''}{' '}
+                                    {market.unmatchedNoTokens > 0 ? `${market.unmatchedNoTokens} No` : ''}
                                 </p>
                             </div>
                         </div>
@@ -239,7 +240,7 @@ export default function MarketDetailPage() {
 
                                     <TabsContent value="deposit" className="space-y-4">
                                         <div className="space-y-2">
-                                            <div className="flex items-center justify-between gap-3">
+                                            <div className="flex items-center justify-between gap-3 border-b pb-4">
                                                 <Input
                                                     id="deposit-amount"
                                                     type="number"
@@ -283,7 +284,7 @@ export default function MarketDetailPage() {
                                                     </SelectContent>
                                                 </Select>
                                             </div>
-                                            <div className="flex space-x-2 mt-4 justify-between items-center">
+                                            <div className="flex space-x-2 justify-between">
                                                 <p className="text-sm text-muted-foreground">Balance: {userPosition.balance}</p>
                                                 <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleMaxDeposit}>
                                                     Max
@@ -296,11 +297,13 @@ export default function MarketDetailPage() {
                                                 <h4 className="font-medium">Position Preview</h4>
                                                 <div className="flex justify-between text-sm">
                                                     <span>Your Position:</span>
-                                                    <span>${depositAmount}</span>
+                                                    <span>
+                                                        {depositAmount} {depositSide}
+                                                    </span>
                                                 </div>
                                                 <div className="flex justify-between text-sm">
                                                     <span>APY:</span>
-                                                    <span className="text-primary">{market.apyBps.toFixed(2)}%</span>
+                                                    <span className="text-primary">{((market.apyBps / 10_000) * 100).toFixed(2)}%</span>
                                                 </div>
                                                 <div className="flex justify-between text-sm">
                                                     <span>
@@ -321,7 +324,7 @@ export default function MarketDetailPage() {
 
                                     <TabsContent value="withdraw" className="space-y-4">
                                         <div className="space-y-2">
-                                            <div className="flex items-center justify-between gap-3">
+                                            <div className="flex items-center justify-between gap-3 border-b pb-4">
                                                 <Input
                                                     id="withdraw-amount"
                                                     type="number"
@@ -365,8 +368,8 @@ export default function MarketDetailPage() {
                                                     </SelectContent>
                                                 </Select>
                                             </div>
-                                            <div className="flex space-x-2 mt-4 justify-between items-center">
-                                                <p className="text-sm text-muted-foreground">Balance: {userPosition.balance}</p>
+                                            <div className="flex space-x-2 justify-between">
+                                                <p className="text-sm text-muted-foreground">Balance: {userPosition.withdrawableAmount}</p>
                                                 <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleMaxWithdraw}>
                                                     Max
                                                 </Button>
