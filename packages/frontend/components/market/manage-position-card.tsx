@@ -5,12 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
-import { ArrowDownToLine, ArrowUpToLine } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpToLine, Loader } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { DateTime } from 'luxon';
 import { MarketWithEvent } from '@/types/market';
 import OutcomeToken from './outcome-token';
+import useFakeSigning from '@/hooks/use-fake-signing';
 
 type UserPosition = {
     yesTokens: string;
@@ -19,15 +20,25 @@ type UserPosition = {
     balance: string;
 };
 
-export default function ManagePositionCard({ market, userPosition }: { market: MarketWithEvent; userPosition: UserPosition }) {
+type ManagePositionCardProps = {
+    market: MarketWithEvent;
+    userPosition: UserPosition;
+    onDeposit: (side: 'yes' | 'no', amount: number) => Promise<void> | void;
+    onWithdraw: (side: 'yes' | 'no', amount: number) => Promise<void> | void;
+};
+
+export default function ManagePositionCard({ market, userPosition, onDeposit, onWithdraw }: ManagePositionCardProps) {
     const [activeTab, setActiveTab] = useState('deposit');
     const [depositAmount, setDepositAmount] = useState('');
     const [withdrawAmount, setWithdrawAmount] = useState('');
     const [depositSide, setDepositSide] = useState<'yes' | 'no'>('yes');
+    const [isDepositing, setIsDepositing] = useState(false);
+    const [isWithdrawing, setIsWithdrawing] = useState(false);
 
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
+    const { approve: signMessage } = useFakeSigning();
 
     const withdrawableAmount = depositSide === 'yes' ? userPosition.yesTokens : userPosition.noTokens;
 
@@ -90,6 +101,35 @@ export default function ManagePositionCard({ market, userPosition }: { market: M
         const side = value === 'no' ? 'no' : 'yes';
         setDepositSide(side);
         updateQueryParams({ side });
+    };
+
+    const parseAmount = (value: string) => {
+        const n = Number.parseFloat(value);
+        return Number.isFinite(n) && n > 0 ? n : 0;
+    };
+
+    const handleDeposit = async () => {
+        const amount = parseAmount(depositAmount);
+        if (amount <= 0) return;
+        setIsDepositing(true);
+        try {
+            await onDeposit(depositSide, amount);
+            setDepositAmount('');
+        } finally {
+            setIsDepositing(false);
+        }
+    };
+
+    const handleWithdraw = async () => {
+        const amount = parseAmount(withdrawAmount);
+        if (amount <= 0) return;
+        setIsWithdrawing(true);
+        try {
+            await onWithdraw(depositSide, amount);
+            setWithdrawAmount('');
+        } finally {
+            setIsWithdrawing(false);
+        }
     };
 
     return (
@@ -161,9 +201,10 @@ export default function ManagePositionCard({ market, userPosition }: { market: M
                             </div>
                         )}
 
-                        <Button className="w-full">
+                        <Button className="w-full" onClick={handleDeposit} disabled={isDepositing}>
                             <ArrowUpToLine className="w-4 h-4 mr-2" />
-                            Deposit {depositAmount || '0.00'} {depositSide}
+                            {isDepositing && <Loader className="w-4 h-4 mr-2 animate-spin" />}
+                            {isDepositing ? 'Signing…' : `Deposit ${depositAmount || '0.00'} ${depositSide}`}
                         </Button>
                     </TabsContent>
 
@@ -206,24 +247,27 @@ export default function ManagePositionCard({ market, userPosition }: { market: M
                                 <h4 className="font-medium">Withdrawal Preview</h4>
                                 <div className="flex justify-between text-sm">
                                     <span>Withdrawal Amount:</span>
-                                    <span>${withdrawAmount}</span>
+                                    <span>
+                                        {withdrawAmount} {depositSide}
+                                    </span>
                                 </div>
                                 <div className="flex justify-between text-sm">
                                     <span>Remaining Position:</span>
                                     <span>
-                                        $
                                         {(
                                             Number.parseFloat(withdrawableAmount.replace('$', '').replace(/,/g, '')) -
                                             (Number.parseFloat(withdrawAmount) || 0)
-                                        ).toFixed(2)}
+                                        ).toFixed(2)}{' '}
+                                        {depositSide}
                                     </span>
                                 </div>
                             </div>
                         )}
 
-                        <Button className="w-full" variant="secondary">
+                        <Button className="w-full" variant="secondary" onClick={handleWithdraw} disabled={isWithdrawing}>
                             <ArrowDownToLine className="w-4 h-4 mr-2" />
-                            Withdraw {withdrawAmount || '0.00'} {depositSide}
+                            {isWithdrawing && <Loader className="w-4 h-4 mr-2 animate-spin" />}
+                            {isWithdrawing ? 'Signing…' : `Withdraw ${withdrawAmount || '0.00'} ${depositSide}`}
                         </Button>
                     </TabsContent>
                 </Tabs>

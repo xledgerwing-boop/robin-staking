@@ -1,8 +1,8 @@
 // @ts-check
-import { sourcify } from '@wagmi/cli/plugins';
 import { react } from '@wagmi/cli/plugins';
 import { pascalCase } from 'change-case';
 import { safeProxyFactoryAbi } from './types/abis/SafeProxyFactory';
+import { gnosisSafeL2Abi } from './types/abis/GnosisSafeL2';
 
 const nameMap: Record<string, number> = {};
 
@@ -12,6 +12,10 @@ export default {
         {
             name: 'SafeProxyFactory',
             abi: safeProxyFactoryAbi,
+        },
+        {
+            name: 'GnosisSafeL2',
+            abi: gnosisSafeL2Abi,
         },
     ],
     plugins: [

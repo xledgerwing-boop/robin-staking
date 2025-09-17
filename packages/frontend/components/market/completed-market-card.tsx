@@ -2,8 +2,8 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CircleCheck, Coins, Sprout } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { CircleCheck, Coins, Loader, Sprout } from 'lucide-react';
+import { useMemo } from 'react';
 import { MarketWithEvent } from '@/types/market';
 import OutcomeToken from './outcome-token';
 
@@ -13,11 +13,17 @@ type UserPosition = {
     earnedYield: string; // formatted like $50.50
 };
 
-export default function CompletedMarketCard({ market, userPosition }: { market: MarketWithEvent; userPosition: UserPosition }) {
-    const [winner, setWinner] = useState<'yes' | 'no' | null>('yes');
-    const [isRedeeming, setIsRedeeming] = useState(false);
-    const [isHarvesting, setIsHarvesting] = useState(false);
+type CompletedMarketCardProps = {
+    market?: MarketWithEvent;
+    userPosition: UserPosition;
+    winner: 'yes' | 'no' | null;
+    isRedeeming: boolean;
+    isHarvesting: boolean;
+    onRedeem: () => void | Promise<void>;
+    onHarvest: () => void | Promise<void>;
+};
 
+export default function CompletedMarketCard({ userPosition, winner, isRedeeming, isHarvesting, onRedeem, onHarvest }: CompletedMarketCardProps) {
     const redemptionAmountUsd = useMemo(() => {
         if (!winner) return 0;
         const yesCount = parseNumber(userPosition.yesTokens);
@@ -29,25 +35,7 @@ export default function CompletedMarketCard({ market, userPosition }: { market: 
 
     const earnedYieldUsd = useMemo(() => parseCurrency(userPosition.earnedYield), [userPosition.earnedYield]);
 
-    const handleRedeem = async () => {
-        setIsRedeeming(true);
-        try {
-            // TODO: integrate smart contract call to redeem winning shares to USDC
-            await new Promise(r => setTimeout(r, 800));
-        } finally {
-            setIsRedeeming(false);
-        }
-    };
-
-    const handleHarvest = async () => {
-        setIsHarvesting(true);
-        try {
-            // TODO: integrate yield harvest call
-            await new Promise(r => setTimeout(r, 800));
-        } finally {
-            setIsHarvesting(false);
-        }
-    };
+    // callbacks are provided by parent
 
     return (
         <Card>
@@ -74,12 +62,14 @@ export default function CompletedMarketCard({ market, userPosition }: { market: 
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-3">
-                    <Button onClick={handleRedeem} disabled={!winner || redemptionAmountUsd <= 0 || isRedeeming} className="w-full">
+                    <Button onClick={onRedeem} disabled={!winner || redemptionAmountUsd <= 0 || isRedeeming} className="w-full">
                         <Coins className="w-4 h-4 mr-1" />
+                        {isRedeeming && <Loader className="w-4 h-4 mr-2 animate-spin" />}
                         {isRedeeming ? 'Redeeming…' : 'Redeem Winning Tokens'}
                     </Button>
-                    <Button onClick={handleHarvest} variant="secondary" disabled={earnedYieldUsd <= 0 || isHarvesting} className="w-full">
+                    <Button onClick={onHarvest} variant="secondary" disabled={earnedYieldUsd <= 0 || isHarvesting} className="w-full">
                         <Sprout className="w-4 h-4 mr-1" />
+                        {isHarvesting && <Loader className="w-4 h-4 mr-2 animate-spin" />}
                         {isHarvesting ? 'Harvesting…' : `Harvest Yield`}
                     </Button>
                 </div>

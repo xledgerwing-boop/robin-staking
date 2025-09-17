@@ -2,18 +2,16 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Rocket } from 'lucide-react';
+import { Rocket, Loader } from 'lucide-react';
 import { useState } from 'react';
-import { MarketWithEvent } from '@/types/market';
 
-export default function InitializeMarketCard({ market }: { market: MarketWithEvent }) {
+export default function InitializeMarketCard({ onInitialize }: { onInitialize: () => Promise<void> | void }) {
     const [isInitializing, setIsInitializing] = useState(false);
 
     const handleInitialize = async () => {
         setIsInitializing(true);
         try {
-            // TODO: Integrate initialization action (contract call / API)
-            await new Promise(r => setTimeout(r, 800));
+            await onInitialize();
         } finally {
             setIsInitializing(false);
         }
@@ -30,6 +28,7 @@ export default function InitializeMarketCard({ market }: { market: MarketWithEve
                 <p className="text-sm text-muted-foreground">Create this market vault on-chain to start depositing tokens</p>
                 <Button className="w-full" onClick={handleInitialize} disabled={isInitializing}>
                     <Rocket className="w-4 h-4 mr-2" />
+                    {isInitializing && <Loader className="w-4 h-4 mr-2 animate-spin" />}
                     {isInitializing ? 'Initializing…' : 'Initialize'}
                 </Button>
             </CardContent>

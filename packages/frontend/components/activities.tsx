@@ -10,13 +10,35 @@ import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { DateTime } from 'luxon';
+import { useProxyAccount } from '@/hooks/use-proxy-account';
+import { shortenAddress } from '@/lib/utils';
 
-export default function Activities({ market: _market }: { market: MarketWithEvent }) {
+export type ActivityItem = {
+    id: string | number;
+    walletAddress: string;
+    type: 'deposit' | 'withdraw' | 'harvest' | 'finalize' | 'redeem' | 'initialize';
+    position: 'yes' | 'no' | 'both' | 'n/a';
+    info: string;
+    time: string;
+    txHash: string;
+    isCurrentUser: boolean;
+};
+
+export default function Activities({
+    market: _market,
+    activities: externalActivities,
+    wasInitialized,
+}: {
+    market: MarketWithEvent;
+    activities?: ActivityItem[];
+    wasInitialized: boolean;
+}) {
     const [showUserActivityOnly, setShowUserActivityOnly] = useState(false);
     const [activityTypeFilter, setActivityTypeFilter] = useState('all');
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
+    const { proxyAddress } = useProxyAccount();
     void _market;
 
     const updateQueryParams = (updates: Record<string, string | null | undefined>) => {
@@ -40,7 +62,7 @@ export default function Activities({ market: _market }: { market: MarketWithEven
         const spUserOnly = userOnlyParam === '1' || userOnlyParam === 'true';
         if (spUserOnly !== showUserActivityOnly) setShowUserActivityOnly(spUserOnly);
 
-        const allowedTypes = ['all', 'deposit', 'withdraw', 'harvest'];
+        const allowedTypes = ['all', 'deposit', 'withdraw', 'harvest', 'finalize', 'redeem', 'initialize'];
         const typeParam = searchParams.get('activityType');
         if (typeParam && allowedTypes.includes(typeParam) && typeParam !== activityTypeFilter) {
             setActivityTypeFilter(typeParam);
@@ -53,48 +75,52 @@ export default function Activities({ market: _market }: { market: MarketWithEven
     }, [searchParams]);
     // Filter activities
     const filteredActivities = useMemo(() => {
-        let filtered = [
-            {
-                id: 1,
-                walletAddress: '0x1234...5678',
-                type: 'deposit',
-                position: 'yes',
-                info: 'Deposited 500 USDC',
-                time: DateTime.now().minus({ hours: 4 }).toLocaleString(DateTime.DATETIME_MED),
-                txHash: '0xabc123...',
-                isCurrentUser: true,
-            },
-            {
-                id: 2,
-                walletAddress: '0x9876...5432',
-                type: 'withdraw',
-                position: 'no',
-                info: 'Withdrew 250 USDC',
-                time: DateTime.now().minus({ hours: 3 }).toLocaleString(DateTime.DATETIME_MED),
-                txHash: '0xdef456...',
-                isCurrentUser: false,
-            },
-            {
-                id: 3,
-                walletAddress: '0x1234...5678',
-                type: 'harvest',
-                position: 'both',
-                info: 'Harvested $47.50 yield',
-                time: DateTime.now().minus({ hours: 2 }).toLocaleString(DateTime.DATETIME_MED),
-                txHash: '0xghi789...',
-                isCurrentUser: true,
-            },
-            {
-                id: 4,
-                walletAddress: '0x5555...7777',
-                type: 'deposit',
-                position: 'no',
-                info: 'Deposited 1000 USDC',
-                time: DateTime.now().minus({ hours: 1 }).toLocaleString(DateTime.DATETIME_MED),
-                txHash: '0xjkl012...',
-                isCurrentUser: false,
-            },
-        ];
+        const baseline: ActivityItem[] = wasInitialized
+            ? [
+                  {
+                      id: 1,
+                      walletAddress: proxyAddress ?? '',
+                      type: 'deposit',
+                      position: 'yes',
+                      info: 'Deposited 500 YES',
+                      time: DateTime.now().minus({ hours: 4 }).toLocaleString(DateTime.DATETIME_MED),
+                      txHash: '0xabc123...',
+                      isCurrentUser: true,
+                  },
+                  {
+                      id: 2,
+                      walletAddress: '0x9876...5432',
+                      type: 'withdraw',
+                      position: 'no',
+                      info: 'Withdrew 250 YES',
+                      time: DateTime.now().minus({ hours: 3 }).toLocaleString(DateTime.DATETIME_MED),
+                      txHash: '0xdef456...',
+                      isCurrentUser: false,
+                  },
+                  {
+                      id: 3,
+                      walletAddress: proxyAddress ?? '',
+                      type: 'harvest',
+                      position: 'both',
+                      info: 'Harvested $47.50 yield',
+                      time: DateTime.now().minus({ hours: 2 }).toLocaleString(DateTime.DATETIME_MED),
+                      txHash: '0xghi789...',
+                      isCurrentUser: true,
+                  },
+                  {
+                      id: 4,
+                      walletAddress: '0x5555...7777',
+                      type: 'deposit',
+                      position: 'no',
+                      info: 'Deposited 1000 YES',
+                      time: DateTime.now().minus({ hours: 1 }).toLocaleString(DateTime.DATETIME_MED),
+                      txHash: '0xjkl012...',
+                      isCurrentUser: false,
+                  },
+              ]
+            : [];
+
+        let filtered: ActivityItem[] = [...(externalActivities && externalActivities.length > 0 ? externalActivities : []), ...baseline];
 
         if (showUserActivityOnly) {
             filtered = filtered.filter(activity => activity.isCurrentUser);
@@ -105,7 +131,7 @@ export default function Activities({ market: _market }: { market: MarketWithEven
         }
 
         return filtered;
-    }, [showUserActivityOnly, activityTypeFilter]);
+    }, [showUserActivityOnly, activityTypeFilter, externalActivities]);
 
     return (
         <Card>
@@ -132,7 +158,8 @@ export default function Activities({ market: _market }: { market: MarketWithEven
                         <Select
                             value={activityTypeFilter}
                             onValueChange={(value: string) => {
-                                const next = ['deposit', 'withdraw', 'harvest'].includes(value) ? value : 'all';
+                                const valid = ['deposit', 'withdraw', 'harvest', 'finalize', 'redeem', 'initialize'];
+                                const next = valid.includes(value) ? value : 'all';
                                 setActivityTypeFilter(next);
                                 updateQueryParams({ activityType: next === 'all' ? null : next });
                             }}
@@ -145,20 +172,23 @@ export default function Activities({ market: _market }: { market: MarketWithEven
                                 <SelectItem value="deposit">Deposits</SelectItem>
                                 <SelectItem value="withdraw">Withdrawals</SelectItem>
                                 <SelectItem value="harvest">Harvests</SelectItem>
+                                <SelectItem value="initialize">Initializations</SelectItem>
+                                <SelectItem value="finalize">Finalizations</SelectItem>
+                                <SelectItem value="redeem">Redemptions</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
                 </div>
             </CardHeader>
             <CardContent>
-                <div className="space-y-3">
-                    {filteredActivities.map(activity => (
-                        <div key={activity.id} className="flex items-center justify-between p-3 border rounded-lg">
+                <div className="space-y-3 max-h-[530px] overflow-y-auto">
+                    {filteredActivities.map((activity, idx) => (
+                        <div key={`${activity.id}-${idx}`} className="flex items-center justify-between p-3 border rounded-lg">
                             <div className="flex items-center space-x-3">
                                 <div className="w-2 h-2 rounded-full bg-primary"></div>
                                 <div>
                                     <p className="font-medium text-sm">
-                                        {activity.walletAddress}
+                                        {shortenAddress(activity.walletAddress)}
                                         {activity.isCurrentUser && <span className="text-primary ml-1">(You)</span>}
                                     </p>
                                     <p className="text-xs text-muted-foreground">{activity.info}</p>
@@ -180,7 +210,7 @@ export default function Activities({ market: _market }: { market: MarketWithEven
                             </div>
                         </div>
                     ))}
-                    {filteredActivities.length === 0 && <p className="text-center text-muted-foreground py-4">No activities found.</p>}
+                    {filteredActivities.length === 0 && <p className="text-center text-muted-foreground py-4">No activity yet.</p>}
                 </div>
             </CardContent>
         </Card>
