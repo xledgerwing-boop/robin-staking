@@ -3,14 +3,14 @@
 import { darkTheme, getDefaultConfig, lightTheme, RainbowKitProvider } from '@rainbow-me/rainbowkit';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WagmiProvider } from 'wagmi';
-import { berachainBepolia } from 'wagmi/chains';
+import { polygon } from 'wagmi/chains';
 import { metaMaskWallet, phantomWallet } from '@rainbow-me/rainbowkit/wallets';
 import '@rainbow-me/rainbowkit/styles.css';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 
 const config = getDefaultConfig({
-    chains: [berachainBepolia],
+    chains: [polygon],
     ssr: false,
     appName: 'Robin Staking Vaults',
     projectId: 'NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID',
@@ -21,7 +21,7 @@ const config = getDefaultConfig({
         },
     ],
     // transports: {
-    //     [berachain.id]: fallback([unstable_connector(injected)]),
+    //     [polygon.id]: fallback([unstable_connector(injected)]),
     // },
 });
 

@@ -2,15 +2,20 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { TrendingUp, DollarSign, BarChart3, Clock, ArrowUpRight, Coins, CheckCircle, AlertCircle, Timer, Search } from 'lucide-react';
+import { TrendingUp, DollarSign, BarChart3, Clock, ArrowUpRight, Search, ArrowUpDown, ArrowUp, ArrowDown, User, Loader } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState, useMemo } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Navbar from '@/components/navbar';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { fetchWalletPositions } from '@/lib/polymarket';
+import { DateTime } from 'luxon';
+import { getStatusBadge, Market, MarketRow, MarketRowToMarket } from '@/types/market';
+import { useProxyAccount } from '@/hooks/useProxyAccount';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 export default function StakingPage() {
     // Mock data for demonstration
@@ -21,150 +26,150 @@ export default function StakingPage() {
         totalUsers: 2847,
     };
 
-    const userTotals = {
-        totalSupplied: '$45,230',
-        totalEarned: '$3,847',
-    };
-
-    const userDeposits = [
-        {
-            id: 1,
-            image: '/placeholder.png',
-            title: '2024 US Election',
-            liquidationDate: '2024-11-05',
-            yesTokens: '1,250',
-            noTokens: '1,250',
-            earnedYield: '$247.50',
-            status: 'active',
-        },
-        {
-            id: 2,
-            image: '/placeholder.png',
-            title: 'BTC > $100k by EOY',
-            liquidationDate: '2024-12-31',
-            yesTokens: '850',
-            noTokens: '850',
-            earnedYield: '$89.25',
-            status: 'active',
-        },
-        {
-            id: 3,
-            image: '/placeholder.png',
-            title: 'ETH Merge Success',
-            liquidationDate: '2024-03-15',
-            yesTokens: '2,100',
-            noTokens: '2,100',
-            earnedYield: '$420.00',
-            status: 'completed',
-        },
-    ];
-
-    const availableVaults = [
-        {
-            id: 1,
-            conditionId: 'SPORTS_001',
-            image: '/placeholder.png',
-            title: 'Sports Betting Vault',
-            liquidationDate: '2024-06-30',
-            tvl: '$2.8M',
-            apy: '28.5%',
-            inWallet: true,
-        },
-        {
-            id: 2,
-            conditionId: 'CRYPTO_002',
-            image: '/placeholder.png',
-            title: 'Crypto Predictions',
-            liquidationDate: '2024-12-31',
-            tvl: '$4.2M',
-            apy: '22.1%',
-            inWallet: false,
-        },
-        {
-            id: 3,
-            conditionId: 'POLITICS_003',
-            image: '/placeholder.png',
-            title: 'Political Events',
-            liquidationDate: '2024-11-05',
-            tvl: '$1.9M',
-            apy: '31.2%',
-            inWallet: true,
-        },
-        {
-            id: 4,
-            conditionId: 'WEATHER_004',
-            image: '/placeholder.png',
-            title: 'Weather & Climate',
-            liquidationDate: '2024-09-30',
-            tvl: '$890K',
-            apy: '19.8%',
-            inWallet: false,
-        },
-        {
-            id: 5,
-            conditionId: 'TECH_005',
-            image: '/placeholder.png',
-            title: 'Tech Milestones',
-            liquidationDate: '2025-01-31',
-            tvl: '$3.1M',
-            apy: '25.7%',
-            inWallet: true,
-        },
-        {
-            id: 6,
-            conditionId: 'FINANCE_006',
-            image: '/placeholder.png',
-            title: 'Financial Markets',
-            liquidationDate: '2024-08-15',
-            tvl: '$1.5M',
-            apy: '20.9%',
-            inWallet: false,
-        },
-    ];
+    const { address, isConnected } = useProxyAccount();
+    const [availableMarkets, setAvailableMarkets] = useState<Market[]>([]);
 
     // State for filtering controls
     const [showWalletOnly, setShowWalletOnly] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [walletConditionIds, setWalletConditionIds] = useState<string[]>([]);
+    const [marketsLoading, setMarketsLoading] = useState(false);
+    const [queryParamsLoaded, setQueryParamsLoaded] = useState(false);
 
-    // Filtered vaults computation
-    const filteredVaults = useMemo(() => {
-        let filtered = availableVaults;
+    // Sorting state
+    type SortField = 'apy' | 'tvl' | 'liquidationDate' | 'title';
+    type SortDirection = 'asc' | 'desc';
+    const [sortField, setSortField] = useState<SortField>('apy');
+    const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
-        // Filter by wallet if switch is enabled
-        if (showWalletOnly) {
-            filtered = filtered.filter(vault => vault.inWallet);
-        }
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
 
-        // Filter by search query (conditionId or vault name)
-        if (searchQuery.trim()) {
-            const query = searchQuery.toLowerCase();
-            filtered = filtered.filter(vault => vault.title.toLowerCase().includes(query) || vault.conditionId.toLowerCase().includes(query));
-        }
-
-        return filtered;
-    }, [showWalletOnly, searchQuery]);
-
-    const getStatusIcon = (status: string) => {
-        switch (status) {
-            case 'active':
-                return <CheckCircle className="w-4 h-4 text-primary" />;
-            case 'completed':
-                return <CheckCircle className="w-4 h-4 text-secondary" />;
-            case 'pending':
-                return <Timer className="w-4 h-4 text-yellow-500" />;
-            default:
-                return <AlertCircle className="w-4 h-4 text-gray-500" />;
+    const updateQueryParams = (updates: Record<string, string | null | undefined>) => {
+        const params = new URLSearchParams(searchParams.toString());
+        Object.entries(updates).forEach(([key, value]) => {
+            if (value === undefined || value === null || value === '') {
+                params.delete(key);
+            } else {
+                params.set(key, value);
+            }
+        });
+        const prev = searchParams.toString();
+        const next = params.toString();
+        if (prev !== next) {
+            router.replace(`${pathname}${next ? `?${next}` : ''}`);
         }
     };
 
-    const getStatusBadge = (status: string) => {
-        const variants = {
-            active: 'default',
-            completed: 'secondary',
-            pending: 'outline',
-        } as const;
+    const loadQueryParams = () => {
+        const spSearch = searchParams.get('search') ?? '';
+        if (spSearch !== searchQuery) setSearchQuery(spSearch);
 
-        return <Badge variant={variants[status as keyof typeof variants] || 'outline'}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>;
+        const walletOnlyParam = searchParams.get('walletOnly');
+        const spWalletOnly = walletOnlyParam === '1' || walletOnlyParam === 'true';
+        if (spWalletOnly !== showWalletOnly) setShowWalletOnly(spWalletOnly);
+
+        const allowedSortFields: SortField[] = ['apy', 'tvl', 'liquidationDate', 'title'];
+        const spSortField = searchParams.get('sortField') as SortField | null;
+        const spSortDirection = searchParams.get('sortDirection') as SortDirection | null;
+        if (spSortField && allowedSortFields.includes(spSortField) && spSortField !== sortField) {
+            setSortField(spSortField);
+        }
+        if (spSortDirection && (spSortDirection === 'asc' || spSortDirection === 'desc') && spSortDirection !== sortDirection) {
+            setSortDirection(spSortDirection);
+        }
+        setQueryParamsLoaded(true);
+    };
+
+    // Sync URL -> state on mount and when navigating back/forward
+    useEffect(() => {
+        loadQueryParams();
+    }, [searchParams]);
+
+    useEffect(() => {
+        if (!queryParamsLoaded) return;
+        const controller = new AbortController();
+        const fetchMarkets = async () => {
+            setMarketsLoading(true);
+            try {
+                const params = new URLSearchParams();
+                if (searchQuery.trim()) params.set('search', searchQuery.trim());
+                if (showWalletOnly && walletConditionIds.length > 0) {
+                    params.set('walletOnly', 'true');
+                    params.set('conditionIds', walletConditionIds.join(','));
+                }
+                // pass sorting to server
+                params.set('sortField', sortField);
+                params.set('sortDirection', sortDirection);
+                const res = await fetch(`/api/markets?${params.toString()}`, { signal: controller.signal });
+                if (!res.ok) throw new Error('Failed to load markets');
+                const data = (await res.json()) as MarketRow[];
+                setAvailableMarkets(data.map(MarketRowToMarket));
+            } catch (e) {
+                console.error(e);
+                setAvailableMarkets([]);
+            } finally {
+                setMarketsLoading(false);
+            }
+        };
+        fetchMarkets();
+    }, [searchQuery, showWalletOnly, isConnected, address, walletConditionIds, sortField, sortDirection, queryParamsLoaded]);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        const run = async () => {
+            if (showWalletOnly && isConnected && address) {
+                try {
+                    const positions = await fetchWalletPositions(address);
+                    setWalletConditionIds(Array.from(new Set(positions.map(p => p))));
+                } catch {
+                    setWalletConditionIds([]);
+                }
+            } else {
+                setWalletConditionIds([]);
+            }
+        };
+        run();
+        return () => controller.abort();
+    }, [showWalletOnly, isConnected, address]);
+
+    const defaultDirectionByField: Record<SortField, SortDirection> = {
+        apy: 'desc',
+        tvl: 'desc',
+        liquidationDate: 'asc',
+        title: 'asc',
+    };
+
+    const sortLabels: Record<SortField, string> = {
+        apy: 'APY',
+        tvl: 'TVL',
+        liquidationDate: 'Liquidation Date',
+        title: 'Name',
+    };
+
+    const handleSortSelect = (field: SortField) => {
+        if (sortField === field) {
+            const nextDirection: SortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            setSortDirection(nextDirection);
+            updateQueryParams({ sortField: field, sortDirection: nextDirection });
+        } else {
+            const nextDirection = defaultDirectionByField[field];
+            setSortField(field);
+            setSortDirection(nextDirection);
+            updateQueryParams({ sortField: field, sortDirection: nextDirection });
+        }
+    };
+
+    const handleSearchInputChange = (value: string) => {
+        setSearchQuery(value);
+        const trimmed = value.trim();
+        updateQueryParams({ search: trimmed || null });
+    };
+
+    const handleWalletOnlyChange = (checked: boolean) => {
+        setShowWalletOnly(checked);
+        updateQueryParams({ walletOnly: checked ? '1' : null });
     };
 
     return (
@@ -172,7 +177,7 @@ export default function StakingPage() {
             {/* Header */}
             <Navbar />
 
-            <div className="container mx-auto px-4 py-8">
+            <div className="h-full container mx-auto px-4 py-8">
                 {/* Page Header */}
                 <div className="mb-8">
                     <h1 className="text-3xl md:text-4xl font-bold mb-2">Staking Dashboard</h1>
@@ -185,11 +190,13 @@ export default function StakingPage() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                     <Card>
                         <CardContent className="p-6">
-                            <div className="flex items-center space-x-2">
-                                <TrendingUp className="w-5 h-5 text-primary" />
+                            <div className="flex items-start justify-between space-x-2">
+                                <div className="text-center p-4 bg-muted/50 rounded-lg">
+                                    <TrendingUp className="w-6 h-6 text-primary" />
+                                </div>
                                 <div>
                                     <p className="text-sm text-muted-foreground">Average APY</p>
-                                    <p className="text-2xl font-bold text-primary">{keyMetrics.averageAPY}</p>
+                                    <p className="text-2xl font-bold">{keyMetrics.averageAPY}</p>
                                 </div>
                             </div>
                         </CardContent>
@@ -197,8 +204,10 @@ export default function StakingPage() {
 
                     <Card>
                         <CardContent className="p-6">
-                            <div className="flex items-center space-x-2">
-                                <BarChart3 className="w-5 h-5 text-accent" />
+                            <div className="flex items-start justify-between space-x-2">
+                                <div className="text-center p-4 bg-muted/50 rounded-lg">
+                                    <BarChart3 className="w-6 h-6 text-primary" />
+                                </div>
                                 <div>
                                     <p className="text-sm text-muted-foreground">Markets</p>
                                     <p className="text-2xl font-bold">{keyMetrics.numberOfMarkets}</p>
@@ -209,8 +218,10 @@ export default function StakingPage() {
 
                     <Card>
                         <CardContent className="p-6">
-                            <div className="flex items-center space-x-2">
-                                <DollarSign className="w-5 h-5 text-green-500" />
+                            <div className="flex items-start justify-between space-x-2">
+                                <div className="text-center p-4 bg-muted/50 rounded-lg">
+                                    <DollarSign className="w-6 h-6 text-primary" />
+                                </div>
                                 <div>
                                     <p className="text-sm text-muted-foreground">Total TVL</p>
                                     <p className="text-2xl font-bold">{keyMetrics.totalTVL}</p>
@@ -221,8 +232,10 @@ export default function StakingPage() {
 
                     <Card>
                         <CardContent className="p-6">
-                            <div className="flex items-center space-x-2">
-                                <Coins className="w-5 h-5 text-blue-500" />
+                            <div className="flex items-start justify-between space-x-2">
+                                <div className="text-center p-4 bg-muted/50 rounded-lg">
+                                    <User className="w-6 h-6 text-primary" />
+                                </div>
                                 <div>
                                     <p className="text-sm text-muted-foreground">Active Users</p>
                                     <p className="text-2xl font-bold">{keyMetrics.totalUsers.toLocaleString()}</p>
@@ -232,72 +245,8 @@ export default function StakingPage() {
                     </Card>
                 </div>
 
-                {/* Your Deposits Section */}
-                <Card className="mb-8">
-                    <CardHeader>
-                        <div className="flex items-center justify-between">
-                            <CardTitle className="text-xl">Your Deposits</CardTitle>
-                            <div className="flex space-x-6 text-sm">
-                                <div>
-                                    <span className="text-muted-foreground">Total Supplied: </span>
-                                    <span className="font-bold text-primary">{userTotals.totalSupplied}</span>
-                                </div>
-                                <div>
-                                    <span className="text-muted-foreground">Total Earned: </span>
-                                    <span className="font-bold text-green-500">{userTotals.totalEarned}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-4">
-                            {userDeposits.map(deposit => (
-                                <Link key={deposit.id} href={`/vault/${deposit.id}`}>
-                                    <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer mt-2">
-                                        <div className="flex items-center space-x-4">
-                                            <Image
-                                                src={deposit.image || '/placeholder.png'}
-                                                alt={deposit.title}
-                                                width={40}
-                                                height={40}
-                                                className="rounded-lg"
-                                            />
-                                            <div>
-                                                <h3 className="font-semibold">{deposit.title}</h3>
-                                                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                                                    <Clock className="w-3 h-3" />
-                                                    <span>Liquidates: {new Date(deposit.liquidationDate).toLocaleDateString()}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="flex items-center space-x-6">
-                                            <div className="text-center">
-                                                <p className="text-sm text-muted-foreground">YES Tokens</p>
-                                                <p className="font-medium">{deposit.yesTokens}</p>
-                                            </div>
-                                            <div className="text-center">
-                                                <p className="text-sm text-muted-foreground">NO Tokens</p>
-                                                <p className="font-medium">{deposit.noTokens}</p>
-                                            </div>
-                                            <div className="text-center">
-                                                <p className="text-sm text-muted-foreground">Earned Yield</p>
-                                                <p className="font-medium text-green-500">{deposit.earnedYield}</p>
-                                            </div>
-                                            <div className="flex items-center justify-center space-x-2 min-w-28">
-                                                {getStatusIcon(deposit.status)}
-                                                {getStatusBadge(deposit.status)}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </Link>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* Available Vaults Section */}
-                <Card>
+                {/* Available Markets Section */}
+                <Card className="h-full">
                     <CardHeader>
                         <CardTitle className="text-xl">Available Markets</CardTitle>
                         <p className="text-muted-foreground">Discover new prediction market opportunities to stake your tokens</p>
@@ -308,66 +257,147 @@ export default function StakingPage() {
                                 <Input
                                     placeholder="Search by condition ID, name or Polymarket url..."
                                     value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
+                                    onChange={e => handleSearchInputChange(e.target.value)}
                                     className="pl-10"
                                 />
                             </div>
                             <div className="flex items-center space-x-2">
-                                <Switch id="wallet-only" checked={showWalletOnly} onCheckedChange={setShowWalletOnly} />
+                                <Switch id="wallet-only" checked={showWalletOnly} onCheckedChange={handleWalletOnlyChange} />
                                 <Label htmlFor="wallet-only" className="text-sm font-medium">
-                                    Show wallet vaults only
+                                    Show wallet only
                                 </Label>
+                            </div>
+                            <div className="flex items-center">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" size="sm" className="min-w-36 justify-between">
+                                            <span className="flex items-center gap-2">{sortLabels[sortField]}</span>
+                                            {sortDirection === 'asc' ? (
+                                                <ArrowUp className="w-4 h-4 text-primary" />
+                                            ) : (
+                                                <ArrowDown className="w-4 h-4 text-primary" />
+                                            )}
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-48">
+                                        <DropdownMenuItem onClick={() => handleSortSelect('apy')}>
+                                            <span className="flex-1">APY</span>
+                                            {sortField === 'apy' ? (
+                                                sortDirection === 'asc' ? (
+                                                    <ArrowUp className="w-4 h-4 text-primary" />
+                                                ) : (
+                                                    <ArrowDown className="w-4 h-4 text-primary" />
+                                                )
+                                            ) : (
+                                                <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+                                            )}
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleSortSelect('tvl')}>
+                                            <span className="flex-1">TVL</span>
+                                            {sortField === 'tvl' ? (
+                                                sortDirection === 'asc' ? (
+                                                    <ArrowUp className="w-4 h-4 text-primary" />
+                                                ) : (
+                                                    <ArrowDown className="w-4 h-4 text-primary" />
+                                                )
+                                            ) : (
+                                                <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+                                            )}
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleSortSelect('liquidationDate')}>
+                                            <span className="flex-1">Liquidation Date</span>
+                                            {sortField === 'liquidationDate' ? (
+                                                sortDirection === 'asc' ? (
+                                                    <ArrowUp className="w-4 h-4 text-primary" />
+                                                ) : (
+                                                    <ArrowDown className="w-4 h-4 text-primary" />
+                                                )
+                                            ) : (
+                                                <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+                                            )}
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleSortSelect('title')}>
+                                            <span className="flex-1">Name</span>
+                                            {sortField === 'title' ? (
+                                                sortDirection === 'asc' ? (
+                                                    <ArrowUp className="w-4 h-4 text-primary" />
+                                                ) : (
+                                                    <ArrowDown className="w-4 h-4 text-primary" />
+                                                )
+                                            ) : (
+                                                <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+                                            )}
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </div>
                         </div>
                     </CardHeader>
                     <CardContent>
                         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {filteredVaults.map(vault => (
-                                <Link key={vault.id} href={`/vault/${vault.id}`}>
-                                    <Card className="hover:shadow-md transition-shadow">
-                                        <CardContent className="p-6">
-                                            <div className="flex items-center space-x-3 mb-4">
-                                                <Image
-                                                    src={vault.image || '/placeholder.png'}
-                                                    alt={vault.title}
-                                                    width={48}
-                                                    height={48}
-                                                    className="rounded-lg"
-                                                />
-                                                <div>
-                                                    <h3 className="font-semibold">{vault.title}</h3>
-                                                    <p className="text-xs text-muted-foreground font-mono">{vault.conditionId}</p>
-                                                    <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+                            {marketsLoading ? (
+                                <div className="col-span-full h-full flex items-center justify-center">
+                                    <Loader className="w-12 h-12 animate-spin" />
+                                </div>
+                            ) : (
+                                availableMarkets.map(market => (
+                                    <Card className="hover:shadow-md transition-shadow" key={market.conditionId}>
+                                        <CardContent>
+                                            <Link href={`/market/${encodeURIComponent(market.slug)}`} className="flex items-center space-x-3 mb-4">
+                                                <div className="w-18 h-18 relative shrink-0">
+                                                    <Image
+                                                        src={market.image || '/placeholder.png'}
+                                                        alt={market.question ?? 'Market'}
+                                                        fill
+                                                        className="rounded-lg object-cover"
+                                                        sizes="150px"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col items-start justify-center h-18">
+                                                    <h3 className="font-semibold line-clamp-2">{market.question}</h3>
+                                                    <div className="flex items-center space-x-1 text-sm text-muted-foreground mt-1">
                                                         <Clock className="w-3 h-3" />
-                                                        <span>{new Date(vault.liquidationDate).toLocaleDateString()}</span>
+                                                        <span>
+                                                            {market.endDate
+                                                                ? DateTime.fromMillis(market.endDate).toLocaleString(DateTime.DATE_MED)
+                                                                : '—'}
+                                                        </span>
+                                                        <div className="flex items-center">
+                                                            {getStatusBadge('active' /*market.status*/, market.initialized)}
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
+                                            </Link>
 
                                             <div className="space-y-3">
                                                 <div className="flex justify-between">
                                                     <span className="text-sm text-muted-foreground">TVL</span>
-                                                    <span className="font-medium">{vault.tvl}</span>
+                                                    <span className="font-medium">
+                                                        {market.initialized ? `$${market.tvl.toLocaleString()}` : 'Uninitialized'}
+                                                    </span>
                                                 </div>
                                                 <div className="flex justify-between">
                                                     <span className="text-sm text-muted-foreground">APY</span>
-                                                    <span className="font-bold text-primary">{vault.apy}</span>
+                                                    <span className="font-bold text-primary">
+                                                        {market.initialized ? `${market.apyBps.toFixed(2)}%` : 'Uninitialized'}
+                                                    </span>
                                                 </div>
 
-                                                <Button className="w-full" size="sm">
-                                                    Stake Now
-                                                    <ArrowUpRight className="w-4 h-4 ml-1" />
+                                                <Button className="w-full" size="sm" asChild>
+                                                    <Link href={`/market/${encodeURIComponent(market.slug)}`}>
+                                                        {market.initialized ? 'Stake Now' : 'Initialize Market'}
+                                                        <ArrowUpRight className="w-4 h-4 ml-1" />
+                                                    </Link>
                                                 </Button>
                                             </div>
                                         </CardContent>
                                     </Card>
-                                </Link>
-                            ))}
-
-                            {filteredVaults.length === 0 && (
+                                ))
+                            )}
+                            {availableMarkets.length === 0 && !marketsLoading && (
                                 <div className="col-span-full text-center py-8">
                                     <p className="text-muted-foreground">
-                                        No vaults found matching your criteria. Try searching by Polymarket URL or condition ID to initialize a
+                                        No markets found matching your criteria. Try searching by Polymarket URL or condition ID to initialize a
                                         non-existing market.
                                     </p>
                                 </div>

@@ -3,8 +3,10 @@
 import { ConnectButton as RainbowKitConnectButton } from '@rainbow-me/rainbowkit';
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
+import { useProxyAccount } from '@/hooks/useProxyAccount';
 
 export function ConnectButton({ className, connectTitle = 'Connect Wallet' }: { className?: string; connectTitle?: string }) {
+    const { proxyAddress } = useProxyAccount();
     return (
         <RainbowKitConnectButton.Custom>
             {({ account, chain, openAccountModal, openChainModal, openConnectModal, mounted }) => {
@@ -42,6 +44,8 @@ export function ConnectButton({ className, connectTitle = 'Connect Wallet' }: { 
                             return (
                                 <Button onClick={openAccountModal} className={cn('transition-colors', className)}>
                                     {account.displayName}
+                                    {/* <br />
+                                    {shortenAddress(proxyAddress, 4)} */}
                                 </Button>
                             );
                         })()}
