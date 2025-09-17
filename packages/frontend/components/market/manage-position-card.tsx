@@ -17,7 +17,6 @@ type UserPosition = {
     noTokens: string;
     earnedYield: string;
     balance: string;
-    withdrawableAmount: string;
 };
 
 export default function ManagePositionCard({ market, userPosition }: { market: MarketWithEvent; userPosition: UserPosition }) {
@@ -29,6 +28,8 @@ export default function ManagePositionCard({ market, userPosition }: { market: M
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
+
+    const withdrawableAmount = depositSide === 'yes' ? userPosition.yesTokens : userPosition.noTokens;
 
     const updateQueryParams = (updates: Record<string, string | null | undefined>) => {
         const params = new URLSearchParams(searchParams.toString());
@@ -68,7 +69,7 @@ export default function ManagePositionCard({ market, userPosition }: { market: M
     };
 
     const handleMaxWithdraw = () => {
-        setWithdrawAmount(userPosition.withdrawableAmount.replace('$', '').replace(/,/g, ''));
+        setWithdrawAmount(withdrawableAmount.replace('$', '').replace(/,/g, ''));
     };
 
     const calculateExpectedYield = (amount: string) => {
@@ -193,7 +194,7 @@ export default function ManagePositionCard({ market, userPosition }: { market: M
                                 </Select>
                             </div>
                             <div className="flex space-x-2 justify-between">
-                                <p className="text-sm text-muted-foreground">Balance: {userPosition.withdrawableAmount}</p>
+                                <p className="text-sm text-muted-foreground">Balance: {withdrawableAmount}</p>
                                 <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleMaxWithdraw}>
                                     Max
                                 </Button>
@@ -212,7 +213,7 @@ export default function ManagePositionCard({ market, userPosition }: { market: M
                                     <span>
                                         $
                                         {(
-                                            Number.parseFloat(userPosition.withdrawableAmount.replace('$', '').replace(/,/g, '')) -
+                                            Number.parseFloat(withdrawableAmount.replace('$', '').replace(/,/g, '')) -
                                             (Number.parseFloat(withdrawAmount) || 0)
                                         ).toFixed(2)}
                                     </span>

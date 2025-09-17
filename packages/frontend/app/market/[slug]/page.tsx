@@ -26,7 +26,6 @@ export default function MarketDetailPage() {
         noTokens: '0',
         earnedYield: '$50.50',
         balance: '5,420.00',
-        withdrawableAmount: '2,847.30',
     };
 
     const [market, setMarket] = useState<MarketWithEvent | null>(null);
@@ -42,7 +41,7 @@ export default function MarketDetailPage() {
 
     if (!market) return <div>Loading...</div>;
 
-    const isActive = false; //market ? (market.endDate ? Date.now() < market.endDate : true) : true;
+    const isActive = true; //market ? (market.endDate ? Date.now() < market.endDate : true) : true;
     const computedStatus: 'active' | 'completed' = isActive ? 'active' : 'completed';
 
     return (
