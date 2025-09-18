@@ -1,0 +1,25 @@
+{
+    "name": "polymarket-staking-extension",
+    "private": true,
+    "type": "module",
+    "version": "0.1.0",
+    "scripts": {
+        "dev": "vite build --watch",
+        "build": "vite build",
+        "preview": "vite preview"
+    },
+    "devDependencies": {
+        "@types/react": "^18.3.3",
+        "@types/react-dom": "^18.3.0",
+        "chrome-types": "^0.1.376",
+        "typescript": "^5.5.4",
+        "vite": "^5.4.0"
+    },
+    "dependencies": {
+        "@tanstack/react-query": "^5.51.1",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
+        "viem": "^2.13.5",
+        "wagmi": "^2.12.10"
+    }
+}

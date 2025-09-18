@@ -1,0 +1,19 @@
+{
+    "manifest_version": 3,
+    "name": "Polymarket Staking Helper",
+    "version": "0.1.0",
+    "description": "Adds a staking UI under Polymarket's trading interface and interacts with a custom vault contract.",
+    "content_scripts": [
+        {
+            "matches": ["https://polymarket.com/*", "https://*.polymarket.com/*"],
+            "js": ["assets/content.js"],
+            "run_at": "document_idle"
+        }
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": ["assets/inpage.js"],
+            "matches": ["https://polymarket.com/*", "https://*.polymarket.com/*"]
+        }
+    ]
+}
