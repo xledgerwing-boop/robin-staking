@@ -1,30 +1,15 @@
-import React, { useMemo, useState } from 'react';
+import { useState } from 'react';
+import './tailwind.css';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider, useMutation, useQuery } from '@tanstack/react-query';
-import { WagmiConfig, createConfig, useAccount, usePublicClient, useWalletClient } from 'wagmi';
+import { WagmiProvider, createConfig, useAccount, usePublicClient, useWalletClient } from 'wagmi';
 import { injected } from 'wagmi/connectors';
 import { http } from 'viem';
 import { polygon } from 'viem/chains';
-import { formatAddress } from './inpage_utils';
+import { formatAddress, getSelectedTitleElement } from './inpage_utils';
 import { TARGET_CHAIN_ID, fetchConditionIdForCurrentPage, readVaultAddressForCondition, createVaultTx, stakeTx } from './types';
 
-// Simple styles (scoped by wrapper class)
-const styles = `
-.pmx-card { border: 1px solid rgba(0,0,0,.1); border-radius: 12px; padding: 12px; background: #fff; }
-.pmx-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
-.pmx-btn { padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(0,0,0,.2); cursor: pointer; }
-.pmx-input { padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(0,0,0,.2); min-width: 120px; }
-.pmx-muted { color: #666; font-size: 12px; }
-`;
-
-function addStylesOnce() {
-    if (document.getElementById('pmx-styles')) return;
-    const style = document.createElement('style');
-    style.id = 'pmx-styles';
-    style.textContent = styles;
-    document.head.appendChild(style);
-}
-addStylesOnce();
+const ROOT_ID = 'pmx-staking-root';
 
 // Wagmi + Query setup
 const queryClient = new QueryClient();
@@ -59,6 +44,12 @@ function useVaultAddress(conditionId: `0x${string}` | undefined) {
     });
 }
 
+function useMarketInfo() {}
+
+function rootPath() {
+    return (document.getElementById(ROOT_ID) as HTMLElement | null)?.dataset?.rootPath || '/';
+}
+
 function StakingCard() {
     const { address, chainId, isConnected } = useAccount();
     const { data: walletClient } = useWalletClient();
@@ -67,6 +58,16 @@ function StakingCard() {
     const { data: vaultAddress, isLoading: vaultLoading, refetch: refetchVault } = useVaultAddress(conditionId);
 
     const [amount, setAmount] = useState('');
+
+    const title = getSelectedTitleElement();
+    if (title) {
+        new MutationObserver(() => {
+            console.log('title', title);
+        }).observe(title, {
+            childList: true,
+            subtree: true,
+        });
+    }
 
     const createVault = useMutation({
         mutationFn: async () => {
@@ -94,7 +95,8 @@ function StakingCard() {
     });
 
     return (
-        <div className="pmx-card">
+        <div>
+            {window.location.pathname}
             <div
                 style={{
                     display: 'flex',
@@ -102,50 +104,48 @@ function StakingCard() {
                     alignItems: 'center',
                 }}
             >
-                <strong>Staking</strong>
-                <span className="pmx-muted">{isConnected ? `Using ${formatAddress(address)}` : 'Wallet not connected here'}</span>
+                <div className="flex items-center gap-2 text-primary">
+                    <img src={`${rootPath()}logo.png`} alt="Robin" style={{ width: 20, height: 20 }} /> Robin
+                </div>
+                <span>{isConnected ? `Using ${formatAddress(address)}` : 'Wallet not connected here'}</span>
             </div>
 
             {condLoading ? (
-                <div className="pmx-row pmx-muted">Loading market condition…</div>
+                <div>Loading market condition…</div>
             ) : condError ? (
-                <div className="pmx-row" style={{ color: '#b00' }}>
-                    Couldn’t resolve conditionId. Please implement `fetchConditionIdForCurrentPage()`.
-                </div>
+                <div style={{ color: '#b00' }}>Couldn’t resolve conditionId. Please implement `fetchConditionIdForCurrentPage()`.</div>
             ) : (
-                <div className="pmx-row">
+                <div>
                     <div>Condition ID:</div>
                     <code style={{ fontSize: 12 }}>{conditionId}</code>
                 </div>
             )}
 
             {vaultLoading ? (
-                <div className="pmx-row pmx-muted">Checking vault…</div>
+                <div>Checking vault…</div>
             ) : vaultAddress ? (
                 <>
-                    <div className="pmx-row">
+                    <div>
                         <div>Vault:</div>
                         <code style={{ fontSize: 12 }}>{vaultAddress}</code>
                     </div>
-                    <div className="pmx-row">
-                        <input className="pmx-input" value={amount} placeholder="Amount to stake" onChange={e => setAmount(e.target.value)} />
-                        <button className="pmx-btn" onClick={() => stake.mutate()} disabled={stake.isPending || !amount}>
+                    <div>
+                        <input value={amount} placeholder="Amount to stake" onChange={e => setAmount(e.target.value)} />
+                        <button onClick={() => stake.mutate()} disabled={stake.isPending || !amount}>
                             {stake.isPending ? 'Staking…' : 'Stake'}
                         </button>
                     </div>
                 </>
             ) : (
-                <div className="pmx-row">
-                    <button className="pmx-btn" onClick={() => createVault.mutate()} disabled={createVault.isPending}>
+                <div>
+                    <button onClick={() => createVault.mutate()} disabled={createVault.isPending}>
                         {createVault.isPending ? 'Creating vault…' : 'Create Vault'}
                     </button>
                 </div>
             )}
 
             {chainId && chainId !== TARGET_CHAIN_ID && (
-                <div className="pmx-row" style={{ color: '#b00' }}>
-                    Wrong chain (chainId {chainId}). Switch to Polygon to proceed.
-                </div>
+                <div style={{ color: '#b00' }}>Wrong chain (chainId {chainId}). Switch to Polygon to proceed.</div>
             )}
         </div>
     );
@@ -153,17 +153,31 @@ function StakingCard() {
 
 function App() {
     return (
-        <WagmiConfig config={wagmiConfig}>
+        <WagmiProvider config={wagmiConfig}>
             <QueryClientProvider client={queryClient}>
                 <StakingCard />
             </QueryClientProvider>
-        </WagmiConfig>
+        </WagmiProvider>
     );
 }
 
 // Mount under the node created by the content script
-const host = document.getElementById('pmx-staking-root');
-if (host) {
-    const root = createRoot(host);
-    root.render(<App />);
+function mount() {
+    const host = document.getElementById(ROOT_ID);
+    if (host) {
+        const root = createRoot(host);
+        root.render(<App />);
+    }
 }
+mount();
+
+// Re-run on SPA URL changes
+let __pmx_lastPathname = window.location.pathname;
+setInterval(async () => {
+    const current = window.location.pathname;
+    if (current !== __pmx_lastPathname) {
+        __pmx_lastPathname = current;
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        mount();
+    }
+}, 1000);
