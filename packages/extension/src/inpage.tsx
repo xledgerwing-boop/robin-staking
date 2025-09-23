@@ -9,7 +9,6 @@ import { polygon } from 'viem/chains';
 import { formatAddress, getSelectedTitleElement } from './inpage_utils';
 import { PolymarketEvent, PolymarketMarket, TARGET_CHAIN_ID } from './types';
 import { Button } from './components/ui/button';
-import * as React from 'react';
 
 const ROOT_ID = 'pmx-staking-root';
 
