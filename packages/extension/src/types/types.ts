@@ -1,5 +1,3 @@
-import type { Abi } from 'viem';
-
 // If you need decimals conversion for staking token (e.g., USDC=6, MATIC=18)
 export const STAKING_TOKEN_DECIMALS = 6; // TODO adjust
 

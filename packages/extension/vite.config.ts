@@ -4,6 +4,7 @@ export default defineConfig({
     resolve: {
         alias: {
             '@': '/src',
+            types: '/types',
         },
     },
     build: {

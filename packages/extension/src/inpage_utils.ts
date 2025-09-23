@@ -8,3 +8,18 @@ export function getSelectedTitleElement(): HTMLElement | null {
     const titleElement = maybeTrade?.querySelector(':scope > div > div > div > div > div:nth-of-type(2) > p') as HTMLElement | null;
     return titleElement;
 }
+
+export const ROOT_ID = 'pmx-staking-root';
+
+export async function getEventData() {
+    const pathname = window.location.pathname;
+    const eventSlug = pathname.split('/')[2];
+    if (!eventSlug) return null;
+    const data = await fetch(`https://gamma-api.polymarket.com/events/slug/${eventSlug}`);
+    const json = await data.json();
+    return json;
+}
+
+export function rootPath() {
+    return (document.getElementById(ROOT_ID) as HTMLElement | null)?.dataset?.rootPath || '/';
+}
