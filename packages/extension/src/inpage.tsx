@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './tailwind.css';
 import { createRoot } from 'react-dom/client';
-import { QueryClient, QueryClientProvider, useMutation, useQuery } from '@tanstack/react-query';
-import { WagmiProvider, createConfig, useAccount, usePublicClient, useWalletClient } from 'wagmi';
+import { QueryClient, QueryClientProvider, useMutation } from '@tanstack/react-query';
+import { WagmiProvider, createConfig, useAccount, useWalletClient } from 'wagmi';
 import { injected } from 'wagmi/connectors';
 import { http } from 'viem';
 import { polygon } from 'viem/chains';
 import { formatAddress, getSelectedTitleElement } from './inpage_utils';
-import { TARGET_CHAIN_ID, fetchConditionIdForCurrentPage, readVaultAddressForCondition, createVaultTx, stakeTx } from './types';
+import { PolymarketEvent, PolymarketMarket, TARGET_CHAIN_ID } from './types';
+import { Button } from './components/ui/button';
+import * as React from 'react';
 
 const ROOT_ID = 'pmx-staking-root';
 
@@ -22,102 +24,105 @@ const wagmiConfig = createConfig({
     ssr: false,
 });
 
-function useConditionId() {
-    return useQuery({
-        queryKey: ['conditionId', window.location.pathname],
-        queryFn: fetchConditionIdForCurrentPage,
-    });
+async function getEventData() {
+    const pathname = window.location.pathname;
+    const eventSlug = pathname.split('/')[2];
+    if (!eventSlug) return null;
+    const data = await fetch(`https://gamma-api.polymarket.com/events/slug/${eventSlug}`);
+    const json = await data.json();
+    return json;
 }
-
-function useVaultAddress(conditionId: `0x${string}` | undefined) {
-    const publicClient = usePublicClient();
-    return useQuery({
-        enabled: !!conditionId,
-        queryKey: ['vaultAddress', conditionId],
-        queryFn: async () => {
-            if (!conditionId) throw new Error('No conditionId');
-            return await readVaultAddressForCondition(conditionId, async args => {
-                // generic viem read via public client
-                return await publicClient!.readContract(args);
-            });
-        },
-    });
-}
-
-function useMarketInfo() {}
 
 function rootPath() {
     return (document.getElementById(ROOT_ID) as HTMLElement | null)?.dataset?.rootPath || '/';
 }
 
 function StakingCard() {
+    const [market, setMarket] = useState<PolymarketMarket | null>(null);
     const { address, chainId, isConnected } = useAccount();
     const { data: walletClient } = useWalletClient();
 
-    const { data: conditionId, isLoading: condLoading, error: condError } = useConditionId();
-    const { data: vaultAddress, isLoading: vaultLoading, refetch: refetchVault } = useVaultAddress(conditionId);
+    const [vaultAddress, setVaultAddress] = useState<string | null>(null);
+    const [vaultLoading, setVaultLoading] = useState(false);
+    const [conditionLoading, setConditionLoading] = useState(false);
+    const [conditionError, setConditionError] = useState<string | null>(null);
+
+    const eventData = useRef<PolymarketEvent | null>(null);
 
     const [amount, setAmount] = useState('');
 
-    const title = getSelectedTitleElement();
-    if (title) {
-        new MutationObserver(() => {
-            console.log('title', title);
-        }).observe(title, {
+    const [pageMarketTitle, setPageMarketTitle] = useState('');
+
+    useEffect(() => {
+        const init = async () => {
+            eventData.current = await getEventData();
+            const title = getSelectedTitleElement();
+            if (!title) return;
+            setPageMarketTitle(title.innerText);
+        };
+        init();
+
+        const title = getSelectedTitleElement();
+        if (!title) return;
+        const observer = new MutationObserver(mutations => {
+            for (const m of mutations) {
+                if (m.type === 'characterData' || m.type === 'childList') {
+                    setPageMarketTitle(title.innerText);
+                    break;
+                }
+            }
+        });
+
+        observer.observe(title, {
+            characterData: true,
+            characterDataOldValue: true,
             childList: true,
             subtree: true,
         });
-    }
+
+        return () => observer.disconnect();
+    }, []);
+
+    useEffect(() => {
+        if (!eventData.current || !pageMarketTitle) return;
+        const market = eventData.current.markets.find(m => m.groupItemTitle === pageMarketTitle);
+        if (!market) return;
+        setMarket(market);
+    }, [pageMarketTitle]);
 
     const createVault = useMutation({
         mutationFn: async () => {
-            if (!conditionId) throw new Error('No conditionId');
+            if (!market?.conditionId) throw new Error('No conditionId');
             if (!walletClient) throw new Error('No wallet client');
             if (chainId !== TARGET_CHAIN_ID) throw new Error('Wrong chain');
-            return await createVaultTx(conditionId, async args => {
-                return await walletClient!.writeContract(args);
-            });
-        },
-        onSuccess: async () => {
-            await refetchVault();
         },
     });
 
     const stake = useMutation({
         mutationFn: async () => {
-            if (!conditionId) throw new Error('No conditionId');
+            if (!market?.conditionId) throw new Error('No conditionId');
             if (!walletClient) throw new Error('No wallet client');
             if (chainId !== TARGET_CHAIN_ID) throw new Error('Wrong chain');
-            return await stakeTx(conditionId, amount, async args => {
-                return await walletClient!.writeContract(args);
-            });
         },
     });
 
     return (
-        <div>
-            {window.location.pathname}
-            <div
-                style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                }}
-            >
+        <div className="overflow-scroll">
+            <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2 text-primary">
-                    <img src={`${rootPath()}logo.png`} alt="Robin" style={{ width: 20, height: 20 }} /> Robin
+                    <img src={`${rootPath()}logo.png`} alt="Robin" className="w-5 h-5" /> Robin
                 </div>
                 <span>{isConnected ? `Using ${formatAddress(address)}` : 'Wallet not connected here'}</span>
             </div>
 
-            {condLoading ? (
+            {conditionLoading ? (
                 <div>Loading market condition…</div>
-            ) : condError ? (
-                <div style={{ color: '#b00' }}>Couldn’t resolve conditionId. Please implement `fetchConditionIdForCurrentPage()`.</div>
+            ) : conditionError ? (
+                <div className="text-destructive">Couldn’t resolve conditionId. Please implement `fetchConditionIdForCurrentPage()`.</div>
             ) : (
                 <div>
                     <div>Condition ID:</div>
-                    <code style={{ fontSize: 12 }}>{conditionId}</code>
+                    <code className="text-sm">{market?.conditionId}</code>
                 </div>
             )}
 
@@ -127,7 +132,7 @@ function StakingCard() {
                 <>
                     <div>
                         <div>Vault:</div>
-                        <code style={{ fontSize: 12 }}>{vaultAddress}</code>
+                        <code className="text-sm">{vaultAddress}</code>
                     </div>
                     <div>
                         <input value={amount} placeholder="Amount to stake" onChange={e => setAmount(e.target.value)} />
@@ -138,14 +143,14 @@ function StakingCard() {
                 </>
             ) : (
                 <div>
-                    <button onClick={() => createVault.mutate()} disabled={createVault.isPending}>
+                    <Button onClick={() => createVault.mutate()} disabled={createVault.isPending}>
                         {createVault.isPending ? 'Creating vault…' : 'Create Vault'}
-                    </button>
+                    </Button>
                 </div>
             )}
 
             {chainId && chainId !== TARGET_CHAIN_ID && (
-                <div style={{ color: '#b00' }}>Wrong chain (chainId {chainId}). Switch to Polygon to proceed.</div>
+                <div className="text-destructive">Wrong chain (chainId {chainId}). Switch to Polygon to proceed.</div>
             )}
         </div>
     );

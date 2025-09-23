@@ -8,7 +8,17 @@
         "strict": true,
         "skipLibCheck": true,
         "noEmit": true,
-        "types": ["vite/client", "chrome-types"]
+        "types": ["vite/client", "chrome-types"],
+        "baseUrl": ".",
+        "paths": {
+            "@/*": ["./src/*"]
+        }
     },
-    "include": ["src"]
+    "include": ["src", "vite.config.ts"],
+    "references": [
+        {
+            "path": "./tsconfig.app.json"
+        }
+    ],
+    "files": []
 }
