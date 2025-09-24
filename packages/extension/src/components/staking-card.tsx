@@ -5,20 +5,37 @@ import { formatAddress, getEventData, getSelectedTitleElement, rootPath } from '
 import { PolymarketEvent, PolymarketMarket, TARGET_CHAIN_ID } from '../types/types';
 import { Button } from './ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
-import { useReadRobinVaultManagerVaultOf } from '@/types/contracts';
+import { useReadRobinVaultManagerVaultOf, useWriteRobinVaultManagerCreateVault } from '@/types/contracts';
+import { USED_CONTRACTS } from '@/constants';
+import useContractInteraction from '@/hooks/use-contract-interaction';
+import { Loader } from 'lucide-react';
+import { zeroAddress } from 'viem';
+import useInvalidateQueries from '@/hooks/use-invalidate-queries';
 
 export function StakingCard() {
     const [market, setMarket] = useState<PolymarketMarket | null>(null);
     const { address, chainId, isConnected } = useAccount();
     const { data: walletClient } = useWalletClient();
+    const invalidateQueries = useInvalidateQueries();
 
-    const { data: vaultAddress, isLoading: vaultLoading } = useReadRobinVaultManagerVaultOf({
-        address: address,
+    const {
+        data: vaultAddress,
+        isLoading: vaultLoading,
+        error: vaultError,
+        queryKey: vaultQueryKey,
+    } = useReadRobinVaultManagerVaultOf({
+        address: USED_CONTRACTS.VAULT_MANAGER,
         args: [market?.conditionId as `0x${string}`],
         query: {
             enabled: !!market?.conditionId,
         },
     });
+
+    const {
+        write: createVault,
+        isLoading: createVaultLoading,
+        promise: createVaultPromise,
+    } = useContractInteraction(useWriteRobinVaultManagerCreateVault);
 
     const eventData = useRef<PolymarketEvent | null>(null);
 
@@ -75,13 +92,17 @@ export function StakingCard() {
         handleMarketChange();
     }, [pageMarketTitle]);
 
-    const createVault = useMutation({
-        mutationFn: async () => {
-            if (!market?.conditionId) throw new Error('No conditionId');
-            if (!walletClient) throw new Error('No wallet client');
-            if (chainId !== TARGET_CHAIN_ID) throw new Error('Wrong chain');
-        },
-    });
+    const handleCreateVault = async () => {
+        if (!market?.conditionId) throw new Error('No conditionId');
+        if (!walletClient) throw new Error('No wallet client');
+        if (chainId !== TARGET_CHAIN_ID) throw new Error('Wrong chain');
+        await createVault({
+            address: USED_CONTRACTS.VAULT_MANAGER,
+            args: [market.conditionId as `0x${string}`],
+        });
+        await createVaultPromise.current;
+        await invalidateQueries([vaultQueryKey]);
+    };
 
     const stake = useMutation({
         mutationFn: async () => {
@@ -94,7 +115,7 @@ export function StakingCard() {
     return (
         <Card className="pmx-gradient-border">
             <div className="pmx-gradient-inner overflow-scroll">
-                <CardHeader>
+                <CardHeader className="p-3">
                     <CardTitle>
                         <div className="flex justify-between items-center">
                             <div className="flex items-center gap-2 text-primary">
@@ -105,11 +126,11 @@ export function StakingCard() {
                     </CardTitle>
                     <CardDescription>{market?.groupItemTitle}</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-3 pt-0">
                     <div>
                         {vaultLoading ? (
                             <div>Checking vault…</div>
-                        ) : vaultAddress ? (
+                        ) : vaultAddress && vaultAddress !== zeroAddress ? (
                             <>
                                 <div>
                                     <div>Vault:</div>
@@ -124,8 +145,9 @@ export function StakingCard() {
                             </>
                         ) : (
                             <div>
-                                <Button onClick={() => createVault.mutate()} disabled={createVault.isPending}>
-                                    {createVault.isPending ? 'Creating vault…' : 'Create Vault'}
+                                <Button onClick={() => handleCreateVault()} disabled={createVaultLoading}>
+                                    {createVaultLoading && <Loader className="w-4 h-4 animate-spin" />}
+                                    {createVaultLoading ? 'Creating vault…' : 'Create Vault'}
                                 </Button>
                             </div>
                         )}

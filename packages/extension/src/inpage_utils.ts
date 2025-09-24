@@ -1,6 +1,6 @@
 export function formatAddress(addr?: string) {
     if (!addr) return '';
-    return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+    return `${addr.slice(0, 4)}…${addr.slice(-2)}`;
 }
 
 export function getSelectedTitleElement(): HTMLElement | null {
