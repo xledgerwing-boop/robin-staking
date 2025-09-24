@@ -1,16 +1,8 @@
 import { getOrCreateMountPoint } from './utils.dom';
 
-const STYLE_ID = 'pmx-inpage-style';
 const SCRIPT_ID = 'pmx-inpage-script';
 
 function injectInpage() {
-    if (!document.getElementById(STYLE_ID)) {
-        const link = document.createElement('link');
-        link.id = STYLE_ID;
-        link.rel = 'stylesheet';
-        link.href = chrome.runtime.getURL('assets/inpage.css');
-        (document.head || document.documentElement).appendChild(link);
-    }
     if (!document.getElementById(SCRIPT_ID)) {
         const s = document.createElement('script');
         s.id = SCRIPT_ID;
