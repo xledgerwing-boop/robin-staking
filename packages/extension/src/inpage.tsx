@@ -6,9 +6,11 @@ import { StakingCard } from './components/staking-card';
 
 function App() {
     return (
-        <Web3Provider>
-            <StakingCard />
-        </Web3Provider>
+        <div className="mt-4">
+            <Web3Provider>
+                <StakingCard />
+            </Web3Provider>
+        </div>
     );
 }
 

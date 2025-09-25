@@ -3,6 +3,7 @@ import { react, foundry } from '@wagmi/cli/plugins';
 import { pascalCase } from 'change-case';
 import { safeProxyFactoryAbi } from './src/types/abis/SafeProxyFactory';
 import { gnosisSafeL2Abi } from './src/types/abis/GnosisSafeL2';
+import { conditionalTokensAbi } from './src/types/abis/ConditionalTokens';
 
 const nameMap: Record<string, number> = {};
 
@@ -17,11 +18,15 @@ export default {
             name: 'GnosisSafeL2',
             abi: gnosisSafeL2Abi,
         },
+        {
+            name: 'ConditionalTokens',
+            abi: conditionalTokensAbi,
+        },
     ],
     plugins: [
         foundry({
             forge: {
-                build: false,
+                build: true,
                 clean: false,
             },
             project: '/Users/ferdinandmartini/Projects/BloomStudios/robin-staking-vaults',
