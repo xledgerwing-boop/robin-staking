@@ -396,6 +396,14 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
         return (estYield, userPart, fee);
     }
 
+    function getCurrentUserYield(address user) external view returns (uint256) {
+        uint256 score = getScore(user);
+        uint256 globalScore = getGlobalScore();
+        if (score == 0 || globalScore == 0) return 0;
+        if (userYield == 0) return 0;
+        return Math.mulDiv(score, userYield, globalScore);
+    }
+
     function getTvlUsd() external view returns (uint256 onHandUsd, uint256 inStrategyUsd, uint256 convertibleUsd, uint256 tvlUsd) {
         onHandUsd = _usdBalanceOfThis();
         if (!yieldUnlocked) {
@@ -416,6 +424,10 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
             // after finalizeMarket() we exited the strategy and all unpaired tokens were converted to USD
             tvlUsd = onHandUsd;
         }
+    }
+
+    function getCurrentApy() external view returns (uint256) {
+        return _yieldStrategyCurrentApy();
     }
 
     /// @notice Effective per-side deposit limit in outcome units: min(vault limit, strategy limit converted to outcome units). 0 if unlimited.
