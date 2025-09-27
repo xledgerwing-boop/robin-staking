@@ -24,7 +24,7 @@ abstract contract Constants {
     address internal constant AAVE_POOL = address(0x794a61358D6845594F94dc1DB02A252b5b4814aD); // Aave v3 Pool
     address internal constant DATA_PROVIDER = address(0x14496b405D62c24F91f04Cda1c69Dc526D56fDE5); // Aave v3 ProtocolDataProvider-like
     address internal constant CTF = address(0x4D97DCd97eC945f40cF65F87097ACe5EA0476045); // Polymarket CTF
-    address internal constant USDC_WHALE = address(0x1891b583a86DAf0f149bA9712a61506138526c6f);
+    address internal constant USDC_WHALE = CTF;
     address internal constant SAFE_PROXY_FACTORY = address(0xaacFeEa03eb1561C4e67d661e40682Bd20E3541b);
 
     uint256 constant PROTOCOL_FEE_BPS = 1000;
