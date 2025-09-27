@@ -1,5 +1,4 @@
-// If you need decimals conversion for staking token (e.g., USDC=6, MATIC=18)
-export const STAKING_TOKEN_DECIMALS = 6; // TODO adjust
+export const STAKING_TOKEN_DECIMALS = 6;
 
 // Chains: Polymarket commonly uses Polygon PoS (id 137)
 export const TARGET_CHAIN_ID = 137; // Polygon PoS

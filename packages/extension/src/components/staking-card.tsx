@@ -5,31 +5,41 @@ import { PolymarketEvent, TARGET_CHAIN_ID, Market, parseMarket, Outcome } from '
 import { Button } from './ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
 import { Input } from './ui/input';
-import { Slider } from './ui/slider';
+import { AmountSlider } from './ui/amount-slider';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { Progress } from './ui/progress';
 import {
-    useReadIConditionalTokens,
+    useReadConditionalTokensIsApprovedForAll,
+    useReadErc20BalanceOf,
     useReadIConditionalTokensBalanceOfBatch,
     useReadRobinStakingVaultFinalized,
     useReadRobinStakingVaultGetCurrentApy,
     useReadRobinStakingVaultGetCurrentUserYield,
+    useReadRobinStakingVaultGetTvlUsd,
     useReadRobinStakingVaultGetUserBalances,
     useReadRobinStakingVaultYieldUnlocked,
     useReadRobinVaultManagerVaultForConditionId,
-    useReadRobinVaultManagerVaultOf,
+    useWriteConditionalTokensSetApprovalForAll,
+    useWriteRobinStakingVaultDeposit,
+    useWriteRobinStakingVaultFinalizeMarket,
+    useWriteRobinStakingVaultHarvestYield,
+    useWriteRobinStakingVaultRedeemWinningForUsd,
+    useWriteRobinStakingVaultUnlockYield,
+    useWriteRobinStakingVaultWithdraw,
     useWriteRobinVaultManagerCreateVault,
 } from '@/types/contracts';
 import { USED_CONTRACTS } from '@/constants';
-import useContractInteraction from '@/hooks/use-contract-interaction';
 import { ArrowDownToLine, ArrowUpFromLine, Coins, Sprout, Loader } from 'lucide-react';
-import { formatUnits, zeroAddress } from 'viem';
+import { formatUnits, parseUnits, zeroAddress } from 'viem';
 import useInvalidateQueries from '@/hooks/use-invalidate-queries';
 import { Separator } from './ui/separator';
 import OutcomeToken from './outcome-token';
 import { Select, SelectContent, SelectItem, SelectTrigger } from './ui/select';
 import { QueryKey } from '@tanstack/react-query';
 import { useProxyAccount } from '@/hooks/use-proxy-account';
+import useProxyContractInteraction from '@/hooks/use-proxy-contract-interaction';
+import { Skeleton } from './ui/skeleton';
+import { toast } from 'sonner';
 
 export function StakingCard() {
     const [market, setMarket] = useState<Market | null>(null);
@@ -151,7 +161,7 @@ export function StakingCard() {
                                 <>
                                     <HoldingsSummaryRow market={market} vaultAddress={vaultAddress} />
                                     <Separator />
-                                    {!market.closed && <StakeWithdrawTabs />}
+                                    {!market.closed && <StakeWithdrawTabs vaultAddress={vaultAddress} market={market} />}
                                     {market.closed && !isVaultFinalized && (
                                         <EndedVaultActions
                                             vaultAddress={vaultAddress}
@@ -161,7 +171,9 @@ export function StakingCard() {
                                     {market.closed && isVaultFinalized && !isVaultYieldUnlocked && (
                                         <PartialUnlockActions vaultAddress={vaultAddress} reloadQueryKeys={[vaultYieldUnlockedQueryKey]} />
                                     )}
-                                    {market.closed && isVaultFinalized && isVaultYieldUnlocked && <VaultUnlockedActions />}
+                                    {market.closed && isVaultFinalized && isVaultYieldUnlocked && (
+                                        <VaultUnlockedActions vaultAddress={vaultAddress} market={market} />
+                                    )}
                                 </>
                             ) : (
                                 <>
@@ -186,12 +198,19 @@ export function StakingCard() {
     );
 }
 
+function ValueState({ value, loading, error }: { value: string; loading: boolean; error: boolean }) {
+    if (loading) return <Skeleton className="w-10 h-3 inline-block" />;
+    if (error) return <span className="text-xs text-destructive">--</span>;
+    return value;
+}
+
 function HoldingsSummaryRow({ market, vaultAddress }: { market: Market; vaultAddress: string }) {
-    const { address } = useProxyAccount();
+    const { proxyAddress } = useProxyAccount();
 
     const {
         data: vaultCurrentApy,
         isLoading: vaultCurrentApyLoading,
+        error: vaultCurrentApyError,
         queryKey: vaultCurrentApyQueryKey,
     } = useReadRobinStakingVaultGetCurrentApy({
         address: vaultAddress as `0x${string}`,
@@ -201,47 +220,50 @@ function HoldingsSummaryRow({ market, vaultAddress }: { market: Market; vaultAdd
     const {
         data: vaultUserBalances,
         isLoading: vaultUserBalancesLoading,
+        error: vaultUserBalancesError,
         queryKey: vaultUserBalancesQueryKey,
     } = useReadRobinStakingVaultGetUserBalances({
         address: vaultAddress as `0x${string}`,
-        args: [address as `0x${string}`],
-        query: { enabled: !!address },
+        args: [proxyAddress as `0x${string}`],
+        query: { enabled: !!proxyAddress },
     });
 
     const {
         data: tokenUserBalances,
         isLoading: tokenUserBalancesLoading,
+        error: tokenUserBalancesError,
         queryKey: tokenUserBalancesQueryKey,
     } = useReadIConditionalTokensBalanceOfBatch({
         address: USED_CONTRACTS.CONDITIONAL_TOKENS,
         args: [
-            [address as `0x${string}`, address as `0x${string}`],
+            [proxyAddress as `0x${string}`, proxyAddress as `0x${string}`],
             [market.clobTokenIds[0], market.clobTokenIds[1]],
         ],
-        query: { enabled: !!address },
+        query: { enabled: !!proxyAddress },
     });
 
     const {
         data: currentYield,
         isLoading: currentYieldLoading,
+        error: currentYieldError,
         queryKey: currentYieldQueryKey,
     } = useReadRobinStakingVaultGetCurrentUserYield({
         address: vaultAddress as `0x${string}`,
-        args: [address as `0x${string}`],
-        query: { enabled: !!address },
+        args: [proxyAddress as `0x${string}`],
+        query: { enabled: !!proxyAddress },
     });
 
     const loading = vaultUserBalancesLoading || tokenUserBalancesLoading || vaultCurrentApyLoading || currentYieldLoading;
 
-    const vaultUserYes = 1n * 10n ** 18n; //vaultUserBalances?.[0] ?? 0n;
+    const vaultUserYes = vaultUserBalances?.[0] ?? 0n;
     const tokenUserYes = tokenUserBalances?.[0] ?? 0n;
-    const userYes = `${formatUnits(vaultUserYes, 18)} / ${formatUnits(tokenUserYes + vaultUserYes, 18)}`;
-    const userYesProgress = vaultUserYes === 0n && tokenUserYes === 0n ? 50 : (Number(vaultUserYes) / Number(tokenUserYes)) * 100;
+    const userYes = `${formatUnits(vaultUserYes, 6)} / ${formatUnits(tokenUserYes + vaultUserYes, 6)}`;
+    const userYesProgress = vaultUserYes === 0n && tokenUserYes === 0n ? 50 : (Number(vaultUserYes) / Number(tokenUserYes + vaultUserYes)) * 100;
 
-    const vaultUserNo = 1n * 10n ** 18n; //vaultUserBalances?.[1] ?? 0n;
+    const vaultUserNo = vaultUserBalances?.[1] ?? 0n;
     const tokenUserNo = tokenUserBalances?.[1] ?? 0n;
-    const userNo = `${formatUnits(vaultUserNo, 18)} / ${formatUnits(tokenUserNo + vaultUserNo, 18)}`;
-    const userNoProgress = vaultUserNo === 0n && tokenUserNo === 0n ? 50 : (Number(vaultUserNo) / Number(tokenUserNo)) * 100;
+    const userNo = `${formatUnits(vaultUserNo, 6)} / ${formatUnits(tokenUserNo + vaultUserNo, 6)}`;
+    const userNoProgress = vaultUserNo === 0n && tokenUserNo === 0n ? 50 : (Number(vaultUserNo) / Number(tokenUserNo + vaultUserNo)) * 100;
 
     const DolDecimals = 6;
     const DolPrecision = 10 ** DolDecimals;
@@ -258,20 +280,25 @@ function HoldingsSummaryRow({ market, vaultAddress }: { market: Market; vaultAdd
     const userNoApyBps = currentNoApyBps * userNoWorth;
     const userResultingApyBps = (userYesApyBps + userNoApyBps) / ((userYesWorth || 1n) + (userNoWorth || 1n));
 
-    const earningsPerDay = ((vaultUserYes * yesPrice + vaultUserNo * noPrice) * userResultingApyBps) / 10n ** 18n / 10_000n / 365n;
-    const earningsPerDayString = earningsPerDay > 10n ** BigInt(DolDecimals - 2) ? formatUnits(earningsPerDay, DolDecimals) : '<0.01';
+    const earningsPerDay = ((vaultUserYes * yesPrice + vaultUserNo * noPrice) * userResultingApyBps) / 10n ** 6n / 10_000n / 365n;
+    const earningsPerDayString =
+        earningsPerDay > 10n ** BigInt(DolDecimals - 2) || earningsPerDay === 0n ? formatUnits(earningsPerDay, DolDecimals) : '<0.01';
 
     return (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="p-1 space-y-2">
                 <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">{market.outcomes[0]}</span>
-                    <span className="text-xs text-primary">~{(Number(currentYesApyBps) / 100).toFixed(1)}%</span>
+                    <span className="text-xs text-primary">
+                        ~<ValueState value={(Number(currentYesApyBps) / 100).toFixed(1)} loading={loading} error={!!vaultCurrentApyError} />%
+                    </span>
                 </div>
                 <Separator />
 
                 <div className="h-8 flex flex-col items-center justify-center">
-                    <span className="text-xs text-muted-foreground">{userYes}</span>
+                    <span className="text-xs text-muted-foreground">
+                        <ValueState value={userYes} loading={loading} error={!!vaultUserBalancesError || !!tokenUserBalancesError} />
+                    </span>
                     <Progress value={userYesProgress} />
                 </div>
             </div>
@@ -279,37 +306,150 @@ function HoldingsSummaryRow({ market, vaultAddress }: { market: Market; vaultAdd
             <div className="border-l border-muted p-1 space-y-2">
                 <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">{market.outcomes[1]}</span>
-                    <span className="text-xs text-primary">~{(Number(currentNoApyBps) / 100).toFixed(1)}%</span>
+                    <span className="text-xs text-primary">
+                        ~<ValueState value={(Number(currentNoApyBps) / 100).toFixed(1)} loading={loading} error={!!vaultCurrentApyError} />%
+                    </span>
                 </div>
                 <Separator />
                 <div className="h-8 flex flex-col items-center justify-center">
-                    <span className="text-xs text-muted-foreground">{userNo}</span>
+                    <span className="text-xs text-muted-foreground">
+                        <ValueState value={userNo} loading={loading} error={!!vaultUserBalancesError || !!tokenUserBalancesError} />
+                    </span>
                     <Progress value={userNoProgress} />
                 </div>
             </div>
 
             <div className="border-l border-muted p-1 space-y-2">
                 <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium">Earning</span>
-                    <span className="text-xs text-primary">~{(Number(userResultingApyBps) / 100).toFixed(1)}%</span>
+                    <span className="text-xs font-medium">Earn</span>
+                    <span className="text-xs text-primary">
+                        ~<ValueState value={(Number(userResultingApyBps) / 100).toFixed(1)} loading={loading} error={!!vaultCurrentApyError} />%
+                    </span>
                 </div>
                 <Separator />
                 <div className="h-8 flex flex-col items-center justify-center">
-                    <span className="text-base text-primary">{formatUnits(currentYield ?? 0n, DolPrecision)}$</span>
-                    <span className="text-xs text-muted-foreground">{earningsPerDayString}$ / day</span>
+                    <span className="text-base text-primary">
+                        <ValueState value={formatUnits(currentYield ?? 0n, DolPrecision)} loading={loading} error={!!currentYieldError} />$
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                        <ValueState value={earningsPerDayString} loading={loading} error={!!currentYieldError} />$ / day
+                    </span>
                 </div>
             </div>
         </div>
     );
 }
 
-function StakeWithdrawTabs() {
+function StakeWithdrawTabs({ vaultAddress, market }: { vaultAddress: string; market: Market }) {
     const [tab, setTab] = useState<'stake' | 'withdraw'>('stake');
-    const [sliderValue, setSliderValue] = useState<number[]>([0]);
 
-    const [depositAmount, setDepositAmount] = useState<string>('');
+    const [stakeAmount, setStakeAmount] = useState<string>('');
     const [withdrawAmount, setWithdrawAmount] = useState<string>('');
-    const [depositSide, setDepositSide] = useState<Outcome>(Outcome.Yes);
+    const [side, setSide] = useState<Outcome>(Outcome.Yes);
+
+    const { proxyAddress } = useProxyAccount();
+    const invalidateQueries = useInvalidateQueries();
+
+    const {
+        data: vaultUserBalances,
+        isLoading: vaultUserBalancesLoading,
+        queryKey: vaultUserBalancesQueryKey,
+    } = useReadRobinStakingVaultGetUserBalances({
+        address: vaultAddress as `0x${string}`,
+        args: [proxyAddress as `0x${string}`],
+        query: { enabled: !!proxyAddress },
+    });
+
+    const {
+        data: tokenUserBalances,
+        isLoading: tokenUserBalancesLoading,
+        queryKey: tokenUserBalancesQueryKey,
+    } = useReadIConditionalTokensBalanceOfBatch({
+        address: USED_CONTRACTS.CONDITIONAL_TOKENS,
+        args: [
+            [proxyAddress as `0x${string}`, proxyAddress as `0x${string}`],
+            [market.clobTokenIds[0], market.clobTokenIds[1]],
+        ],
+        query: { enabled: !!proxyAddress },
+    });
+
+    const { data: approvedForAll, queryKey: approvedForAllQueryKey } = useReadConditionalTokensIsApprovedForAll({
+        address: USED_CONTRACTS.CONDITIONAL_TOKENS,
+        args: [proxyAddress as `0x${string}`, vaultAddress as `0x${string}`],
+    });
+
+    const {
+        batch: stake,
+        isLoading: stakeLoading,
+        promise: stakePromise,
+    } = useProxyContractInteraction([useWriteConditionalTokensSetApprovalForAll, useWriteRobinStakingVaultDeposit]);
+
+    const {
+        write: withdraw,
+        isLoading: withdrawLoading,
+        promise: withdrawPromise,
+    } = useProxyContractInteraction([useWriteRobinStakingVaultWithdraw]);
+
+    const handleStake = async () => {
+        try {
+            await stake(
+                [
+                    ...((approvedForAll
+                        ? []
+                        : [
+                              {
+                                  address: USED_CONTRACTS.CONDITIONAL_TOKENS,
+                                  args: [vaultAddress as `0x${string}`, true],
+                                  hookIndex: 0,
+                              },
+                          ]) as any),
+                    {
+                        address: vaultAddress as `0x${string}`,
+                        args: [side === Outcome.Yes, parseUnits(stakeAmount, 6)],
+                        hookIndex: 1,
+                    },
+                ],
+                { atomic: true },
+            );
+            await stakePromise.current;
+            await invalidateQueries([vaultUserBalancesQueryKey, tokenUserBalancesQueryKey, approvedForAllQueryKey]);
+            setStakeAmount('');
+        } catch (error) {
+            toast.error('Failed to stake' + getErrorMessage(error));
+            console.error(error);
+        }
+    };
+
+    const handleWithdraw = async () => {
+        try {
+            await withdraw({
+                address: vaultAddress as `0x${string}`,
+                args: [side === Outcome.Yes ? parseUnits(withdrawAmount, 6) : 0n, side === Outcome.No ? parseUnits(withdrawAmount, 6) : 0n],
+                hookIndex: 0,
+            });
+            await withdrawPromise.current;
+            await invalidateQueries([vaultUserBalancesQueryKey, tokenUserBalancesQueryKey]);
+            setWithdrawAmount('');
+        } catch (error) {
+            toast.error('Failed to withdraw' + getErrorMessage(error));
+            console.error(error);
+        }
+    };
+
+    const userYesTokenBalance = tokenUserBalances?.[0] ?? 0n;
+    const userNoTokenBalance = tokenUserBalances?.[1] ?? 0n;
+    const userYesVaultBalance = vaultUserBalances?.[0] ?? 0n;
+    const userNoVaultBalance = vaultUserBalances?.[1] ?? 0n;
+    const stakeAmountParsed = parseUnits(stakeAmount, 6);
+    const withdrawAmountParsed = parseUnits(withdrawAmount, 6);
+    const stakeAmountInvalid =
+        stakeAmountParsed <= 0 ||
+        (side === Outcome.Yes && stakeAmountParsed > userYesTokenBalance) ||
+        (side === Outcome.No && stakeAmountParsed > userNoTokenBalance);
+    const withdrawAmountInvalid =
+        withdrawAmountParsed <= 0 ||
+        (side === Outcome.Yes && withdrawAmountParsed > userYesVaultBalance) ||
+        (side === Outcome.No && withdrawAmountParsed > userNoVaultBalance);
 
     return (
         <div className="space-y-3">
@@ -326,17 +466,18 @@ function StakeWithdrawTabs() {
                     <div className="space-y-3">
                         <div className="flex items-center justify-between">
                             <Input
-                                id="deposit-amount"
+                                id="stake-amount"
                                 type="number"
                                 inputMode="decimal"
                                 placeholder="0"
-                                value={depositAmount}
-                                onChange={e => setDepositAmount(e.target.value)}
+                                min={0}
+                                value={stakeAmount}
+                                onChange={e => setStakeAmount(e.target.value)}
                                 className="border-0 rounded-none bg-transparent shadow-none focus-visible:ring-0 h-auto px-0 py-0 text-4xl sm:text-4xl md:text-4xl appearance-none font-semibold tracking-tight"
                             />
-                            <Select value={depositSide} onValueChange={setDepositSide as (value: string) => void}>
+                            <Select value={side} onValueChange={setSide as (value: string) => void}>
                                 <SelectTrigger className="px-4 py-2 rounded-full border text-sm font-medium flex-1">
-                                    <OutcomeToken outcome={depositSide} />
+                                    <OutcomeToken outcome={side} />
                                 </SelectTrigger>
                                 <SelectContent className="bg-background">
                                     <SelectItem value={Outcome.Yes}>
@@ -348,8 +489,19 @@ function StakeWithdrawTabs() {
                                 </SelectContent>
                             </Select>
                         </div>
-                        <Slider value={sliderValue} onValueChange={setSliderValue} max={100} step={1} />
-                        <Button variant="default" className="w-full mt-2">
+                        <AmountSlider
+                            amount={stakeAmount}
+                            max={side === Outcome.Yes ? userYesTokenBalance : userNoTokenBalance}
+                            onAmountChange={setStakeAmount}
+                        />
+                        {stakeAmountInvalid && stakeAmount != '' && <span className="text-xs text-destructive mt-2">Invalid amount</span>}
+                        <Button
+                            variant="default"
+                            className="w-full mt-2"
+                            onClick={handleStake}
+                            disabled={stakeLoading || !stakeAmount || stakeAmountInvalid}
+                        >
+                            {stakeLoading && <Loader className="w-4 h-4 animate-spin" />}
                             <ArrowUpFromLine /> Stake
                         </Button>
                     </div>
@@ -362,13 +514,14 @@ function StakeWithdrawTabs() {
                                 type="number"
                                 inputMode="decimal"
                                 placeholder="0"
+                                min={0}
                                 value={withdrawAmount}
                                 onChange={e => setWithdrawAmount(e.target.value)}
                                 className="border-0 rounded-none bg-transparent shadow-none focus-visible:ring-0 h-auto px-0 py-0 text-4xl sm:text-4xl md:text-4xl appearance-none font-semibold tracking-tight"
                             />
-                            <Select value={depositSide} onValueChange={setDepositSide as (value: string) => void}>
+                            <Select value={side} onValueChange={setSide as (value: string) => void}>
                                 <SelectTrigger className="px-4 py-2 rounded-full border text-sm font-medium flex-1">
-                                    <OutcomeToken outcome={depositSide} />
+                                    <OutcomeToken outcome={side} />
                                 </SelectTrigger>
                                 <SelectContent className="bg-background">
                                     <SelectItem value={Outcome.Yes}>
@@ -380,8 +533,19 @@ function StakeWithdrawTabs() {
                                 </SelectContent>
                             </Select>
                         </div>
-                        <Slider value={sliderValue} onValueChange={setSliderValue} max={100} step={1} />
-                        <Button variant="secondary" className="w-full mt-2">
+                        <AmountSlider
+                            amount={withdrawAmount}
+                            max={side === Outcome.Yes ? userYesVaultBalance : userNoVaultBalance}
+                            onAmountChange={setWithdrawAmount}
+                        />
+                        {withdrawAmountInvalid && withdrawAmount != '' && <span className="text-xs text-destructive mt-2">Invalid amount</span>}
+                        <Button
+                            variant="secondary"
+                            className="w-full mt-2"
+                            onClick={handleWithdraw}
+                            disabled={withdrawLoading || !withdrawAmount || withdrawAmountInvalid}
+                        >
+                            {withdrawLoading && <Loader className="w-4 h-4 animate-spin" />}
                             <ArrowDownToLine /> Withdraw
                         </Button>
                     </div>
@@ -392,18 +556,112 @@ function StakeWithdrawTabs() {
 }
 
 function EndedVaultActions({ vaultAddress, reloadQueryKeys }: { vaultAddress: string; reloadQueryKeys: QueryKey[] }) {
+    const { isConnected, chainId } = useProxyAccount();
+    const invalidateQueries = useInvalidateQueries();
+
+    const {
+        write: finalizeVault,
+        isLoading: finalizeVaultLoading,
+        promise: finalizeVaultPromise,
+    } = useProxyContractInteraction([useWriteRobinStakingVaultFinalizeMarket]);
+
+    const handleFinalizeVault = async () => {
+        try {
+            if (!isConnected) throw new Error('Wallet not connected');
+            if (chainId !== TARGET_CHAIN_ID) throw new Error('Wrong chain');
+
+            await finalizeVault({
+                address: vaultAddress as `0x${string}`,
+                args: [],
+                hookIndex: 0,
+            });
+            await finalizeVaultPromise.current;
+            await invalidateQueries(reloadQueryKeys);
+        } catch (error) {
+            toast.error('Failed to finalize vault' + getErrorMessage(error));
+            console.error(error);
+        }
+    };
+
     return (
         <div className="space-y-3">
             <div className="p-3">
                 <div className="text-sm font-medium mb-2">Market ended</div>
                 <div className="text-sm text-muted-foreground">Finalize market to enable redemption and harvesting.</div>
-                <Button className="w-full mt-2">Finalize market</Button>
+                <Button className="w-full mt-2" onClick={handleFinalizeVault} disabled={finalizeVaultLoading}>
+                    {finalizeVaultLoading && <Loader className="w-4 h-4 animate-spin" />}
+                    Finalize market
+                </Button>
             </div>
         </div>
     );
 }
 
 function PartialUnlockActions({ vaultAddress, reloadQueryKeys }: { vaultAddress: string; reloadQueryKeys: QueryKey[] }) {
+    const { proxyAddress, isConnected, chainId } = useProxyAccount();
+    const invalidateQueries = useInvalidateQueries();
+
+    const {
+        data: tvlUsd,
+        isLoading: tvlUsdLoading,
+        error: tvlUsdError,
+        queryKey: tvlUsdQueryKey,
+    } = useReadRobinStakingVaultGetTvlUsd({
+        address: vaultAddress as `0x${string}`,
+    });
+
+    const {
+        data: vaultUsdBalance,
+        isLoading: vaultUsdBalanceLoading,
+        error: vaultUsdBalanceError,
+        queryKey: vaultUsdBalanceQueryKey,
+    } = useReadErc20BalanceOf({
+        address: USED_CONTRACTS.USDCE,
+        args: [vaultAddress as `0x${string}`],
+    });
+
+    const {
+        write: unlockYield,
+        isLoading: unlockYieldLoading,
+        promise: unlockYieldPromise,
+    } = useProxyContractInteraction([useWriteRobinStakingVaultUnlockYield]);
+
+    const {
+        write: redeemWinningTokens,
+        isLoading: redeemWinningTokensLoading,
+        promise: redeemWinningTokensPromise,
+    } = useProxyContractInteraction([useWriteRobinStakingVaultRedeemWinningForUsd]);
+
+    const handleUnlockYield = async () => {
+        try {
+            await unlockYield({
+                address: vaultAddress as `0x${string}`,
+                args: [],
+                hookIndex: 0,
+            });
+            await unlockYieldPromise.current;
+            await invalidateQueries([...reloadQueryKeys, tvlUsdQueryKey, vaultUsdBalanceQueryKey]);
+        } catch (error) {
+            toast.error('Failed to unlock yield' + getErrorMessage(error));
+            console.error(error);
+        }
+    };
+
+    const handleRedeemWinningTokens = async () => {
+        try {
+            await redeemWinningTokens({
+                address: vaultAddress as `0x${string}`,
+                args: [],
+                hookIndex: 0,
+            });
+            await redeemWinningTokensPromise.current;
+            await invalidateQueries([tvlUsdQueryKey, vaultUsdBalanceQueryKey]);
+        } catch (error) {
+            toast.error('Failed to redeem winning tokens' + getErrorMessage(error));
+            console.error(error);
+        }
+    };
+
     return (
         <div className="space-y-3">
             <div className="text-sm mb-2">
@@ -411,15 +669,20 @@ function PartialUnlockActions({ vaultAddress, reloadQueryKeys }: { vaultAddress:
                 is complete.
             </div>
             <div className="h-8 flex flex-col items-center justify-center">
-                <span className="text-muted-foreground">4,000 / 8,000 Unlocked</span>
+                <span className="text-muted-foreground">
+                    <ValueState value={formatUnits(vaultUsdBalance ?? 0n, 6)} loading={vaultUsdBalanceLoading} error={!!vaultUsdBalanceError} /> /{' '}
+                    <ValueState value={formatUnits(tvlUsd?.[3] ?? 0n, 6)} loading={tvlUsdLoading} error={!!tvlUsdError} /> Unlocked
+                </span>
                 <Progress value={50} />
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <Button variant="secondary" className="w-full">
+                <Button variant="secondary" className="w-full" onClick={handleUnlockYield} disabled={unlockYieldLoading}>
+                    {unlockYieldLoading && <Loader className="w-4 h-4 animate-spin" />}
                     Try unlock remaining
                 </Button>
                 <Separator />
-                <Button variant="default" className="w-full">
+                <Button variant="default" className="w-full" onClick={handleRedeemWinningTokens} disabled={redeemWinningTokensLoading}>
+                    {redeemWinningTokensLoading && <Loader className="w-4 h-4 animate-spin" />}
                     <Coins className="w-4 h-4 mr-1" />
                     Redeem winning tokens
                 </Button>
@@ -432,14 +695,58 @@ function PartialUnlockActions({ vaultAddress, reloadQueryKeys }: { vaultAddress:
     );
 }
 
-function VaultUnlockedActions() {
+function VaultUnlockedActions({ vaultAddress, market }: { vaultAddress: string; market: Market }) {
+    const invalidateQueries = useInvalidateQueries();
+
+    const {
+        write: redeemWinningTokens,
+        isLoading: redeemWinningTokensLoading,
+        promise: redeemWinningTokensPromise,
+    } = useProxyContractInteraction([useWriteRobinStakingVaultRedeemWinningForUsd]);
+
+    const {
+        write: harvestYield,
+        isLoading: harvestYieldLoading,
+        promise: harvestYieldPromise,
+    } = useProxyContractInteraction([useWriteRobinStakingVaultHarvestYield]);
+
+    const handleRedeemWinningTokens = async () => {
+        try {
+            await redeemWinningTokens({
+                address: vaultAddress as `0x${string}`,
+                args: [],
+                hookIndex: 0,
+            });
+            await redeemWinningTokensPromise.current;
+        } catch (error) {
+            toast.error('Failed to redeem winning tokens' + getErrorMessage(error));
+            console.error(error);
+        }
+    };
+
+    const handleHarvestYield = async () => {
+        try {
+            await harvestYield({
+                address: vaultAddress as `0x${string}`,
+                args: [],
+                hookIndex: 0,
+            });
+            await harvestYieldPromise.current;
+        } catch (error) {
+            toast.error('Failed to harvest yield' + getErrorMessage(error));
+            console.error(error);
+        }
+    };
+
     return (
         <div className="space-y-3">
-            <Button variant="default" className="w-full">
+            <Button variant="default" className="w-full" onClick={handleRedeemWinningTokens} disabled={redeemWinningTokensLoading}>
+                {redeemWinningTokensLoading && <Loader className="w-4 h-4 animate-spin" />}
                 <Coins className="w-4 h-4 mr-1" />
                 Redeem winning tokens
             </Button>
-            <Button variant="default" className="w-full">
+            <Button variant="default" className="w-full" onClick={handleHarvestYield} disabled={harvestYieldLoading}>
+                {harvestYieldLoading && <Loader className="w-4 h-4 animate-spin" />}
                 <Sprout className="w-4 h-4 mr-1" />
                 Harvest yield
             </Button>
@@ -448,26 +755,32 @@ function VaultUnlockedActions() {
 }
 
 function CreateVaultCallout({ market, reloadQueryKeys }: { market: Market; reloadQueryKeys: QueryKey[] }) {
-    const { chainId, isConnected } = useAccount();
+    const { chainId, isConnected } = useProxyAccount();
     const invalidateQueries = useInvalidateQueries();
 
     const {
         write: createVault,
         isLoading: createVaultLoading,
         promise: createVaultPromise,
-    } = useContractInteraction(useWriteRobinVaultManagerCreateVault);
+    } = useProxyContractInteraction([useWriteRobinVaultManagerCreateVault]);
 
     const handleCreateVault = async () => {
-        if (!market?.conditionId) throw new Error('No conditionId');
-        if (chainId !== TARGET_CHAIN_ID) throw new Error('Wrong chain');
-        if (!isConnected) throw new Error('Wallet not connected');
+        try {
+            if (!market?.conditionId) throw new Error('No conditionId');
+            if (chainId !== TARGET_CHAIN_ID) throw new Error('Wrong chain');
+            if (!isConnected) throw new Error('Wallet not connected');
 
-        await createVault({
-            address: USED_CONTRACTS.VAULT_MANAGER,
-            args: [market.conditionId as `0x${string}`],
-        });
-        await createVaultPromise.current;
-        await invalidateQueries(reloadQueryKeys);
+            await createVault({
+                address: USED_CONTRACTS.VAULT_MANAGER,
+                args: [market.conditionId as `0x${string}`],
+                hookIndex: 0,
+            });
+            await createVaultPromise.current;
+            await invalidateQueries(reloadQueryKeys);
+        } catch (error) {
+            toast.error('Failed to create vault' + getErrorMessage(error));
+            console.error(error);
+        }
     };
 
     return (
@@ -483,4 +796,9 @@ function CreateVaultCallout({ market, reloadQueryKeys }: { market: Market; reloa
 
 function NoVaultEndedNotice() {
     return <div className="p-3 text-sm">No tokens were staked on this market.</div>;
+}
+
+function getErrorMessage(error: unknown) {
+    if (error instanceof Error && error.message.length > 0 && error.message.length < 50) return ': ' + error.message;
+    return '';
 }

@@ -3,6 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { ROOT_ID, rootPath } from './inpage_utils';
 import { Web3Provider } from './components/web-3-provider';
 import { StakingCard } from './components/staking-card';
+import { Toaster } from '@/components/ui/sonner';
 
 function App() {
     return (
@@ -10,6 +11,7 @@ function App() {
             <Web3Provider>
                 <StakingCard />
             </Web3Provider>
+            <Toaster />
         </div>
     );
 }

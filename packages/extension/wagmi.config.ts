@@ -4,6 +4,7 @@ import { pascalCase } from 'change-case';
 import { safeProxyFactoryAbi } from './src/types/abis/SafeProxyFactory';
 import { gnosisSafeL2Abi } from './src/types/abis/GnosisSafeL2';
 import { conditionalTokensAbi } from './src/types/abis/ConditionalTokens';
+import { erc20Abi } from 'viem';
 
 const nameMap: Record<string, number> = {};
 
@@ -21,6 +22,10 @@ export default {
         {
             name: 'ConditionalTokens',
             abi: conditionalTokensAbi,
+        },
+        {
+            name: 'ERC20',
+            abi: erc20Abi,
         },
     ],
     plugins: [
