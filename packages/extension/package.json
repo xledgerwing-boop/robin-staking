@@ -6,7 +6,8 @@
     "scripts": {
         "dev": "vite build --watch",
         "build": "vite build",
-        "preview": "vite preview"
+        "preview": "vite preview",
+        "unsec-browser": "dotenv -- bash -c '\"$BROWSER_EXEC_PATH\" --user-data-dir=./chrome-dev-profile --disable-web-security --disable-features=BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights'"
     },
     "devDependencies": {
         "@types/node": "^24.5.2",
