@@ -16,8 +16,10 @@
         "@radix-ui/react-switch": "^1.2.6",
         "@radix-ui/react-tabs": "^1.1.13",
         "@rainbow-me/rainbowkit": "^2.2.8",
+        "@robin-pm-staking/common": "workspace:*",
         "@tanstack/react-query": "^5.87.4",
         "axios": "^1.12.2",
+        "change-case": "^5.4.4",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "knex": "^3.1.0",
@@ -31,8 +33,7 @@
         "react": "19.1.0",
         "react-dom": "19.1.0",
         "tailwind-merge": "^3.3.1",
-        "wagmi": "^2.16.9",
-        "@robin-pm-staking/common": "workspace:*"
+        "wagmi": "^2.16.9"
     },
     "devDependencies": {
         "@eslint/eslintrc": "^3",

@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { TrendingUp, DollarSign, BarChart3, Clock, ArrowUpRight, Search, ArrowUpDown, ArrowUp, ArrowDown, User, Loader, X } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Navbar from '@/components/navbar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { fetchWalletPositions } from '@/lib/polymarket';
@@ -17,7 +17,7 @@ import { getStatusBadge, Market, MarketRow, MarketRowToMarket } from '@/types/ma
 import { useProxyAccount } from '@/hooks/use-proxy-account';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
-export default function StakingPage() {
+function StakingPageContent() {
     // Mock data for demonstration
     const keyMetrics = {
         averageAPY: '7.5%',
@@ -427,5 +427,19 @@ export default function StakingPage() {
                 </Card>
             </div>
         </div>
+    );
+}
+
+export default function StakingPage() {
+    return (
+        <React.Suspense
+            fallback={
+                <div className="min-h-screen bg-background flex items-center justify-center">
+                    <Loader className="w-8 h-8 animate-spin" />
+                </div>
+            }
+        >
+            <StakingPageContent />
+        </React.Suspense>
     );
 }
