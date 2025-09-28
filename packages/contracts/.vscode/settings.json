@@ -1,0 +1,12 @@
+{
+  // Only in this workspace:
+  "[solidity]": {
+    // Use Nomic Foundation’s formatter for .sol files here
+    "editor.defaultFormatter": "NomicFoundation.hardhat-solidity",
+    // Format on save just for Solidity (leave other languages alone)
+    "editor.formatOnSave": true
+  },
+
+  // Tell the extension to use the Forge formatter
+  "solidity.formatter": "forge"
+}
