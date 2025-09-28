@@ -32,7 +32,7 @@ services:
                 <<: *build-args
         container_name: yield-robin-frontend
         environment:
-            POSTGRES_URI: postgresql://stake_robin_user:stake_robin_password@timescaledb:5433/stake_robin
+            POSTGRES_URI: postgresql://stake_robin_user:stake_robin_password@timescaledb:5432/stake_robin
             NODE_ENV: production
             NODE_OPTIONS: '--max-old-space-size=2048'
             ANALYTICS: ${ANALYTICS}
