@@ -1,0 +1,10 @@
+{
+    "name": "@robin-pm-staking/contracts",
+    "version": "0.0.0",
+    "private": false,
+    "scripts": {
+        "test": "forge test",
+        "lint": "forge fmt",
+        "build": "forge build"
+    }
+}

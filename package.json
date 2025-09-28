@@ -1,0 +1,6 @@
+{
+    "name": "robin-pm-staking",
+    "private": true,
+    "workspaces": ["packages/*"],
+    "scripts": {}
+}

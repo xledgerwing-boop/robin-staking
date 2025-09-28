@@ -1,0 +1,9 @@
+{
+    "compilerOptions": {
+        "baseUrl": ".",
+        "paths": {
+            "@robin-pm-staking/common": ["packages/common/src"],
+            "@robin-pm-staking/common/*": ["packages/common/src/*"]
+        }
+    }
+}
