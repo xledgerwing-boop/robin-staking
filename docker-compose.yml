@@ -7,14 +7,14 @@ x-build-args: &build-args
 services:
     # TimescaleDB (PostgreSQL with TimescaleDB extension)
     timescaledb:
-        image: timescale/timescaledb:latest-pg15
+        image: timescale/timescaledb:latest-pg17
         container_name: yield-robin-timescaledb
         environment:
             POSTGRES_DB: stake_robin
             POSTGRES_USER: stake_robin_user
             POSTGRES_PASSWORD: stake_robin_password
         ports:
-            - '5432:5432'
+            - '5432:5433'
         volumes:
             - timescaledb_data:/var/lib/postgresql/data
         healthcheck:
@@ -32,7 +32,7 @@ services:
                 <<: *build-args
         container_name: yield-robin-frontend
         environment:
-            POSTGRES_URI: postgresql://stake_robin_user:stake_robin_password@timescaledb:5432/stake_robin
+            POSTGRES_URI: postgresql://stake_robin_user:stake_robin_password@timescaledb:5433/stake_robin
             NODE_ENV: production
             NODE_OPTIONS: '--max-old-space-size=2048'
             ANALYTICS: ${ANALYTICS}
