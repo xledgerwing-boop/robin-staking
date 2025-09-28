@@ -61,6 +61,11 @@ export async function upsertEvent(db: Knex, evt: PolymarketEventDTO): Promise<Ev
 
 export async function upsertMarket(db: Knex, market: PolymarketMarketDTO | PolymarketMarketWithEvent, initialized: boolean): Promise<MarketRow> {
     const eventId = (market as PolymarketMarketDTO).eventId ?? (market as PolymarketMarketWithEvent).events[0].id;
+    const tvl = 50_000 * Math.random();
+    const unmatchedTokens = 5_000 * Math.random();
+    const matchedTokens = tvl;
+    const unmatchedYesTokens = unmatchedTokens * (Math.random() > 0.5 ? 1 : 0);
+    const unmatchedNoTokens = unmatchedTokens - unmatchedYesTokens;
     const row: MarketRow = {
         id: market.id,
         eventId,
@@ -76,11 +81,11 @@ export async function upsertMarket(db: Knex, market: PolymarketMarketDTO | Polym
         createdAt: Date.now().toString(),
         updatedAt: Date.now().toString(),
         initialized,
-        tvl: (0).toString(),
-        apyBps: 0,
-        unmatchedYesTokens: (0).toString(),
-        unmatchedNoTokens: (0).toString(),
-        matchedTokens: (0).toString(),
+        tvl: tvl.toString(),
+        apyBps: Math.floor(500 + Math.random() * 500),
+        unmatchedYesTokens: unmatchedYesTokens.toString(),
+        unmatchedNoTokens: unmatchedNoTokens.toString(),
+        matchedTokens: matchedTokens.toString(),
     };
     await db(MARKETS_TABLE).insert(row).onConflict('conditionId').merge({
         question: row.question,

@@ -39,8 +39,8 @@ async function getAndSaveEventAndMarkets(db: Knex, slug: string) {
     await Promise.all(
         payload.markets.map(async m => {
             m.eventId = payload.id;
-            await upsertMarket(db, m, false);
-        }),
+            await upsertMarket(db, m, true);
+        })
     );
 }
 
