@@ -10,6 +10,8 @@ importers:
 
   packages/common: {}
 
+  packages/contracts: {}
+
   packages/extension:
     dependencies:
       '@radix-ui/react-progress':
