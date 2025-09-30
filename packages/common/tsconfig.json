@@ -8,12 +8,7 @@
         "strict": true,
         "skipLibCheck": true,
         "noEmit": true,
-        "types": ["vite/client", "chrome-types"],
-        "baseUrl": ".",
-        "paths": {
-            "@/*": ["./src/*"],
-            "@robin-pm-staking/common/*": ["../common/src/*"]
-        }
+        "baseUrl": "."
     },
-    "include": ["src", "vite.config.ts"]
+    "include": ["src"]
 }

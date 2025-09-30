@@ -1,13 +1,13 @@
 // @ts-check
-import { react } from '@wagmi/cli/plugins';
+import { react, foundry } from '@wagmi/cli/plugins';
 import { pascalCase } from 'change-case';
-import { safeProxyFactoryAbi } from './types/abis/SafeProxyFactory';
-import { gnosisSafeL2Abi } from './types/abis/GnosisSafeL2';
+import { erc20Abi } from 'viem';
+import { conditionalTokensAbi, gnosisSafeL2Abi, safeProxyFactoryAbi } from './src/types/contracts';
 
 const nameMap: Record<string, number> = {};
 
 export default {
-    out: 'types/contracts.ts',
+    out: 'src/types/contracts.ts',
     contracts: [
         {
             name: 'SafeProxyFactory',
@@ -17,8 +17,24 @@ export default {
             name: 'GnosisSafeL2',
             abi: gnosisSafeL2Abi,
         },
+        {
+            name: 'ConditionalTokens',
+            abi: conditionalTokensAbi,
+        },
+        {
+            name: 'ERC20',
+            abi: erc20Abi,
+        },
     ],
     plugins: [
+        foundry({
+            forge: {
+                build: true,
+                clean: false,
+            },
+            project: '../contracts/',
+            exclude: ['**Errors**', '**IERC20**'],
+        }),
         react({
             getHookName({ contractName, type, itemName }) {
                 const name = originalGetHookName(type, contractName, itemName);

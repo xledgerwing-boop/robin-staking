@@ -4,7 +4,7 @@ import { CreateUseWriteContractReturnType } from 'wagmi/codegen';
 import { Abi, ContractFunctionName, WaitForTransactionReceiptErrorType, encodeFunctionData, zeroAddress, padHex, concatHex } from 'viem';
 import { WriteContractData } from 'wagmi/query';
 import { useProxyAccount } from './use-proxy-account';
-import { useWriteGnosisSafeL2ExecTransaction } from '@/types/contracts';
+import { useWriteGnosisSafeL2ExecTransaction } from '../types/contracts';
 import Safe, { Eip1193Provider } from '@safe-global/protocol-kit';
 import { TransactionResult } from '@safe-global/types-kit';
 
@@ -13,27 +13,27 @@ const OPERATION_CALL = 0; // Gnosis Safe Enum.Operation.CALL
 type WriteArgs<
     TAbi extends Abi,
     TFunctionName extends `0x${string}` | Record<number, `0x${string}`> | undefined,
-    TContext extends ContractFunctionName<TAbi, 'nonpayable' | 'payable'> | undefined,
+    TContext extends ContractFunctionName<TAbi, 'nonpayable' | 'payable'> | undefined
 > = Parameters<ReturnType<CreateUseWriteContractReturnType<TAbi, TFunctionName, TContext>>['writeContractAsync']>[0];
 
 type BatchItem<
     TAbi extends Abi,
     TFunctionName extends `0x${string}` | Record<number, `0x${string}`> | undefined,
-    TContext extends ContractFunctionName<TAbi, 'nonpayable' | 'payable'> | undefined,
+    TContext extends ContractFunctionName<TAbi, 'nonpayable' | 'payable'> | undefined
 > = WriteArgs<TAbi, TFunctionName, TContext>;
 
 export default function useProxyContractInteraction<
     TAbi extends Abi,
     TFunctionName extends `0x${string}` | Record<number, `0x${string}`> | undefined,
-    TContext extends ContractFunctionName<TAbi, 'nonpayable' | 'payable'> | undefined = undefined,
+    TContext extends ContractFunctionName<TAbi, 'nonpayable' | 'payable'> | undefined = undefined
 >(
-    _hooks: CreateUseWriteContractReturnType<TAbi, TFunctionName, TContext>[],
+    _hooks: CreateUseWriteContractReturnType<TAbi, TFunctionName, TContext>[]
 ): {
     error: WaitForTransactionReceiptErrorType | null;
     write: (args: WriteArgs<TAbi, TFunctionName, TContext> & { hookIndex: number }) => Promise<WriteContractData>;
     batch: (
         items: (BatchItem<TAbi, TFunctionName, TContext> & { hookIndex: number })[],
-        options?: { atomic?: boolean },
+        options?: { atomic?: boolean }
     ) => Promise<TransactionResult | WriteContractData[]>;
     isLoading: boolean;
     promise: React.RefObject<Promise<boolean> | null>;
@@ -108,7 +108,7 @@ export default function useProxyContractInteraction<
 
     const batch = async (
         items: (BatchItem<TAbi, TFunctionName, TContext> & { hookIndex: number })[],
-        options?: { atomic?: boolean },
+        options?: { atomic?: boolean }
     ): Promise<TransactionResult | WriteContractData[]> => {
         if (!proxyAddress) throw new Error('Missing proxyAddress (Safe).');
         if (!owner) throw new Error('Missing connected owner address.');

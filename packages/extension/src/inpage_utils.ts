@@ -1,4 +1,4 @@
-import { PolymarketEvent } from './types/types';
+import { PolymarketEvent } from '@robin-pm-staking/common/src/types/types';
 
 export function formatAddress(addr?: string) {
     if (!addr) return '';

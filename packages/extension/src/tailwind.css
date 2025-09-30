@@ -1,6 +1,9 @@
 @import 'tailwindcss';
+@import '../../common/src/tw-sources.css';
 @import 'tw-animate-css';
 @import 'sonner/dist/styles.css';
+
+@source "./**/*.{ts,tsx,html}";
 
 @custom-variant dark (&:is(.dark *));
 

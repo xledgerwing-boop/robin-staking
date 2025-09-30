@@ -1,5 +1,5 @@
-import { USED_CONTRACTS } from '@/constants';
-import { useReadSafeProxyFactoryComputeProxyAddress } from '@/types/contracts';
+import { USED_CONTRACTS } from '../constants';
+import { useReadSafeProxyFactoryComputeProxyAddress } from '../types/contracts';
 import { useEffect } from 'react';
 import { useAccount } from 'wagmi';
 

@@ -1,4 +1,4 @@
-import { Outcome } from '@/types/types';
+import { Outcome } from '../types/types';
 import { CircleCheck, XCircle } from 'lucide-react';
 
 export default function OutcomeToken({ outcome, className }: { outcome: Outcome; className?: string }) {

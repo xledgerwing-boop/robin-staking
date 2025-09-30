@@ -1,11 +1,17 @@
+import path from 'path';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
     resolve: {
+        dedupe: ['react', 'react-dom', 'wagmi', '@tanstack/react-query', 'viem'],
         alias: {
             '@': '/src',
             types: '/types',
+            '@robin-pm-staking/common': path.resolve(__dirname, '../common/src'),
         },
+    },
+    optimizeDeps: {
+        include: ['@robin-pm-staking/common'],
     },
     build: {
         target: 'es2022',

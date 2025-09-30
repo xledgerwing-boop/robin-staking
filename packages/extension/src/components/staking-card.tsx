@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { formatAddress, getEventData, getSelectedTitleElement, rootPath } from '../inpage_utils';
-import { PolymarketEvent, TARGET_CHAIN_ID, Market, parseMarket, Outcome } from '../types/types';
+import { PolymarketEvent, TARGET_CHAIN_ID, Market, parseMarket, Outcome } from '@robin-pm-staking/common/types/types';
 import { Button } from './ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
 import { Input } from './ui/input';
-import { AmountSlider } from './ui/amount-slider';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { Progress } from './ui/progress';
 import {
@@ -27,19 +26,20 @@ import {
     useWriteRobinStakingVaultUnlockYield,
     useWriteRobinStakingVaultWithdraw,
     useWriteRobinVaultManagerCreateVault,
-} from '@/types/contracts';
-import { USED_CONTRACTS } from '@/constants';
+} from '@robin-pm-staking/common/types/contracts';
+import { USED_CONTRACTS } from '@robin-pm-staking/common/constants';
 import { ArrowDownToLine, ArrowUpFromLine, Coins, Sprout, Loader } from 'lucide-react';
 import { formatUnits, parseUnits, zeroAddress } from 'viem';
-import useInvalidateQueries from '@/hooks/use-invalidate-queries';
+import useInvalidateQueries from '@robin-pm-staking/common/hooks/use-invalidate-queries';
 import { Separator } from './ui/separator';
-import OutcomeToken from './outcome-token';
+import OutcomeToken from '@robin-pm-staking/common/components/outcome-token';
 import { Select, SelectContent, SelectItem, SelectTrigger } from './ui/select';
 import { QueryKey } from '@tanstack/react-query';
-import { useProxyAccount } from '@/hooks/use-proxy-account';
-import useProxyContractInteraction from '@/hooks/use-proxy-contract-interaction';
+import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
+import useProxyContractInteraction from '@robin-pm-staking/common/hooks/use-proxy-contract-interaction';
 import { Skeleton } from './ui/skeleton';
 import { toast } from 'sonner';
+import AmountSlider from '@robin-pm-staking/common/components/amount-slider';
 
 export function StakingCard() {
     const [market, setMarket] = useState<Market | null>(null);
@@ -409,7 +409,7 @@ function StakeWithdrawTabs({ vaultAddress, market }: { vaultAddress: string; mar
                         hookIndex: 1,
                     },
                 ],
-                { atomic: true },
+                { atomic: true }
             );
             await stakePromise.current;
             await invalidateQueries([vaultUserBalancesQueryKey, tokenUserBalancesQueryKey, approvedForAllQueryKey]);

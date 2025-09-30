@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
             },
         ],
     },
+    transpilePackages: ['@robin-pm-staking/common'],
 };
 
 export default nextConfig;
