@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAccount } from 'wagmi';
 import { formatAddress, getEventData, getSelectedTitleElement, rootPath } from '../inpage_utils';
-import { PolymarketEvent, TARGET_CHAIN_ID, Market, parseMarket, Outcome } from '@robin-pm-staking/common/types/types';
+import { ParsedPolymarketMarket, parsePolymarketMarket, Outcome } from '@robin-pm-staking/common/types/market';
+import { PolymarketEventWithMarkets } from '@robin-pm-staking/common/types/event';
+import { TARGET_CHAIN_ID } from '@robin-pm-staking/common/constants';
 import { Button } from './ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
 import { Input } from './ui/input';
@@ -42,10 +44,10 @@ import { toast } from 'sonner';
 import AmountSlider from '@robin-pm-staking/common/components/amount-slider';
 
 export function StakingCard() {
-    const [market, setMarket] = useState<Market | null>(null);
+    const [market, setMarket] = useState<ParsedPolymarketMarket | null>(null);
     const [marketLoading, setMarketLoading] = useState(false);
     const { address, chainId, isConnected } = useAccount();
-    const eventData = useRef<PolymarketEvent | null>(null);
+    const eventData = useRef<PolymarketEventWithMarkets | null>(null);
     const [pageMarketTitle, setPageMarketTitle] = useState('');
 
     const {
@@ -116,13 +118,13 @@ export function StakingCard() {
         try {
             setMarketLoading(true);
             if (eventData.current.markets.length === 1) {
-                setMarket(parseMarket(eventData.current.markets[0]));
+                setMarket(parsePolymarketMarket(eventData.current.markets[0]));
                 return;
             }
             if (!pageMarketTitle) return;
             const market = eventData.current.markets.find(m => m.groupItemTitle.trim().toLowerCase() === pageMarketTitle.trim().toLowerCase());
             if (!market) return;
-            setMarket(parseMarket(market));
+            setMarket(parsePolymarketMarket(market));
         } catch (error) {
             console.error(error);
         } finally {
@@ -204,7 +206,7 @@ function ValueState({ value, loading, error }: { value: string; loading: boolean
     return value;
 }
 
-function HoldingsSummaryRow({ market, vaultAddress }: { market: Market; vaultAddress: string }) {
+function HoldingsSummaryRow({ market, vaultAddress }: { market: ParsedPolymarketMarket; vaultAddress: string }) {
     const { proxyAddress } = useProxyAccount();
 
     const {
@@ -340,7 +342,7 @@ function HoldingsSummaryRow({ market, vaultAddress }: { market: Market; vaultAdd
     );
 }
 
-function StakeWithdrawTabs({ vaultAddress, market }: { vaultAddress: string; market: Market }) {
+function StakeWithdrawTabs({ vaultAddress, market }: { vaultAddress: string; market: ParsedPolymarketMarket }) {
     const [tab, setTab] = useState<'stake' | 'withdraw'>('stake');
 
     const [stakeAmount, setStakeAmount] = useState<string>('');
@@ -695,7 +697,7 @@ function PartialUnlockActions({ vaultAddress, reloadQueryKeys }: { vaultAddress:
     );
 }
 
-function VaultUnlockedActions({ vaultAddress, market }: { vaultAddress: string; market: Market }) {
+function VaultUnlockedActions({ vaultAddress, market }: { vaultAddress: string; market: ParsedPolymarketMarket }) {
     const invalidateQueries = useInvalidateQueries();
 
     const {
@@ -754,7 +756,7 @@ function VaultUnlockedActions({ vaultAddress, market }: { vaultAddress: string; 
     );
 }
 
-function CreateVaultCallout({ market, reloadQueryKeys }: { market: Market; reloadQueryKeys: QueryKey[] }) {
+function CreateVaultCallout({ market, reloadQueryKeys }: { market: ParsedPolymarketMarket; reloadQueryKeys: QueryKey[] }) {
     const { chainId, isConnected } = useProxyAccount();
     const invalidateQueries = useInvalidateQueries();
 

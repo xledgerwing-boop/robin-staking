@@ -19,7 +19,9 @@
             }
         ],
         "paths": {
-            "@/*": ["./*"]
+            "@/*": ["./*"],
+            "@robin-pm-staking/common": ["../common/src"],
+            "@robin-pm-staking/common/*": ["../common/src/*"]
         }
     },
     "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

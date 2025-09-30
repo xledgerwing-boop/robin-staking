@@ -1,6 +1,6 @@
 import { Knex } from 'knex';
-import { EventRow, PolymarketEventDTO } from '../types/event';
-import { MarketRow, MarketRowWithEvent, PolymarketMarketDTO, PolymarketMarketWithEvent } from '../types/market';
+import type { EventRow, PolymarketEvent } from '@robin-pm-staking/common/types/event';
+import type { MarketRow, MarketRowWithEvent, PolymarketMarket, PolymarketMarketWithEvent } from '@robin-pm-staking/common/types/market';
 
 const EVENTS_TABLE = 'events';
 const MARKETS_TABLE = 'markets';
@@ -45,7 +45,7 @@ export async function ensureSchema(db: Knex): Promise<void> {
     }
 }
 
-export async function upsertEvent(db: Knex, evt: PolymarketEventDTO): Promise<EventRow> {
+export async function upsertEvent(db: Knex, evt: PolymarketEvent): Promise<EventRow> {
     const row: EventRow = {
         id: evt.id,
         slug: evt.slug,
@@ -59,8 +59,8 @@ export async function upsertEvent(db: Knex, evt: PolymarketEventDTO): Promise<Ev
     return row;
 }
 
-export async function upsertMarket(db: Knex, market: PolymarketMarketDTO | PolymarketMarketWithEvent, initialized: boolean): Promise<MarketRow> {
-    const eventId = (market as PolymarketMarketDTO).eventId ?? (market as PolymarketMarketWithEvent).events[0].id;
+export async function upsertMarket(db: Knex, market: PolymarketMarket | PolymarketMarketWithEvent, initialized: boolean): Promise<MarketRow> {
+    const eventId = (market as PolymarketMarket).eventId ?? (market as PolymarketMarketWithEvent).events[0].id;
     const tvl = 50_000 * Math.random();
     const unmatchedTokens = 5_000 * Math.random();
     const matchedTokens = tvl;

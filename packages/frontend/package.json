@@ -4,7 +4,7 @@
     "private": true,
     "scripts": {
         "dev": "next dev --turbopack",
-        "build": "next build --turbopack",
+        "build": "rm -rf .next && next build --turbopack",
         "start": "next start",
         "lint": "eslint"
     },
@@ -15,7 +15,6 @@
         "@radix-ui/react-slot": "^1.2.3",
         "@radix-ui/react-switch": "^1.2.6",
         "@radix-ui/react-tabs": "^1.1.13",
-        "@rainbow-me/rainbowkit": "^2.2.8",
         "@robin-pm-staking/common": "workspace:*",
         "@tanstack/react-query": "^5.90.2",
         "axios": "^1.12.2",
@@ -32,9 +31,7 @@
         "pg": "^8.16.3",
         "react": "^19.1.1",
         "react-dom": "^19.1.1",
-        "tailwind-merge": "^3.3.1",
-        "viem": "^2.37.9",
-        "wagmi": "^2.17.5"
+        "tailwind-merge": "^3.3.1"
     },
     "devDependencies": {
         "@eslint/eslintrc": "^3",
@@ -43,7 +40,6 @@
         "@types/node": "^20",
         "@types/react": "^19",
         "@types/react-dom": "^19",
-        "@wagmi/cli": "^2.5.1",
         "eslint": "^9",
         "eslint-config-next": "15.5.3",
         "tailwindcss": "^4",

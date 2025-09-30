@@ -22,3 +22,4 @@ const CONTRACT_ADDRESSES: {
 };
 
 export const USED_CONTRACTS = CONTRACT_ADDRESSES.Polygon.mainnet;
+export const TARGET_CHAIN_ID = 137;

@@ -1,4 +1,4 @@
-import { PolymarketMarketDTO } from './market';
+import { PolymarketMarket } from './market';
 
 export interface EventRow {
     id: string;
@@ -29,14 +29,15 @@ export function EventRowToEvent(row: EventRow): Event {
     };
 }
 
-export interface PolymarketEventDTO {
+export interface PolymarketEvent {
     id: string;
     slug: string;
     title: string;
     endDate?: string;
     image?: string;
+    closed?: boolean;
 }
 
-export interface PolymarketEventWithMarkets extends PolymarketEventDTO {
-    markets: PolymarketMarketDTO[];
+export interface PolymarketEventWithMarkets extends PolymarketEvent {
+    markets: PolymarketMarket[];
 }

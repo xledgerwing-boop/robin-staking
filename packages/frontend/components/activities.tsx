@@ -1,5 +1,5 @@
 'use client';
-import { MarketWithEvent } from '@/types/market';
+import type { MarketWithEvent } from '@robin-pm-staking/common/types/market';
 import { useMemo, useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
@@ -10,7 +10,7 @@ import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { DateTime } from 'luxon';
-import { useProxyAccount } from '@/hooks/use-proxy-account';
+import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
 import { shortenAddress } from '@/lib/utils';
 
 export type ActivityItem = {

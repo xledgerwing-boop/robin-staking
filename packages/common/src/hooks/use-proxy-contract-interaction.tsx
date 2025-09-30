@@ -1,5 +1,7 @@
+'use client';
+
 import { useEffect, useMemo, useRef } from 'react';
-import { useAccount, useWaitForTransactionReceipt, useWalletClient } from 'wagmi';
+import { useWaitForTransactionReceipt, useWalletClient } from 'wagmi';
 import { CreateUseWriteContractReturnType } from 'wagmi/codegen';
 import { Abi, ContractFunctionName, WaitForTransactionReceiptErrorType, encodeFunctionData, zeroAddress, padHex, concatHex } from 'viem';
 import { WriteContractData } from 'wagmi/query';

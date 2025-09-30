@@ -1,6 +1,4 @@
-import { Badge } from '@/components/ui/badge';
-import { PolymarketEventDTO } from './event';
-import { CircleAlert, CircleCheck, RefreshCcw, Timer } from 'lucide-react';
+import { PolymarketEvent } from './event';
 
 export interface MarketRow {
     id: string;
@@ -78,7 +76,7 @@ export function MarketRowToMarketWithEvent(row: MarketRowWithEvent): MarketWithE
     };
 }
 
-export interface PolymarketMarketDTO {
+export interface PolymarketMarket {
     id: string;
     question: string;
     conditionId: string;
@@ -87,44 +85,37 @@ export interface PolymarketMarketDTO {
     startDate?: string;
     image?: string;
     outcomes: string;
+    outcomePrices: string;
     clobTokenIds: string;
     negRisk?: boolean;
     eventId: string;
+    groupItemTitle: string;
+    closed?: boolean;
 }
 
-export interface PolymarketMarketWithEvent extends PolymarketMarketDTO {
-    events: PolymarketEventDTO[];
+export interface PolymarketMarketWithEvent extends PolymarketMarket {
+    events: PolymarketEvent[];
 }
 
-const getStatusIcon = (status: string, initialized = true) => {
-    if (!initialized) {
-        return <CircleAlert className="w-4 h-4" />;
-    }
-    switch (status) {
-        case 'active':
-            return <RefreshCcw className="w-4 h-4" />;
-        case 'completed':
-            return <CircleCheck className="w-4 h-4" />;
-        case 'pending':
-            return <Timer className="w-4 h-4" />;
-        default:
-            return <RefreshCcw className="w-4 h-4" />;
-    }
-};
+export interface ParsedPolymarketMarket extends Omit<PolymarketMarket, 'outcomes' | 'clobTokenIds' | 'outcomePrices'> {
+    outcomes: string[];
+    clobTokenIds: bigint[];
+    outcomePrices: string[];
+    winnerIndex?: number;
+}
 
-export const getStatusBadge = (status: string, initialized = true) => {
-    if (!initialized) {
-        return <Badge variant="outline">{getStatusIcon(status, initialized)} Uninitialized</Badge>;
-    }
-    const variants = {
-        active: 'outline',
-        completed: 'default',
-        pending: 'secondary',
-    } as const;
+export function parsePolymarketMarket(market: PolymarketMarket): ParsedPolymarketMarket {
+    const outcomePrices = JSON.parse(market.outcomePrices) as string[];
+    return {
+        ...market,
+        outcomes: JSON.parse(market.outcomes),
+        clobTokenIds: JSON.parse(market.clobTokenIds).map((id: string) => BigInt(id)),
+        outcomePrices: outcomePrices,
+        winnerIndex: market.closed ? outcomePrices.findIndex(price => price == '1') ?? -1 : undefined, //-1 means both outcomes are winning
+    };
+}
 
-    return (
-        <Badge variant={variants[status as keyof typeof variants] || 'outline'}>
-            {getStatusIcon(status, initialized)} {status.charAt(0).toUpperCase() + status.slice(1)}
-        </Badge>
-    );
-};
+export enum Outcome {
+    Yes = 'yes',
+    No = 'no',
+}

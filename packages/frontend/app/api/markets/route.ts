@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { ensureSchema, queryMarkets, upsertEvent, upsertMarket } from '@/lib/repos';
-import { fetchEventAndMarketsByEventSlug, fetchMarketByConditionId } from '@/lib/polymarket';
+import { fetchEventAndMarketsByEventSlug, fetchMarketByConditionId } from '@robin-pm-staking/common/lib/polymarket';
 import { Knex } from 'knex';
 
 function isPolymarketUrl(input: string): boolean {

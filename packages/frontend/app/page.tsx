@@ -11,11 +11,13 @@ import Link from 'next/link';
 import React, { useEffect, useRef, useState } from 'react';
 import Navbar from '@/components/navbar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { fetchWalletPositions } from '@/lib/polymarket';
+import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
+import { fetchWalletPositions } from '@robin-pm-staking/common/lib/polymarket';
 import { DateTime } from 'luxon';
-import { getStatusBadge, Market, MarketRow, MarketRowToMarket } from '@/types/market';
-import { useProxyAccount } from '@/hooks/use-proxy-account';
+import type { Market, MarketRow } from '@robin-pm-staking/common/types/market';
+import { MarketRowToMarket } from '@robin-pm-staking/common/types/market';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { MarketStatusBadge } from '@/components/market/market-status-badge';
 
 function StakingPageContent() {
     // Mock data for demonstration
@@ -383,7 +385,7 @@ function StakingPageContent() {
                                                                 : '—'}
                                                         </span>
                                                         <div className="flex items-center">
-                                                            {getStatusBadge('active' /*market.status*/, market.initialized)}
+                                                            <MarketStatusBadge status="active" initialized={market.initialized} />
                                                         </div>
                                                     </div>
                                                 </div>

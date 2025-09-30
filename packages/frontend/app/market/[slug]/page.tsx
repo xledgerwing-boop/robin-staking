@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Navbar from '@/components/navbar';
-import { getStatusBadge, MarketRowToMarketWithEvent, MarketWithEvent } from '@/types/market';
+import { MarketRowToMarketWithEvent, MarketWithEvent, Outcome } from '@robin-pm-staking/common/types/market';
 import { DateTime } from 'luxon';
 import logo from '@/public/logo.png';
 import infraredLogo from '@/public/infrared.png';
@@ -17,8 +17,8 @@ import Activities, { ActivityItem } from '@/components/activities';
 import ManagePositionCard from '@/components/market/manage-position-card';
 import CompletedMarketCard from '@/components/market/completed-market-card';
 import InitializeMarketCard from '@/components/market/initialize-market-card';
-import useFakeSigning from '@/hooks/use-fake-signing';
-import { useProxyAccount } from '@/hooks/use-proxy-account';
+import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
+import { MarketStatusBadge } from '@/components/market/market-status-badge';
 
 export default function MarketDetailPage() {
     const params = useParams();
@@ -27,7 +27,7 @@ export default function MarketDetailPage() {
 
     const [market, setMarket] = useState<MarketWithEvent | null>(null);
     const [status, setStatus] = useState<'active' | 'completed' | 'pending'>('active');
-    const [winner, setWinner] = useState<'yes' | 'no' | null>(null);
+    const [winner, setWinner] = useState<Outcome | null>(null);
     const wasInitialized = useRef(false);
 
     // Market metrics (simulation overlay)
@@ -87,7 +87,7 @@ export default function MarketDetailPage() {
             .toString(16)
             .padStart(8, '0')}...`;
     const userAddr = proxyAddress ?? '';
-    const { approve: signMessage } = useFakeSigning();
+    const signMessage = async () => {};
 
     const userPosition = useMemo(
         () => ({
@@ -96,7 +96,7 @@ export default function MarketDetailPage() {
             earnedYield: `$${formatNumber(baseEarnedYield + accruedYield)}`,
             balance: cashBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
         }),
-        [userYes, userNo, baseEarnedYield, accruedYield, cashBalance],
+        [userYes, userNo, baseEarnedYield, accruedYield, cashBalance]
     );
 
     if (!market) return <div>Loading...</div>;
@@ -177,7 +177,7 @@ export default function MarketDetailPage() {
         try {
             await signMessage();
             setStatus('completed');
-            const w: 'yes' | 'no' = 'yes';
+            const w: Outcome = Outcome.Yes;
             setWinner(w);
             pushActivity({
                 id: 0,
@@ -200,7 +200,7 @@ export default function MarketDetailPage() {
         try {
             await signMessage();
             let redeemed = 0;
-            if (winner === 'yes') {
+            if (winner === Outcome.Yes) {
                 redeemed = userYes;
                 setUserYes(0);
             } else {
@@ -295,7 +295,9 @@ export default function MarketDetailPage() {
                                                 {market.endDate ? DateTime.fromMillis(market.endDate).toLocaleString(DateTime.DATE_MED) : '—'}
                                             </span>
                                         </div>
-                                        <div className="flex items-center">{getStatusBadge(status, market.initialized)}</div>
+                                        <div className="flex items-center">
+                                            <MarketStatusBadge status={status} initialized={market.initialized} />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -398,7 +400,7 @@ export default function MarketDetailPage() {
                             <InitializeMarketCard onInitialize={handleInitialize} />
                         ) : status === 'active' ? (
                             <ManagePositionCard market={market} userPosition={userPosition} onDeposit={onDeposit} onWithdraw={onWithdraw} />
-                        ) : (
+                        ) : winner ? (
                             <CompletedMarketCard
                                 market={market}
                                 userPosition={userPosition}
@@ -408,7 +410,7 @@ export default function MarketDetailPage() {
                                 onRedeem={handleRedeem}
                                 onHarvest={handleHarvest}
                             />
-                        )}
+                        ) : null}
                     </div>
                 </div>
             </div>

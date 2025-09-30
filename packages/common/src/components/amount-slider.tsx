@@ -34,7 +34,7 @@ export function AmountSlider({
     className,
     stickyPercents = [25, 50, 75],
     stickyThreshold = 1.5,
-}: AmountSliderProps): JSX.Element {
+}: AmountSliderProps) {
     // Percent from amount/max (integer percent for a clean UI)
     const percent = React.useMemo(() => {
         const maxFloat = Number(formatUnits(max, decimals));

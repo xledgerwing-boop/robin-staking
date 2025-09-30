@@ -9,9 +9,9 @@ import { ArrowDownToLine, ArrowUpToLine, Loader } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { DateTime } from 'luxon';
-import { MarketWithEvent } from '@/types/market';
-import OutcomeToken from './outcome-token';
-import useFakeSigning from '@/hooks/use-fake-signing';
+import type { MarketWithEvent } from '@robin-pm-staking/common/types/market';
+import { Outcome } from '@robin-pm-staking/common/types/market';
+import OutcomeToken from '@robin-pm-staking/common/components/outcome-token';
 
 type UserPosition = {
     yesTokens: string;
@@ -23,24 +23,24 @@ type UserPosition = {
 type ManagePositionCardProps = {
     market: MarketWithEvent;
     userPosition: UserPosition;
-    onDeposit: (side: 'yes' | 'no', amount: number) => Promise<void> | void;
-    onWithdraw: (side: 'yes' | 'no', amount: number) => Promise<void> | void;
+    onDeposit: (side: Outcome, amount: number) => Promise<void> | void;
+    onWithdraw: (side: Outcome, amount: number) => Promise<void> | void;
 };
 
 export default function ManagePositionCard({ market, userPosition, onDeposit, onWithdraw }: ManagePositionCardProps) {
     const [activeTab, setActiveTab] = useState('deposit');
     const [depositAmount, setDepositAmount] = useState('');
     const [withdrawAmount, setWithdrawAmount] = useState('');
-    const [depositSide, setDepositSide] = useState<'yes' | 'no'>('yes');
+    const [depositSide, setDepositSide] = useState<Outcome>(Outcome.Yes);
     const [isDepositing, setIsDepositing] = useState(false);
     const [isWithdrawing, setIsWithdrawing] = useState(false);
 
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
-    const { approve: signMessage } = useFakeSigning();
+    const signMessage = async () => {};
 
-    const withdrawableAmount = depositSide === 'yes' ? userPosition.yesTokens : userPosition.noTokens;
+    const withdrawableAmount = depositSide === Outcome.Yes ? userPosition.yesTokens : userPosition.noTokens;
 
     const updateQueryParams = (updates: Record<string, string | null | undefined>) => {
         const params = new URLSearchParams(searchParams.toString());
@@ -65,7 +65,7 @@ export default function ManagePositionCard({ market, userPosition, onDeposit, on
         }
 
         const sideParam = searchParams.get('side');
-        if (sideParam === 'yes' || sideParam === 'no') {
+        if (sideParam === Outcome.Yes || sideParam === Outcome.No) {
             if (sideParam !== depositSide) setDepositSide(sideParam);
         }
     };
@@ -98,7 +98,7 @@ export default function ManagePositionCard({ market, userPosition, onDeposit, on
     };
 
     const handleDepositSideChange = (value: string) => {
-        const side = value === 'no' ? 'no' : 'yes';
+        const side = value === Outcome.No ? Outcome.No : Outcome.Yes;
         setDepositSide(side);
         updateQueryParams({ side });
     };
@@ -158,14 +158,14 @@ export default function ManagePositionCard({ market, userPosition, onDeposit, on
                                 />
                                 <Select value={depositSide} onValueChange={handleDepositSideChange}>
                                     <SelectTrigger className="px-4 py-2 rounded-full border text-sm font-medium">
-                                        <OutcomeToken isYes={depositSide === 'yes'} />
+                                        <OutcomeToken outcome={depositSide} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="yes">
-                                            <OutcomeToken isYes={true} />
+                                        <SelectItem value={Outcome.Yes}>
+                                            <OutcomeToken outcome={Outcome.Yes} />
                                         </SelectItem>
-                                        <SelectItem value="no">
-                                            <OutcomeToken isYes={false} />
+                                        <SelectItem value={Outcome.No}>
+                                            <OutcomeToken outcome={Outcome.No} />
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
@@ -222,14 +222,14 @@ export default function ManagePositionCard({ market, userPosition, onDeposit, on
                                 />
                                 <Select value={depositSide} onValueChange={handleDepositSideChange}>
                                     <SelectTrigger className="px-4 py-2 rounded-full border text-sm font-medium">
-                                        <OutcomeToken isYes={depositSide === 'yes'} />
+                                        <OutcomeToken outcome={depositSide} />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="yes">
-                                            <OutcomeToken isYes={true} />
+                                            <OutcomeToken outcome={Outcome.Yes} />
                                         </SelectItem>
                                         <SelectItem value="no">
-                                            <OutcomeToken isYes={false} />
+                                            <OutcomeToken outcome={Outcome.No} />
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>

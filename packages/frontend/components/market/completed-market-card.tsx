@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CircleCheck, Coins, Loader, Sprout } from 'lucide-react';
 import { useMemo } from 'react';
-import { MarketWithEvent } from '@/types/market';
-import OutcomeToken from './outcome-token';
+import type { MarketWithEvent } from '@robin-pm-staking/common/types/market';
+import { Outcome } from '@robin-pm-staking/common/types/market';
+import OutcomeToken from '@robin-pm-staking/common/components/outcome-token';
 
 type UserPosition = {
     yesTokens: string;
@@ -16,7 +17,7 @@ type UserPosition = {
 type CompletedMarketCardProps = {
     market?: MarketWithEvent;
     userPosition: UserPosition;
-    winner: 'yes' | 'no' | null;
+    winner: Outcome;
     isRedeeming: boolean;
     isHarvesting: boolean;
     onRedeem: () => void | Promise<void>;
@@ -28,7 +29,7 @@ export default function CompletedMarketCard({ userPosition, winner, isRedeeming,
         if (!winner) return 0;
         const yesCount = parseNumber(userPosition.yesTokens);
         const noCount = parseNumber(userPosition.noTokens);
-        const tokens = winner === 'yes' ? yesCount : noCount;
+        const tokens = winner === Outcome.Yes ? yesCount : noCount;
         // Winner shares redeem 1:1 for USDC in $ terms
         return tokens;
     }, [userPosition.noTokens, userPosition.yesTokens, winner]);
@@ -49,7 +50,7 @@ export default function CompletedMarketCard({ userPosition, winner, isRedeeming,
                 <div className="p-4 bg-muted/50 rounded-lg">
                     <div className="flex items-center justify-between">
                         <div className="text-sm text-muted-foreground">Winning Token</div>
-                        <OutcomeToken isYes={winner === 'yes'} className="text-lg font-semibold" />
+                        <OutcomeToken outcome={winner} className="text-lg font-semibold" />
                     </div>
                     <div className="mt-3 flex items-center justify-between">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">Redemption (USDC)</div>

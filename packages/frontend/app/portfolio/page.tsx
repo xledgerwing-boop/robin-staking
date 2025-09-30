@@ -1,12 +1,11 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Clock, CheckCircle, AlertCircle, Timer } from 'lucide-react';
+import { Clock } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import Navbar from '@/components/navbar';
-import { getStatusBadge } from '@/types/market';
+import { MarketStatusBadge } from '@/components/market/market-status-badge';
 
 export default function StakingPage() {
     const userTotals = {
@@ -112,7 +111,7 @@ export default function StakingPage() {
                                                 <p className="font-medium text-primary">{deposit.earnedYield}</p>
                                             </div>
                                             <div className="flex items-center justify-center space-x-2 min-w-28">
-                                                {getStatusBadge(deposit.status, true)}
+                                                <MarketStatusBadge status={deposit.status} initialized={true} />
                                             </div>
                                         </div>
                                     </div>
