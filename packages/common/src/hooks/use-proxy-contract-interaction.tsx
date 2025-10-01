@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
-import { useWaitForTransactionReceipt, useWalletClient } from 'wagmi';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useConfig, useWaitForTransactionReceipt } from 'wagmi';
 import { CreateUseWriteContractReturnType } from 'wagmi/codegen';
 import { Abi, ContractFunctionName, WaitForTransactionReceiptErrorType, encodeFunctionData, zeroAddress, padHex, concatHex } from 'viem';
 import { WriteContractData } from 'wagmi/query';
@@ -9,6 +9,7 @@ import { useProxyAccount } from './use-proxy-account';
 import { useWriteGnosisSafeL2ExecTransaction } from '../types/contracts';
 import Safe, { Eip1193Provider } from '@safe-global/protocol-kit';
 import { TransactionResult } from '@safe-global/types-kit';
+import { waitForTransactionReceipt } from 'wagmi/actions';
 
 const OPERATION_CALL = 0; // Gnosis Safe Enum.Operation.CALL
 
@@ -35,23 +36,24 @@ export default function useProxyContractInteraction<
     write: (args: WriteArgs<TAbi, TFunctionName, TContext> & { hookIndex: number }) => Promise<WriteContractData>;
     batch: (
         items: (BatchItem<TAbi, TFunctionName, TContext> & { hookIndex: number })[],
-        options?: { atomic?: boolean }
+        atomic?: boolean
     ) => Promise<TransactionResult | WriteContractData[]>;
     isLoading: boolean;
     promise: React.RefObject<Promise<boolean> | null>;
 } {
-    const { data: walletClient } = useWalletClient();
     const { proxyAddress, address: owner, connector } = useProxyAccount();
     const hookData = _hooks.map(hook => hook());
 
     const { data: hash, isPending, writeContractAsync: safeWriteContract } = useWriteGnosisSafeL2ExecTransaction();
     const { isLoading: receiptLoading, isSuccess, error } = useWaitForTransactionReceipt({ hash });
+    const [batchRunning, setBatchRunning] = useState(false);
     const resolveRef = useRef<((value: boolean) => void) | undefined>(undefined);
     const rejectRef = useRef<((reason?: unknown) => void) | undefined>(undefined);
     const promiseRef = useRef<Promise<boolean> | null>(null);
     const protocolKit = useRef<Safe | null>(null);
+    const config = useConfig();
 
-    const isLoading = isPending || receiptLoading;
+    const isLoading = isPending || receiptLoading || batchRunning;
 
     useEffect(() => {
         if (!isLoading) {
@@ -110,14 +112,12 @@ export default function useProxyContractInteraction<
 
     const batch = async (
         items: (BatchItem<TAbi, TFunctionName, TContext> & { hookIndex: number })[],
-        options?: { atomic?: boolean }
+        atomic: boolean = true
     ): Promise<TransactionResult | WriteContractData[]> => {
         if (!proxyAddress) throw new Error('Missing proxyAddress (Safe).');
         if (!owner) throw new Error('Missing connected owner address.');
         if (!protocolKit.current) throw new Error('Missing protocolKit.');
         if (!Array.isArray(items) || items.length === 0) throw new Error('Missing items for batch.');
-
-        const atomic = options?.atomic ?? false;
 
         // Build the array of single-call txs (to, value, data)
         const txs = items.map(it => {
@@ -132,11 +132,15 @@ export default function useProxyContractInteraction<
             return { to, value: msgValue.toString(), data };
         });
         if (atomic) {
-            if (!walletClient) throw new Error('Missing wallet client for Safe Protocol Kit');
-
-            const safeTx = await protocolKit.current.createTransaction({ transactions: txs });
-            const executeTxResponse = await protocolKit.current.executeTransaction(safeTx);
-            return executeTxResponse;
+            try {
+                setBatchRunning(true);
+                const safeTx = await protocolKit.current.createTransaction({ transactions: txs });
+                const executeTxResponse = await protocolKit.current.executeTransaction(safeTx);
+                await waitForTransactionReceipt(config, { hash: executeTxResponse.hash as `0x${string}` });
+                return executeTxResponse;
+            } finally {
+                setBatchRunning(false);
+            }
         }
 
         const signatures = buildPrevalidatedSig(owner as `0x${string}`);

@@ -3,7 +3,7 @@ import { useAccount } from 'wagmi';
 import { formatAddress, getEventData, getSelectedTitleElement, rootPath } from '../inpage_utils';
 import { ParsedPolymarketMarket, parsePolymarketMarket, Outcome } from '@robin-pm-staking/common/types/market';
 import { PolymarketEventWithMarkets } from '@robin-pm-staking/common/types/event';
-import { TARGET_CHAIN_ID } from '@robin-pm-staking/common/constants';
+import { TARGET_CHAIN_ID, UNDERYLING_DECIMALS } from '@robin-pm-staking/common/constants';
 import { Button } from './ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
 import { Input } from './ui/input';
@@ -12,13 +12,7 @@ import { Progress } from './ui/progress';
 import {
     useReadConditionalTokensIsApprovedForAll,
     useReadErc20BalanceOf,
-    useReadIConditionalTokensBalanceOfBatch,
-    useReadRobinStakingVaultFinalized,
-    useReadRobinStakingVaultGetCurrentApy,
-    useReadRobinStakingVaultGetCurrentUserYield,
     useReadRobinStakingVaultGetTvlUsd,
-    useReadRobinStakingVaultGetUserBalances,
-    useReadRobinStakingVaultYieldUnlocked,
     useReadRobinVaultManagerVaultForConditionId,
     useWriteConditionalTokensSetApprovalForAll,
     useWriteRobinStakingVaultDeposit,
@@ -42,6 +36,8 @@ import useProxyContractInteraction from '@robin-pm-staking/common/hooks/use-prox
 import { Skeleton } from './ui/skeleton';
 import { toast } from 'sonner';
 import AmountSlider from '@robin-pm-staking/common/components/amount-slider';
+import { useVaultInfo } from '../../../common/src/hooks/use-vault-info';
+import { useVaultUserInfo } from '../../../common/src/hooks/use-vault-user-info';
 
 export function StakingCard() {
     const [market, setMarket] = useState<ParsedPolymarketMarket | null>(null);
@@ -64,26 +60,16 @@ export function StakingCard() {
     });
 
     const {
-        data: vaultFinalized,
-        isLoading: vaultFinalizedLoading,
-        error: vaultFinalizedError,
-        queryKey: vaultFinalizedQueryKey,
-    } = useReadRobinStakingVaultFinalized({
-        address: vaultAddress as `0x${string}`,
-        args: [],
-        query: { enabled: !!vaultAddress && vaultAddress !== zeroAddress },
-    });
+        vaultFinalized,
+        vaultFinalizedLoading,
+        vaultFinalizedError,
+        vaultFinalizedQueryKey,
 
-    const {
-        data: vaultYieldUnlocked,
-        isLoading: vaultYieldUnlockedLoading,
-        error: vaultYieldUnlockedError,
-        queryKey: vaultYieldUnlockedQueryKey,
-    } = useReadRobinStakingVaultYieldUnlocked({
-        address: vaultAddress as `0x${string}`,
-        args: [],
-        query: { enabled: !!vaultAddress && vaultAddress !== zeroAddress },
-    });
+        vaultYieldUnlocked,
+        vaultYieldUnlockedLoading,
+        vaultYieldUnlockedError,
+        vaultYieldUnlockedQueryKey,
+    } = useVaultInfo(vaultAddress as `0x${string}`);
 
     useEffect(() => {
         let observer: MutationObserver | null = null;
@@ -171,7 +157,11 @@ export function StakingCard() {
                                         />
                                     )}
                                     {market.closed && isVaultFinalized && !isVaultYieldUnlocked && (
-                                        <PartialUnlockActions vaultAddress={vaultAddress} reloadQueryKeys={[vaultYieldUnlockedQueryKey]} />
+                                        <PartialUnlockActions
+                                            vaultAddress={vaultAddress}
+                                            reloadQueryKeys={[vaultYieldUnlockedQueryKey]}
+                                            market={market}
+                                        />
                                     )}
                                     {market.closed && isVaultFinalized && isVaultYieldUnlocked && (
                                         <VaultUnlockedActions vaultAddress={vaultAddress} market={market} />
@@ -210,81 +200,33 @@ function HoldingsSummaryRow({ market, vaultAddress }: { market: ParsedPolymarket
     const { proxyAddress } = useProxyAccount();
 
     const {
-        data: vaultCurrentApy,
-        isLoading: vaultCurrentApyLoading,
-        error: vaultCurrentApyError,
-        queryKey: vaultCurrentApyQueryKey,
-    } = useReadRobinStakingVaultGetCurrentApy({
-        address: vaultAddress as `0x${string}`,
-        args: [],
-    });
+        vaultCurrentApyLoading,
+        vaultCurrentApyError,
 
-    const {
-        data: vaultUserBalances,
-        isLoading: vaultUserBalancesLoading,
-        error: vaultUserBalancesError,
-        queryKey: vaultUserBalancesQueryKey,
-    } = useReadRobinStakingVaultGetUserBalances({
-        address: vaultAddress as `0x${string}`,
-        args: [proxyAddress as `0x${string}`],
-        query: { enabled: !!proxyAddress },
-    });
+        vaultUserBalancesLoading,
+        vaultUserBalancesError,
 
-    const {
-        data: tokenUserBalances,
-        isLoading: tokenUserBalancesLoading,
-        error: tokenUserBalancesError,
-        queryKey: tokenUserBalancesQueryKey,
-    } = useReadIConditionalTokensBalanceOfBatch({
-        address: USED_CONTRACTS.CONDITIONAL_TOKENS,
-        args: [
-            [proxyAddress as `0x${string}`, proxyAddress as `0x${string}`],
-            [market.clobTokenIds[0], market.clobTokenIds[1]],
-        ],
-        query: { enabled: !!proxyAddress },
-    });
+        tokenUserBalancesLoading,
+        tokenUserBalancesError,
 
-    const {
-        data: currentYield,
-        isLoading: currentYieldLoading,
-        error: currentYieldError,
-        queryKey: currentYieldQueryKey,
-    } = useReadRobinStakingVaultGetCurrentUserYield({
-        address: vaultAddress as `0x${string}`,
-        args: [proxyAddress as `0x${string}`],
-        query: { enabled: !!proxyAddress },
-    });
+        currentYield,
+        currentYieldLoading,
+        currentYieldError,
+
+        calculateUserInfo,
+    } = useVaultUserInfo(vaultAddress as `0x${string}`, proxyAddress as `0x${string}`, market);
+
+    const { tokenUserYes, tokenUserNo, vaultUserYes, vaultUserNo, currentYesApyBps, currentNoApyBps, userResultingApyBps, earningsPerDay } =
+        calculateUserInfo();
 
     const loading = vaultUserBalancesLoading || tokenUserBalancesLoading || vaultCurrentApyLoading || currentYieldLoading;
 
-    const vaultUserYes = vaultUserBalances?.[0] ?? 0n;
-    const tokenUserYes = tokenUserBalances?.[0] ?? 0n;
-    const userYes = `${formatUnits(vaultUserYes, 6)} / ${formatUnits(tokenUserYes + vaultUserYes, 6)}`;
+    const userYes = `${formatUnits(vaultUserYes, UNDERYLING_DECIMALS)} / ${formatUnits(tokenUserYes + vaultUserYes, UNDERYLING_DECIMALS)}`;
     const userYesProgress = vaultUserYes === 0n && tokenUserYes === 0n ? 50 : (Number(vaultUserYes) / Number(tokenUserYes + vaultUserYes)) * 100;
-
-    const vaultUserNo = vaultUserBalances?.[1] ?? 0n;
-    const tokenUserNo = tokenUserBalances?.[1] ?? 0n;
-    const userNo = `${formatUnits(vaultUserNo, 6)} / ${formatUnits(tokenUserNo + vaultUserNo, 6)}`;
+    const userNo = `${formatUnits(vaultUserNo, UNDERYLING_DECIMALS)} / ${formatUnits(tokenUserNo + vaultUserNo, UNDERYLING_DECIMALS)}`;
     const userNoProgress = vaultUserNo === 0n && tokenUserNo === 0n ? 50 : (Number(vaultUserNo) / Number(tokenUserNo + vaultUserNo)) * 100;
-
-    const DolDecimals = 6;
-    const DolPrecision = 10 ** DolDecimals;
-    const DolPrecisionBigInt = BigInt(DolPrecision);
-    const yesPrice = BigInt(Math.round(Number(market.outcomePrices[0]) * DolPrecision)) || 0n;
-    const noPrice = BigInt(Math.round(Number(market.outcomePrices[1]) * DolPrecision)) || 0n;
-    const halfDol = 5n * 10n ** 5n;
-    const currentYesApyBps = (((halfDol * DolPrecisionBigInt) / yesPrice) * (vaultCurrentApy ?? 0n)) / DolPrecisionBigInt;
-    const currentNoApyBps = (((halfDol * DolPrecisionBigInt) / noPrice) * (vaultCurrentApy ?? 0n)) / DolPrecisionBigInt;
-
-    const userYesWorth = vaultUserYes * yesPrice;
-    const userNoWorth = vaultUserNo * noPrice;
-    const userYesApyBps = currentYesApyBps * userYesWorth;
-    const userNoApyBps = currentNoApyBps * userNoWorth;
-    const userResultingApyBps = (userYesApyBps + userNoApyBps) / ((userYesWorth || 1n) + (userNoWorth || 1n));
-
-    const earningsPerDay = ((vaultUserYes * yesPrice + vaultUserNo * noPrice) * userResultingApyBps) / 10n ** 6n / 10_000n / 365n;
     const earningsPerDayString =
-        earningsPerDay > 10n ** BigInt(DolDecimals - 2) || earningsPerDay === 0n ? formatUnits(earningsPerDay, DolDecimals) : '<0.01';
+        earningsPerDay > 10n ** BigInt(UNDERYLING_DECIMALS - 2) || earningsPerDay === 0n ? formatUnits(earningsPerDay, UNDERYLING_DECIMALS) : '<0.01';
 
     return (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -331,7 +273,7 @@ function HoldingsSummaryRow({ market, vaultAddress }: { market: ParsedPolymarket
                 <Separator />
                 <div className="h-8 flex flex-col items-center justify-center">
                     <span className="text-base text-primary">
-                        <ValueState value={formatUnits(currentYield ?? 0n, DolPrecision)} loading={loading} error={!!currentYieldError} />$
+                        <ValueState value={formatUnits(currentYield ?? 0n, UNDERYLING_DECIMALS)} loading={loading} error={!!currentYieldError} />$
                     </span>
                     <span className="text-xs text-muted-foreground">
                         <ValueState value={earningsPerDayString} loading={loading} error={!!currentYieldError} />$ / day
@@ -352,28 +294,11 @@ function StakeWithdrawTabs({ vaultAddress, market }: { vaultAddress: string; mar
     const { proxyAddress } = useProxyAccount();
     const invalidateQueries = useInvalidateQueries();
 
-    const {
-        data: vaultUserBalances,
-        isLoading: vaultUserBalancesLoading,
-        queryKey: vaultUserBalancesQueryKey,
-    } = useReadRobinStakingVaultGetUserBalances({
-        address: vaultAddress as `0x${string}`,
-        args: [proxyAddress as `0x${string}`],
-        query: { enabled: !!proxyAddress },
-    });
-
-    const {
-        data: tokenUserBalances,
-        isLoading: tokenUserBalancesLoading,
-        queryKey: tokenUserBalancesQueryKey,
-    } = useReadIConditionalTokensBalanceOfBatch({
-        address: USED_CONTRACTS.CONDITIONAL_TOKENS,
-        args: [
-            [proxyAddress as `0x${string}`, proxyAddress as `0x${string}`],
-            [market.clobTokenIds[0], market.clobTokenIds[1]],
-        ],
-        query: { enabled: !!proxyAddress },
-    });
+    const { vaultUserBalancesQueryKey, tokenUserBalancesQueryKey, vaultCurrentApyQueryKey, getUserBalances } = useVaultUserInfo(
+        vaultAddress as `0x${string}`,
+        proxyAddress as `0x${string}`,
+        market
+    );
 
     const { data: approvedForAll, queryKey: approvedForAllQueryKey } = useReadConditionalTokensIsApprovedForAll({
         address: USED_CONTRACTS.CONDITIONAL_TOKENS,
@@ -394,27 +319,24 @@ function StakeWithdrawTabs({ vaultAddress, market }: { vaultAddress: string; mar
 
     const handleStake = async () => {
         try {
-            await stake(
-                [
-                    ...((approvedForAll
-                        ? []
-                        : [
-                              {
-                                  address: USED_CONTRACTS.CONDITIONAL_TOKENS,
-                                  args: [vaultAddress as `0x${string}`, true],
-                                  hookIndex: 0,
-                              },
-                          ]) as any),
-                    {
-                        address: vaultAddress as `0x${string}`,
-                        args: [side === Outcome.Yes, parseUnits(stakeAmount, 6)],
-                        hookIndex: 1,
-                    },
-                ],
-                { atomic: true }
-            );
+            await stake([
+                ...((approvedForAll
+                    ? []
+                    : [
+                          {
+                              address: USED_CONTRACTS.CONDITIONAL_TOKENS,
+                              args: [vaultAddress as `0x${string}`, true],
+                              hookIndex: 0,
+                          },
+                      ]) as any),
+                {
+                    address: vaultAddress as `0x${string}`,
+                    args: [side === Outcome.Yes, parseUnits(stakeAmount, 6)],
+                    hookIndex: 1,
+                },
+            ]);
             await stakePromise.current;
-            await invalidateQueries([vaultUserBalancesQueryKey, tokenUserBalancesQueryKey, approvedForAllQueryKey]);
+            await invalidateQueries([vaultUserBalancesQueryKey, tokenUserBalancesQueryKey, vaultCurrentApyQueryKey, approvedForAllQueryKey]);
             setStakeAmount('');
         } catch (error) {
             toast.error('Failed to stake' + getErrorMessage(error));
@@ -430,7 +352,7 @@ function StakeWithdrawTabs({ vaultAddress, market }: { vaultAddress: string; mar
                 hookIndex: 0,
             });
             await withdrawPromise.current;
-            await invalidateQueries([vaultUserBalancesQueryKey, tokenUserBalancesQueryKey]);
+            await invalidateQueries([vaultUserBalancesQueryKey, tokenUserBalancesQueryKey, vaultCurrentApyQueryKey]);
             setWithdrawAmount('');
         } catch (error) {
             toast.error('Failed to withdraw' + getErrorMessage(error));
@@ -438,20 +360,18 @@ function StakeWithdrawTabs({ vaultAddress, market }: { vaultAddress: string; mar
         }
     };
 
-    const userYesTokenBalance = tokenUserBalances?.[0] ?? 0n;
-    const userNoTokenBalance = tokenUserBalances?.[1] ?? 0n;
-    const userYesVaultBalance = vaultUserBalances?.[0] ?? 0n;
-    const userNoVaultBalance = vaultUserBalances?.[1] ?? 0n;
+    const { tokenUserYes, tokenUserNo, vaultUserYes, vaultUserNo } = getUserBalances();
+
     const stakeAmountParsed = parseUnits(stakeAmount, 6);
     const withdrawAmountParsed = parseUnits(withdrawAmount, 6);
     const stakeAmountInvalid =
         stakeAmountParsed <= 0 ||
-        (side === Outcome.Yes && stakeAmountParsed > userYesTokenBalance) ||
-        (side === Outcome.No && stakeAmountParsed > userNoTokenBalance);
+        (side === Outcome.Yes && stakeAmountParsed > tokenUserYes) ||
+        (side === Outcome.No && stakeAmountParsed > tokenUserNo);
     const withdrawAmountInvalid =
         withdrawAmountParsed <= 0 ||
-        (side === Outcome.Yes && withdrawAmountParsed > userYesVaultBalance) ||
-        (side === Outcome.No && withdrawAmountParsed > userNoVaultBalance);
+        (side === Outcome.Yes && withdrawAmountParsed > vaultUserYes) ||
+        (side === Outcome.No && withdrawAmountParsed > vaultUserNo);
 
     return (
         <div className="space-y-3">
@@ -491,11 +411,7 @@ function StakeWithdrawTabs({ vaultAddress, market }: { vaultAddress: string; mar
                                 </SelectContent>
                             </Select>
                         </div>
-                        <AmountSlider
-                            amount={stakeAmount}
-                            max={side === Outcome.Yes ? userYesTokenBalance : userNoTokenBalance}
-                            onAmountChange={setStakeAmount}
-                        />
+                        <AmountSlider amount={stakeAmount} max={side === Outcome.Yes ? tokenUserYes : tokenUserNo} onAmountChange={setStakeAmount} />
                         {stakeAmountInvalid && stakeAmount != '' && <span className="text-xs text-destructive mt-2">Invalid amount</span>}
                         <Button
                             variant="default"
@@ -537,7 +453,7 @@ function StakeWithdrawTabs({ vaultAddress, market }: { vaultAddress: string; mar
                         </div>
                         <AmountSlider
                             amount={withdrawAmount}
-                            max={side === Outcome.Yes ? userYesVaultBalance : userNoVaultBalance}
+                            max={side === Outcome.Yes ? vaultUserYes : vaultUserNo}
                             onAmountChange={setWithdrawAmount}
                         />
                         {withdrawAmountInvalid && withdrawAmount != '' && <span className="text-xs text-destructive mt-2">Invalid amount</span>}
@@ -599,9 +515,23 @@ function EndedVaultActions({ vaultAddress, reloadQueryKeys }: { vaultAddress: st
     );
 }
 
-function PartialUnlockActions({ vaultAddress, reloadQueryKeys }: { vaultAddress: string; reloadQueryKeys: QueryKey[] }) {
+function PartialUnlockActions({
+    vaultAddress,
+    reloadQueryKeys,
+    market,
+}: {
+    vaultAddress: string;
+    reloadQueryKeys: QueryKey[];
+    market: ParsedPolymarketMarket;
+}) {
     const { proxyAddress, isConnected, chainId } = useProxyAccount();
     const invalidateQueries = useInvalidateQueries();
+
+    const { tokenUserBalancesQueryKey, vaultUserBalancesQueryKey } = useVaultUserInfo(
+        vaultAddress as `0x${string}`,
+        proxyAddress as `0x${string}`,
+        market
+    );
 
     const {
         data: tvlUsd,
@@ -657,7 +587,7 @@ function PartialUnlockActions({ vaultAddress, reloadQueryKeys }: { vaultAddress:
                 hookIndex: 0,
             });
             await redeemWinningTokensPromise.current;
-            await invalidateQueries([tvlUsdQueryKey, vaultUsdBalanceQueryKey]);
+            await invalidateQueries([tvlUsdQueryKey, vaultUsdBalanceQueryKey, tokenUserBalancesQueryKey, vaultUserBalancesQueryKey]);
         } catch (error) {
             toast.error('Failed to redeem winning tokens' + getErrorMessage(error));
             console.error(error);
@@ -699,6 +629,13 @@ function PartialUnlockActions({ vaultAddress, reloadQueryKeys }: { vaultAddress:
 
 function VaultUnlockedActions({ vaultAddress, market }: { vaultAddress: string; market: ParsedPolymarketMarket }) {
     const invalidateQueries = useInvalidateQueries();
+    const { proxyAddress: userAddress } = useProxyAccount();
+
+    const { tokenUserBalancesQueryKey, vaultUserBalancesQueryKey, currentYieldQueryKey } = useVaultUserInfo(
+        vaultAddress as `0x${string}`,
+        userAddress as `0x${string}`,
+        market
+    );
 
     const {
         write: redeemWinningTokens,
@@ -720,6 +657,7 @@ function VaultUnlockedActions({ vaultAddress, market }: { vaultAddress: string; 
                 hookIndex: 0,
             });
             await redeemWinningTokensPromise.current;
+            await invalidateQueries([tokenUserBalancesQueryKey, vaultUserBalancesQueryKey]);
         } catch (error) {
             toast.error('Failed to redeem winning tokens' + getErrorMessage(error));
             console.error(error);
@@ -734,6 +672,7 @@ function VaultUnlockedActions({ vaultAddress, market }: { vaultAddress: string; 
                 hookIndex: 0,
             });
             await harvestYieldPromise.current;
+            await invalidateQueries([tokenUserBalancesQueryKey, vaultUserBalancesQueryKey, currentYieldQueryKey]);
         } catch (error) {
             toast.error('Failed to harvest yield' + getErrorMessage(error));
             console.error(error);
