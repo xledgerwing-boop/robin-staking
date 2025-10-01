@@ -4,7 +4,7 @@ import * as SliderPrimitive from '@radix-ui/react-slider';
 import { cn } from '../lib/utils';
 import { formatUnits } from 'viem';
 
-type AmountSliderProps = {
+export type AmountSliderProps = {
     amount: string;
     max: bigint;
     onAmountChange: (nextAmount: string) => void;
