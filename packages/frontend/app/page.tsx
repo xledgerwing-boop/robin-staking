@@ -42,7 +42,7 @@ function StakingPageContent() {
     // Sorting state
     type SortField = 'apy' | 'tvl' | 'liquidationDate' | 'title';
     type SortDirection = 'asc' | 'desc';
-    const [sortField, setSortField] = useState<SortField>('apy');
+    const [sortField, setSortField] = useState<SortField>('tvl');
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
     const router = useRouter();
@@ -147,7 +147,7 @@ function StakingPageContent() {
     const sortLabels: Record<SortField, string> = {
         apy: 'APY',
         tvl: 'TVL',
-        liquidationDate: 'Liquidation Date',
+        liquidationDate: 'End Date',
         title: 'Name',
     };
 
@@ -302,7 +302,7 @@ function StakingPageContent() {
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" className="w-48">
-                                        <DropdownMenuItem onClick={() => handleSortSelect('apy')}>
+                                        {/* <DropdownMenuItem onClick={() => handleSortSelect('apy')}>
                                             <span className="flex-1">APY</span>
                                             {sortField === 'apy' ? (
                                                 sortDirection === 'asc' ? (
@@ -313,7 +313,7 @@ function StakingPageContent() {
                                             ) : (
                                                 <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
                                             )}
-                                        </DropdownMenuItem>
+                                        </DropdownMenuItem> */}
                                         <DropdownMenuItem onClick={() => handleSortSelect('tvl')}>
                                             <span className="flex-1">TVL</span>
                                             {sortField === 'tvl' ? (
@@ -327,7 +327,7 @@ function StakingPageContent() {
                                             )}
                                         </DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => handleSortSelect('liquidationDate')}>
-                                            <span className="flex-1">Liquidation Date</span>
+                                            <span className="flex-1">End Date</span>
                                             {sortField === 'liquidationDate' ? (
                                                 sortDirection === 'asc' ? (
                                                     <ArrowUp className="w-4 h-4 text-primary" />
