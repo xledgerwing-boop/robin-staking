@@ -1,6 +1,12 @@
 import { Knex } from 'knex';
 import type { EventRow, PolymarketEvent } from '@robin-pm-staking/common/types/event';
-import type { MarketRow, MarketRowWithEvent, PolymarketMarket, PolymarketMarketWithEvent } from '@robin-pm-staking/common/types/market';
+import {
+    MarketStatus,
+    type MarketRow,
+    type MarketRowWithEvent,
+    type PolymarketMarket,
+    type PolymarketMarketWithEvent,
+} from '@robin-pm-staking/common/types/market';
 
 const EVENTS_TABLE = 'events';
 const MARKETS_TABLE = 'markets';
@@ -23,22 +29,23 @@ export async function ensureSchema(db: Knex): Promise<void> {
     if (!hasMarkets) {
         await db.schema.createTable(MARKETS_TABLE, table => {
             table.string('id').primary();
+            table.string('contract_address').nullable();
             table.string('question');
             table.string('condition_id').unique().index();
             table.string('slug');
             table.bigint('end_date').nullable();
             table.bigint('start_date').nullable();
             table.string('image').nullable();
+            table.string('status').notNullable().defaultTo(MarketStatus.Uninitialized);
             table.jsonb('outcomes');
             table.jsonb('clob_token_ids');
             table.boolean('neg_risk').nullable();
             table.string('event_id').notNullable().references('id').inTable(EVENTS_TABLE).onDelete('CASCADE');
             table.decimal('tvl', 78, 0);
-            table.integer('apy_bps');
-            table.boolean('initialized').notNullable().defaultTo(false).index();
             table.decimal('unmatched_yes_tokens', 78, 0);
             table.decimal('unmatched_no_tokens', 78, 0);
             table.decimal('matched_tokens', 78, 0);
+            table.string('winning_position').nullable();
             table.bigint('created_at');
             table.bigint('updated_at');
         });
@@ -59,15 +66,19 @@ export async function upsertEvent(db: Knex, evt: PolymarketEvent): Promise<Event
     return row;
 }
 
-export async function upsertMarket(db: Knex, market: PolymarketMarket | PolymarketMarketWithEvent, initialized: boolean): Promise<MarketRow> {
+export async function upsertMarket(
+    db: Knex,
+    market: PolymarketMarket | PolymarketMarketWithEvent,
+    initialized: boolean,
+    contractAddress?: string
+): Promise<MarketRow> {
+    if (initialized && !contractAddress) {
+        throw new Error('Contract address is required when market is initialized');
+    }
     const eventId = (market as PolymarketMarket).eventId ?? (market as PolymarketMarketWithEvent).events[0].id;
-    const tvl = 50_000 * Math.random();
-    const unmatchedTokens = 5_000 * Math.random();
-    const matchedTokens = tvl;
-    const unmatchedYesTokens = unmatchedTokens * (Math.random() > 0.5 ? 1 : 0);
-    const unmatchedNoTokens = unmatchedTokens - unmatchedYesTokens;
     const row: MarketRow = {
         id: market.id,
+        contractAddress: contractAddress,
         eventId,
         question: market.question,
         conditionId: market.conditionId,
@@ -80,19 +91,18 @@ export async function upsertMarket(db: Knex, market: PolymarketMarket | Polymark
         negRisk: market.negRisk ?? false,
         createdAt: Date.now().toString(),
         updatedAt: Date.now().toString(),
-        initialized,
-        tvl: tvl.toString(),
-        apyBps: Math.floor(500 + Math.random() * 500),
-        unmatchedYesTokens: unmatchedYesTokens.toString(),
-        unmatchedNoTokens: unmatchedNoTokens.toString(),
-        matchedTokens: matchedTokens.toString(),
+        status: initialized ? MarketStatus.Active : MarketStatus.Uninitialized,
+        tvl: (0).toString(),
+        unmatchedYesTokens: (0).toString(),
+        unmatchedNoTokens: (0).toString(),
+        matchedTokens: (0).toString(),
     };
     await db(MARKETS_TABLE).insert(row).onConflict('conditionId').merge({
+        contractAddress: row.contractAddress,
         question: row.question,
         image: row.image,
         tvl: row.tvl,
-        apyBps: row.apyBps,
-        initialized: row.initialized,
+        status: row.status,
         unmatchedYesTokens: row.unmatchedYesTokens,
         unmatchedNoTokens: row.unmatchedNoTokens,
         matchedTokens: row.matchedTokens,
@@ -129,7 +139,7 @@ export async function queryMarkets(db: Knex, q: MarketsQuery): Promise<MarketRow
     const builder = db(MARKETS_TABLE).select(`${MARKETS_TABLE}.*`).leftJoin(EVENTS_TABLE, `${EVENTS_TABLE}.id`, `${MARKETS_TABLE}.eventId`);
 
     if (!q.includeUninitialized) {
-        builder.where(`${MARKETS_TABLE}.initialized`, true);
+        builder.whereNot(`${MARKETS_TABLE}.status`, MarketStatus.Uninitialized);
     }
 
     if (q.conditionIds && q.conditionIds.length > 0) {

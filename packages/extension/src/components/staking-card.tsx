@@ -3,7 +3,7 @@ import { useAccount } from 'wagmi';
 import { formatAddress, getEventData, getSelectedTitleElement, rootPath } from '../inpage_utils';
 import { ParsedPolymarketMarket, parsePolymarketMarket, Outcome } from '@robin-pm-staking/common/types/market';
 import { PolymarketEventWithMarkets } from '@robin-pm-staking/common/types/event';
-import { TARGET_CHAIN_ID, UNDERYLING_DECIMALS } from '@robin-pm-staking/common/constants';
+import { TARGET_CHAIN_ID, UNDERYLING_DECIMALS, UNDERYLING_PRECISION_BIG_INT } from '@robin-pm-staking/common/constants';
 import { Button } from './ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card';
 import { Input } from './ui/input';
@@ -25,7 +25,7 @@ import {
 } from '@robin-pm-staking/common/types/contracts';
 import { USED_CONTRACTS } from '@robin-pm-staking/common/constants';
 import { ArrowDownToLine, ArrowUpFromLine, Coins, Sprout, Loader } from 'lucide-react';
-import { formatUnits, parseUnits, zeroAddress } from 'viem';
+import { parseUnits, zeroAddress } from 'viem';
 import useInvalidateQueries from '@robin-pm-staking/common/hooks/use-invalidate-queries';
 import { Separator } from './ui/separator';
 import OutcomeToken from '@robin-pm-staking/common/components/outcome-token';
@@ -33,11 +33,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from './ui/select';
 import { QueryKey } from '@tanstack/react-query';
 import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
 import useProxyContractInteraction from '@robin-pm-staking/common/hooks/use-proxy-contract-interaction';
-import { Skeleton } from './ui/skeleton';
 import { toast } from 'sonner';
 import AmountSlider from '@robin-pm-staking/common/components/amount-slider';
 import { useVaultInfo } from '../../../common/src/hooks/use-vault-info';
 import { useVaultUserInfo } from '../../../common/src/hooks/use-vault-user-info';
+import { formatUnits, getErrorMessage } from '@robin-pm-staking/common/lib/utils';
+import ValueState from './value-state';
+import { DateTime } from 'luxon';
 
 export function StakingCard() {
     const [market, setMarket] = useState<ParsedPolymarketMarket | null>(null);
@@ -151,7 +153,7 @@ export function StakingCard() {
                                     <Separator />
                                     {!market.closed && <StakeWithdrawTabs vaultAddress={vaultAddress} market={market} />}
                                     {market.closed && !isVaultFinalized && (
-                                        <EndedVaultActions
+                                        <EndedMarketActions
                                             vaultAddress={vaultAddress}
                                             reloadQueryKeys={[vaultFinalizedQueryKey, vaultYieldUnlockedQueryKey]}
                                         />
@@ -190,12 +192,6 @@ export function StakingCard() {
     );
 }
 
-function ValueState({ value, loading, error }: { value: string; loading: boolean; error: boolean }) {
-    if (loading) return <Skeleton className="w-10 h-3 inline-block" />;
-    if (error) return <span className="text-xs text-destructive">--</span>;
-    return value;
-}
-
 function HoldingsSummaryRow({ market, vaultAddress }: { market: ParsedPolymarketMarket; vaultAddress: string }) {
     const { proxyAddress } = useProxyAccount();
 
@@ -217,7 +213,7 @@ function HoldingsSummaryRow({ market, vaultAddress }: { market: ParsedPolymarket
     } = useVaultUserInfo(vaultAddress as `0x${string}`, proxyAddress as `0x${string}`, market);
 
     const { tokenUserYes, tokenUserNo, vaultUserYes, vaultUserNo, currentYesApyBps, currentNoApyBps, userResultingApyBps, earningsPerDay } =
-        calculateUserInfo();
+        calculateUserInfo(Number(market.outcomePrices[0]), Number(market.outcomePrices[1]));
 
     const loading = vaultUserBalancesLoading || tokenUserBalancesLoading || vaultCurrentApyLoading || currentYieldLoading;
 
@@ -225,8 +221,7 @@ function HoldingsSummaryRow({ market, vaultAddress }: { market: ParsedPolymarket
     const userYesProgress = vaultUserYes === 0n && tokenUserYes === 0n ? 50 : (Number(vaultUserYes) / Number(tokenUserYes + vaultUserYes)) * 100;
     const userNo = `${formatUnits(vaultUserNo, UNDERYLING_DECIMALS)} / ${formatUnits(tokenUserNo + vaultUserNo, UNDERYLING_DECIMALS)}`;
     const userNoProgress = vaultUserNo === 0n && tokenUserNo === 0n ? 50 : (Number(vaultUserNo) / Number(tokenUserNo + vaultUserNo)) * 100;
-    const earningsPerDayString =
-        earningsPerDay > 10n ** BigInt(UNDERYLING_DECIMALS - 2) || earningsPerDay === 0n ? formatUnits(earningsPerDay, UNDERYLING_DECIMALS) : '<0.01';
+    const earningsPerDayString = formatUnits(earningsPerDay, UNDERYLING_DECIMALS);
 
     return (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -294,11 +289,8 @@ function StakeWithdrawTabs({ vaultAddress, market }: { vaultAddress: string; mar
     const { proxyAddress } = useProxyAccount();
     const invalidateQueries = useInvalidateQueries();
 
-    const { vaultUserBalancesQueryKey, tokenUserBalancesQueryKey, vaultCurrentApyQueryKey, getUserBalances } = useVaultUserInfo(
-        vaultAddress as `0x${string}`,
-        proxyAddress as `0x${string}`,
-        market
-    );
+    const { vaultUserBalancesQueryKey, tokenUserBalancesQueryKey, vaultCurrentApyQueryKey, getUserBalances, calculateExpectedYield } =
+        useVaultUserInfo(vaultAddress as `0x${string}`, proxyAddress as `0x${string}`, market);
 
     const { data: approvedForAll, queryKey: approvedForAllQueryKey } = useReadConditionalTokensIsApprovedForAll({
         address: USED_CONTRACTS.CONDITIONAL_TOKENS,
@@ -331,7 +323,7 @@ function StakeWithdrawTabs({ vaultAddress, market }: { vaultAddress: string; mar
                       ]) as any),
                 {
                     address: vaultAddress as `0x${string}`,
-                    args: [side === Outcome.Yes, parseUnits(stakeAmount, 6)],
+                    args: [side === Outcome.Yes, parseUnits(stakeAmount, UNDERYLING_DECIMALS)],
                     hookIndex: 1,
                 },
             ]);
@@ -348,7 +340,10 @@ function StakeWithdrawTabs({ vaultAddress, market }: { vaultAddress: string; mar
         try {
             await withdraw({
                 address: vaultAddress as `0x${string}`,
-                args: [side === Outcome.Yes ? parseUnits(withdrawAmount, 6) : 0n, side === Outcome.No ? parseUnits(withdrawAmount, 6) : 0n],
+                args: [
+                    side === Outcome.Yes ? parseUnits(withdrawAmount, UNDERYLING_DECIMALS) : 0n,
+                    side === Outcome.No ? parseUnits(withdrawAmount, UNDERYLING_DECIMALS) : 0n,
+                ],
                 hookIndex: 0,
             });
             await withdrawPromise.current;
@@ -362,8 +357,10 @@ function StakeWithdrawTabs({ vaultAddress, market }: { vaultAddress: string; mar
 
     const { tokenUserYes, tokenUserNo, vaultUserYes, vaultUserNo } = getUserBalances();
 
-    const stakeAmountParsed = parseUnits(stakeAmount, 6);
-    const withdrawAmountParsed = parseUnits(withdrawAmount, 6);
+    const expectedYield = calculateExpectedYield(stakeAmount, side, Number(market.outcomePrices[0]), Number(market.outcomePrices[1]));
+
+    const stakeAmountParsed = parseUnits(stakeAmount, UNDERYLING_DECIMALS);
+    const withdrawAmountParsed = parseUnits(withdrawAmount, UNDERYLING_DECIMALS);
     const stakeAmountInvalid =
         stakeAmountParsed <= 0 ||
         (side === Outcome.Yes && stakeAmountParsed > tokenUserYes) ||
@@ -399,19 +396,27 @@ function StakeWithdrawTabs({ vaultAddress, market }: { vaultAddress: string; mar
                             />
                             <Select value={side} onValueChange={setSide as (value: string) => void}>
                                 <SelectTrigger className="px-4 py-2 rounded-full border text-sm font-medium flex-1">
-                                    <OutcomeToken outcome={side} />
+                                    <OutcomeToken outcome={side} symbolHolder={market} />
                                 </SelectTrigger>
                                 <SelectContent className="bg-background">
                                     <SelectItem value={Outcome.Yes}>
-                                        <OutcomeToken outcome={Outcome.Yes} />
+                                        <OutcomeToken outcome={Outcome.Yes} symbolHolder={market} />
                                     </SelectItem>
                                     <SelectItem value={Outcome.No}>
-                                        <OutcomeToken outcome={Outcome.No} />
+                                        <OutcomeToken outcome={Outcome.No} symbolHolder={market} />
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
                         <AmountSlider amount={stakeAmount} max={side === Outcome.Yes ? tokenUserYes : tokenUserNo} onAmountChange={setStakeAmount} />
+                        {stakeAmountParsed > 0 && (
+                            <div className="flex justify-between text-xs mt-4">
+                                <span>
+                                    Expected Yield by {market.endDate ? DateTime.fromMillis(market.endDate).toLocaleString(DateTime.DATE_MED) : '—'}:
+                                </span>
+                                <span className="text-primary">${formatUnits(expectedYield, UNDERYLING_DECIMALS)}</span>
+                            </div>
+                        )}
                         {stakeAmountInvalid && stakeAmount != '' && <span className="text-xs text-destructive mt-2">Invalid amount</span>}
                         <Button
                             variant="default"
@@ -419,8 +424,8 @@ function StakeWithdrawTabs({ vaultAddress, market }: { vaultAddress: string; mar
                             onClick={handleStake}
                             disabled={stakeLoading || !stakeAmount || stakeAmountInvalid}
                         >
-                            {stakeLoading && <Loader className="w-4 h-4 animate-spin" />}
-                            <ArrowUpFromLine /> Stake
+                            {stakeLoading ? <Loader className="w-4 h-4 animate-spin" /> : <ArrowUpFromLine className="w-4 h-4" />}
+                            Stake
                         </Button>
                     </div>
                 </TabsContent>
@@ -439,14 +444,14 @@ function StakeWithdrawTabs({ vaultAddress, market }: { vaultAddress: string; mar
                             />
                             <Select value={side} onValueChange={setSide as (value: string) => void}>
                                 <SelectTrigger className="px-4 py-2 rounded-full border text-sm font-medium flex-1">
-                                    <OutcomeToken outcome={side} />
+                                    <OutcomeToken outcome={side} symbolHolder={market} />
                                 </SelectTrigger>
                                 <SelectContent className="bg-background">
                                     <SelectItem value={Outcome.Yes}>
-                                        <OutcomeToken outcome={Outcome.Yes} />
+                                        <OutcomeToken outcome={Outcome.Yes} symbolHolder={market} />
                                     </SelectItem>
                                     <SelectItem value={Outcome.No}>
-                                        <OutcomeToken outcome={Outcome.No} />
+                                        <OutcomeToken outcome={Outcome.No} symbolHolder={market} />
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
@@ -463,8 +468,8 @@ function StakeWithdrawTabs({ vaultAddress, market }: { vaultAddress: string; mar
                             onClick={handleWithdraw}
                             disabled={withdrawLoading || !withdrawAmount || withdrawAmountInvalid}
                         >
-                            {withdrawLoading && <Loader className="w-4 h-4 animate-spin" />}
-                            <ArrowDownToLine /> Withdraw
+                            {withdrawLoading ? <Loader className="w-4 h-4 animate-spin" /> : <ArrowDownToLine className="w-4 h-4" />}
+                            Withdraw
                         </Button>
                     </div>
                 </TabsContent>
@@ -473,7 +478,7 @@ function StakeWithdrawTabs({ vaultAddress, market }: { vaultAddress: string; mar
     );
 }
 
-function EndedVaultActions({ vaultAddress, reloadQueryKeys }: { vaultAddress: string; reloadQueryKeys: QueryKey[] }) {
+function EndedMarketActions({ vaultAddress, reloadQueryKeys }: { vaultAddress: string; reloadQueryKeys: QueryKey[] }) {
     const { isConnected, chainId } = useProxyAccount();
     const invalidateQueries = useInvalidateQueries();
 
@@ -527,11 +532,8 @@ function PartialUnlockActions({
     const { proxyAddress, isConnected, chainId } = useProxyAccount();
     const invalidateQueries = useInvalidateQueries();
 
-    const { tokenUserBalancesQueryKey, vaultUserBalancesQueryKey } = useVaultUserInfo(
-        vaultAddress as `0x${string}`,
-        proxyAddress as `0x${string}`,
-        market
-    );
+    const { tokenUserBalancesQueryKey, vaultUserBalancesQueryKey, vaultUserBalances, vaultUserBalancesLoading, vaultUserBalancesError } =
+        useVaultUserInfo(vaultAddress as `0x${string}`, proxyAddress as `0x${string}`, market);
 
     const {
         data: tvlUsd,
@@ -594,6 +596,20 @@ function PartialUnlockActions({
         }
     };
 
+    const tvl = tvlUsd?.[3] ?? 0n;
+    const vaultUsd = vaultUsdBalance ?? 0n;
+    const progress = Number(formatUnits((vaultUsd * UNDERYLING_PRECISION_BIG_INT) / (tvl || 1n), UNDERYLING_DECIMALS * 1)) * 100;
+
+    const winner = market.winningPosition;
+    const userWinningTokens =
+        winner === Outcome.Yes
+            ? vaultUserBalances?.[0] ?? 0n
+            : winner === Outcome.No
+            ? vaultUserBalances?.[1] ?? 0n
+            : winner === Outcome.Both
+            ? (vaultUserBalances?.[0] ?? 0n) + (vaultUserBalances?.[1] ?? 0n)
+            : 0n;
+
     return (
         <div className="space-y-3">
             <div className="text-sm mb-2">
@@ -602,10 +618,10 @@ function PartialUnlockActions({
             </div>
             <div className="h-8 flex flex-col items-center justify-center">
                 <span className="text-muted-foreground">
-                    <ValueState value={formatUnits(vaultUsdBalance ?? 0n, 6)} loading={vaultUsdBalanceLoading} error={!!vaultUsdBalanceError} /> /{' '}
-                    <ValueState value={formatUnits(tvlUsd?.[3] ?? 0n, 6)} loading={tvlUsdLoading} error={!!tvlUsdError} /> Unlocked
+                    <ValueState value={formatUnits(vaultUsd, UNDERYLING_DECIMALS)} loading={vaultUsdBalanceLoading} error={!!vaultUsdBalanceError} />{' '}
+                    / <ValueState value={formatUnits(tvl, UNDERYLING_DECIMALS)} loading={tvlUsdLoading} error={!!tvlUsdError} /> Unlocked
                 </span>
-                <Progress value={50} />
+                <Progress value={progress} />
             </div>
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <Button variant="secondary" className="w-full" onClick={handleUnlockYield} disabled={unlockYieldLoading}>
@@ -613,13 +629,35 @@ function PartialUnlockActions({
                     Try unlock remaining
                 </Button>
                 <Separator />
+                {winner && (
+                    <div className="p-4 bg-muted/50 rounded-lg w-full">
+                        <div className="flex items-center justify-between">
+                            <div className="text-xs text-muted-foreground">Winning Token</div>
+                            {winner ? (
+                                <OutcomeToken outcome={winner} symbolHolder={market} className="text-xs font-semibold" />
+                            ) : (
+                                <span className="text-xs font-semibold">-</span>
+                            )}
+                        </div>
+                        <div className="mt-3 flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">Redemption</div>
+                            <div className="text-xs font-semibold text-primary">
+                                $
+                                <ValueState
+                                    value={formatUnits(userWinningTokens, UNDERYLING_DECIMALS)}
+                                    loading={vaultUserBalancesLoading}
+                                    error={!!vaultUserBalancesError}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
                 <Button variant="default" className="w-full" onClick={handleRedeemWinningTokens} disabled={redeemWinningTokensLoading}>
-                    {redeemWinningTokensLoading && <Loader className="w-4 h-4 animate-spin" />}
-                    <Coins className="w-4 h-4 mr-1" />
+                    {redeemWinningTokensLoading ? <Loader className="w-4 h-4 animate-spin" /> : <Coins className="w-4 h-4" />}
                     Redeem winning tokens
                 </Button>
                 <Button disabled variant="default" className="w-full">
-                    <Sprout className="w-4 h-4 mr-1" />
+                    <Sprout className="w-4 h-4" />
                     Harvest yield
                 </Button>
             </div>
@@ -631,11 +669,14 @@ function VaultUnlockedActions({ vaultAddress, market }: { vaultAddress: string; 
     const invalidateQueries = useInvalidateQueries();
     const { proxyAddress: userAddress } = useProxyAccount();
 
-    const { tokenUserBalancesQueryKey, vaultUserBalancesQueryKey, currentYieldQueryKey } = useVaultUserInfo(
-        vaultAddress as `0x${string}`,
-        userAddress as `0x${string}`,
-        market
-    );
+    const {
+        tokenUserBalancesQueryKey,
+        vaultUserBalancesQueryKey,
+        currentYieldQueryKey,
+        vaultUserBalances,
+        vaultUserBalancesLoading,
+        vaultUserBalancesError,
+    } = useVaultUserInfo(vaultAddress as `0x${string}`, userAddress as `0x${string}`, market);
 
     const {
         write: redeemWinningTokens,
@@ -679,16 +720,47 @@ function VaultUnlockedActions({ vaultAddress, market }: { vaultAddress: string; 
         }
     };
 
+    const winner = market.winningPosition || Outcome.Both;
+    const userWinningTokens =
+        winner === Outcome.Yes
+            ? vaultUserBalances?.[0] ?? 0n
+            : winner === Outcome.No
+            ? vaultUserBalances?.[1] ?? 0n
+            : winner === Outcome.Both
+            ? (vaultUserBalances?.[0] ?? 0n) + (vaultUserBalances?.[1] ?? 0n)
+            : 0n;
+
     return (
         <div className="space-y-3">
+            {winner && (
+                <div className="p-4 bg-muted/50 rounded-lg w-full">
+                    <div className="flex items-center justify-between">
+                        <div className="text-xs text-muted-foreground">Winning Token</div>
+                        {winner ? (
+                            <OutcomeToken outcome={winner} symbolHolder={market} className="text-xs font-semibold" />
+                        ) : (
+                            <span className="text-xs font-semibold">-</span>
+                        )}
+                    </div>
+                    <div className="mt-3 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">Redemption</div>
+                        <div className="text-xs font-semibold text-primary">
+                            $
+                            <ValueState
+                                value={formatUnits(userWinningTokens, UNDERYLING_DECIMALS)}
+                                loading={vaultUserBalancesLoading}
+                                error={!!vaultUserBalancesError}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
             <Button variant="default" className="w-full" onClick={handleRedeemWinningTokens} disabled={redeemWinningTokensLoading}>
-                {redeemWinningTokensLoading && <Loader className="w-4 h-4 animate-spin" />}
-                <Coins className="w-4 h-4 mr-1" />
+                {redeemWinningTokensLoading ? <Loader className="w-4 h-4 animate-spin" /> : <Coins className="w-4 h-4" />}
                 Redeem winning tokens
             </Button>
             <Button variant="default" className="w-full" onClick={handleHarvestYield} disabled={harvestYieldLoading}>
-                {harvestYieldLoading && <Loader className="w-4 h-4 animate-spin" />}
-                <Sprout className="w-4 h-4 mr-1" />
+                {harvestYieldLoading ? <Loader className="w-4 h-4 animate-spin" /> : <Sprout className="w-4 h-4" />}
                 Harvest yield
             </Button>
         </div>
@@ -729,7 +801,7 @@ function CreateVaultCallout({ market, reloadQueryKeys }: { market: ParsedPolymar
             <div className="text-sm">Be the first to stake tokens</div>
             <Button onClick={handleCreateVault} disabled={createVaultLoading} className="w-full mt-2">
                 {createVaultLoading && <Loader className="w-4 h-4 animate-spin" />}
-                {'Create'}
+                Create
             </Button>
         </div>
     );
@@ -737,9 +809,4 @@ function CreateVaultCallout({ market, reloadQueryKeys }: { market: ParsedPolymar
 
 function NoVaultEndedNotice() {
     return <div className="p-3 text-sm">No tokens were staked on this market.</div>;
-}
-
-function getErrorMessage(error: unknown) {
-    if (error instanceof Error && error.message.length > 0 && error.message.length < 50) return ': ' + error.message;
-    return '';
 }

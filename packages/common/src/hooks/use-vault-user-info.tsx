@@ -5,10 +5,11 @@ import {
     useReadIConditionalTokensBalanceOfBatch,
     useReadRobinStakingVaultGetCurrentUserYield,
 } from '../types/contracts';
-import { ParsedPolymarketMarket } from '../types/market';
-import { zeroAddress } from 'viem';
+import { Market, Outcome, ParsedPolymarketMarket } from '../types/market';
+import { parseUnits, zeroAddress } from 'viem';
+import { DateTime } from 'luxon';
 
-export function useVaultUserInfo(vaultAddress: `0x${string}`, userAddress: `0x${string}`, market: ParsedPolymarketMarket) {
+export function useVaultUserInfo(vaultAddress: `0x${string}`, userAddress: `0x${string}`, market: ParsedPolymarketMarket | Market) {
     const {
         data: vaultCurrentApy,
         isLoading: vaultCurrentApyLoading,
@@ -18,7 +19,7 @@ export function useVaultUserInfo(vaultAddress: `0x${string}`, userAddress: `0x${
         address: vaultAddress,
         args: [],
         query: {
-            enabled: !!vaultAddress && vaultAddress !== zeroAddress && !!userAddress && userAddress !== zeroAddress,
+            enabled: !!vaultAddress && vaultAddress !== zeroAddress,
             staleTime: DEFAULT_QUERY_STALE_TIME,
         },
     });
@@ -76,17 +77,21 @@ export function useVaultUserInfo(vaultAddress: `0x${string}`, userAddress: `0x${
         return { vaultUserYes, tokenUserYes, vaultUserNo, tokenUserNo };
     };
 
-    const calculateUserInfo = () => {
-        const { vaultUserYes, tokenUserYes, vaultUserNo, tokenUserNo } = getUserBalances();
-
-        const yesPrice = BigInt(Math.round(Number(market.outcomePrices[0]) * UNDERYLING_PRECISION)) || 0n;
-        const noPrice = BigInt(Math.round(Number(market.outcomePrices[1]) * UNDERYLING_PRECISION)) || 0n;
-
+    const getVaultApys = (yesPrice: bigint, noPrice: bigint) => {
         const halfUnderlying = UNDERYLING_PRECISION_BIG_INT / 2n;
         const currentYesApyBps =
             (((halfUnderlying * UNDERYLING_PRECISION_BIG_INT) / yesPrice) * (vaultCurrentApy ?? 0n)) / UNDERYLING_PRECISION_BIG_INT;
         const currentNoApyBps =
             (((halfUnderlying * UNDERYLING_PRECISION_BIG_INT) / noPrice) * (vaultCurrentApy ?? 0n)) / UNDERYLING_PRECISION_BIG_INT;
+        return { currentYesApyBps, currentNoApyBps };
+    };
+
+    const calculateUserInfo = (yesPriceNum: number, noPriceNum: number) => {
+        const { vaultUserYes, tokenUserYes, vaultUserNo, tokenUserNo } = getUserBalances();
+
+        const yesPrice = BigInt(Math.round(Number(yesPriceNum) * UNDERYLING_PRECISION)) || 0n;
+        const noPrice = BigInt(Math.round(Number(noPriceNum) * UNDERYLING_PRECISION)) || 0n;
+        const { currentYesApyBps, currentNoApyBps } = getVaultApys(yesPrice, noPrice);
 
         const userYesWorth = vaultUserYes * yesPrice;
         const userNoWorth = vaultUserNo * noPrice;
@@ -95,7 +100,7 @@ export function useVaultUserInfo(vaultAddress: `0x${string}`, userAddress: `0x${
         const userResultingApyBps = (userYesApyBps + userNoApyBps) / ((userYesWorth || 1n) + (userNoWorth || 1n));
 
         const earningsPerDay =
-            ((vaultUserYes * yesPrice + vaultUserNo * noPrice) * userResultingApyBps) / 10n ** BigInt(UNDERYLING_DECIMALS) / 10_000n / 365n;
+            ((vaultUserYes * yesPrice + vaultUserNo * noPrice) * userResultingApyBps) / UNDERYLING_PRECISION_BIG_INT / 10_000n / 365n;
 
         return {
             tokenUserYes,
@@ -107,6 +112,22 @@ export function useVaultUserInfo(vaultAddress: `0x${string}`, userAddress: `0x${
             userResultingApyBps,
             earningsPerDay,
         };
+    };
+
+    const calculateExpectedYield = (amount: string, side: Outcome, yesPriceNum: number, noPriceNum: number) => {
+        const numAmount = parseUnits(amount, UNDERYLING_DECIMALS) || 0n;
+
+        const yesPrice = BigInt(Math.round(Number(yesPriceNum) * UNDERYLING_PRECISION)) || 0n;
+        const noPrice = BigInt(Math.round(Number(noPriceNum) * UNDERYLING_PRECISION)) || 0n;
+        const { currentYesApyBps, currentNoApyBps } = getVaultApys(yesPrice, noPrice);
+        const apy = side === Outcome.Yes ? currentYesApyBps : currentNoApyBps;
+        const price = side === Outcome.Yes ? yesPrice : noPrice;
+
+        const yieldPerDay = (numAmount * price * apy) / UNDERYLING_PRECISION_BIG_INT / 10_000n / 365n;
+
+        const daysUntilResolution = DateTime.fromMillis(market.endDate ?? Date.now()).diff(DateTime.now(), 'days').days;
+        const expectedYield = (yieldPerDay * BigInt(Math.round(daysUntilResolution * 100))) / 100n;
+        return expectedYield;
     };
 
     return {
@@ -132,5 +153,6 @@ export function useVaultUserInfo(vaultAddress: `0x${string}`, userAddress: `0x${
 
         calculateUserInfo,
         getUserBalances,
+        calculateExpectedYield,
     };
 }

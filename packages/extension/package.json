@@ -10,6 +10,7 @@
         "unsec-browser": "dotenv -- bash -c '\"$BROWSER_EXEC_PATH\" --user-data-dir=./chrome-dev-profile --disable-web-security --disable-features=BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights'"
     },
     "devDependencies": {
+        "@types/luxon": "^3.7.1",
         "@types/node": "^24.5.2",
         "@types/react": "^19",
         "@types/react-dom": "^19",
@@ -36,6 +37,7 @@
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "lucide-react": "^0.544.0",
+        "luxon": "^3.7.2",
         "next-themes": "^0.4.6",
         "react": "^19.1.1",
         "react-dom": "^19.1.1",

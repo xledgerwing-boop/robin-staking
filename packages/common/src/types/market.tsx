@@ -2,6 +2,7 @@ import { PolymarketEvent } from './event';
 
 export interface MarketRow {
     id: string;
+    contractAddress?: string;
     question: string;
     conditionId: string;
     slug: string;
@@ -11,15 +12,15 @@ export interface MarketRow {
     outcomes: string;
     clobTokenIds: string;
     negRisk: boolean;
+    status: MarketStatus;
     createdAt: string;
     updatedAt: string;
-    initialized: boolean;
     tvl: string;
-    apyBps: number;
     eventId: string;
     unmatchedYesTokens: string;
     unmatchedNoTokens: string;
     matchedTokens: string;
+    winningPosition?: Outcome;
 }
 
 export interface MarketRowWithEvent extends MarketRow {
@@ -28,6 +29,7 @@ export interface MarketRowWithEvent extends MarketRow {
 
 export interface Market {
     id: string;
+    contractAddress?: string;
     question: string;
     conditionId: string;
     slug: string;
@@ -35,17 +37,17 @@ export interface Market {
     startDate?: number;
     image?: string;
     outcomes: string[];
-    clobTokenIds: string[];
+    clobTokenIds: bigint[];
     negRisk: boolean;
+    status: MarketStatus;
     createdAt: number;
     updatedAt: number;
-    initialized: boolean;
     tvl: bigint;
-    apyBps: number;
     eventId: string;
     unmatchedYesTokens: bigint;
     unmatchedNoTokens: bigint;
     matchedTokens: bigint;
+    winningPosition?: Outcome;
 }
 
 export interface MarketWithEvent extends Market {
@@ -60,7 +62,7 @@ export function MarketRowToMarket(row: MarketRow): Market {
         createdAt: Number.parseInt(row.createdAt),
         updatedAt: Number.parseInt(row.updatedAt),
         outcomes: row.outcomes as unknown as string[], //already comes parsed out of the DB
-        clobTokenIds: row.clobTokenIds as unknown as string[], //already comes parsed out of the DB
+        clobTokenIds: (row.clobTokenIds as unknown as string[]).map((id: string) => BigInt(id)), //already comes parsed out of the DB
         tvl: BigInt(row.tvl),
         unmatchedYesTokens: BigInt(row.unmatchedYesTokens),
         unmatchedNoTokens: BigInt(row.unmatchedNoTokens),
@@ -97,25 +99,36 @@ export interface PolymarketMarketWithEvent extends PolymarketMarket {
     events: PolymarketEvent[];
 }
 
-export interface ParsedPolymarketMarket extends Omit<PolymarketMarket, 'outcomes' | 'clobTokenIds' | 'outcomePrices'> {
+export interface ParsedPolymarketMarket extends Omit<PolymarketMarket, 'outcomes' | 'clobTokenIds' | 'outcomePrices' | 'endDate'> {
     outcomes: string[];
     clobTokenIds: bigint[];
     outcomePrices: string[];
-    winnerIndex?: number;
+    winningPosition?: Outcome;
+    endDate?: number;
 }
 
 export function parsePolymarketMarket(market: PolymarketMarket): ParsedPolymarketMarket {
     const outcomePrices = JSON.parse(market.outcomePrices) as string[];
+    const winningIndex = market.closed ? outcomePrices.findIndex(price => price == '1') ?? -1 : undefined; //-1 means both outcomes are winning
     return {
         ...market,
         outcomes: JSON.parse(market.outcomes),
         clobTokenIds: JSON.parse(market.clobTokenIds).map((id: string) => BigInt(id)),
         outcomePrices: outcomePrices,
-        winnerIndex: market.closed ? outcomePrices.findIndex(price => price == '1') ?? -1 : undefined, //-1 means both outcomes are winning
+        winningPosition: winningIndex === -1 ? Outcome.Both : winningIndex === 0 ? Outcome.Yes : winningIndex === 1 ? Outcome.No : undefined,
+        endDate: market.endDate ? new Date(market.endDate).getTime() : undefined,
     };
 }
 
 export enum Outcome {
     Yes = 'yes',
     No = 'no',
+    Both = 'both',
+}
+
+export enum MarketStatus {
+    Uninitialized = 'uninitialized',
+    Active = 'active',
+    Finalized = 'finalized',
+    Unlocked = 'unlocked',
 }

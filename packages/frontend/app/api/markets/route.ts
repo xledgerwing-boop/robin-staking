@@ -39,7 +39,7 @@ async function getAndSaveEventAndMarkets(db: Knex, slug: string) {
     await Promise.all(
         payload.markets.map(async m => {
             m.eventId = payload.id;
-            await upsertMarket(db, m, false);
+            await upsertMarket(db, m, true, '0x0');
         })
     );
 }
@@ -117,7 +117,8 @@ export async function GET(req: NextRequest) {
             sortDirection: sortDirectionParam,
         });
         return NextResponse.json(results);
-    } catch {
+    } catch (e) {
+        console.log('error', e);
         return NextResponse.json({ error: 'Failed to query markets' }, { status: 500 });
     }
 }

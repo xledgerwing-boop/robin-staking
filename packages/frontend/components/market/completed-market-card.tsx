@@ -3,40 +3,90 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CircleCheck, Coins, Loader, Sprout } from 'lucide-react';
-import { useMemo } from 'react';
 import type { MarketWithEvent } from '@robin-pm-staking/common/types/market';
 import { Outcome } from '@robin-pm-staking/common/types/market';
 import OutcomeToken from '@robin-pm-staking/common/components/outcome-token';
-
-type UserPosition = {
-    yesTokens: string;
-    noTokens: string;
-    earnedYield: string; // formatted like $50.50
-};
+import { useVaultUserInfo } from '@robin-pm-staking/common/hooks/use-vault-user-info';
+import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
+import useInvalidateQueries from '@robin-pm-staking/common/hooks/use-invalidate-queries';
+import useProxyContractInteraction from '@robin-pm-staking/common/hooks/use-proxy-contract-interaction';
+import { useWriteRobinStakingVaultHarvestYield, useWriteRobinStakingVaultRedeemWinningForUsd } from '@robin-pm-staking/common/types/contracts';
+import { formatUnits, getErrorMessage } from '@robin-pm-staking/common/lib/utils';
+import { toast } from 'sonner';
+import { UNDERYLING_DECIMALS } from '@robin-pm-staking/common/constants';
+import { ValueState } from '../value-state';
 
 type CompletedMarketCardProps = {
-    market?: MarketWithEvent;
-    userPosition: UserPosition;
-    winner: Outcome;
-    isRedeeming: boolean;
-    isHarvesting: boolean;
-    onRedeem: () => void | Promise<void>;
-    onHarvest: () => void | Promise<void>;
+    market: MarketWithEvent;
 };
 
-export default function CompletedMarketCard({ userPosition, winner, isRedeeming, isHarvesting, onRedeem, onHarvest }: CompletedMarketCardProps) {
-    const redemptionAmountUsd = useMemo(() => {
-        if (!winner) return 0;
-        const yesCount = parseNumber(userPosition.yesTokens);
-        const noCount = parseNumber(userPosition.noTokens);
-        const tokens = winner === Outcome.Yes ? yesCount : noCount;
-        // Winner shares redeem 1:1 for USDC in $ terms
-        return tokens;
-    }, [userPosition.noTokens, userPosition.yesTokens, winner]);
+export default function CompletedMarketCard({ market }: CompletedMarketCardProps) {
+    const { proxyAddress } = useProxyAccount();
+    const invalidateQueries = useInvalidateQueries();
 
-    const earnedYieldUsd = useMemo(() => parseCurrency(userPosition.earnedYield), [userPosition.earnedYield]);
+    const {
+        tokenUserBalancesQueryKey,
+        vaultUserBalancesQueryKey,
+        vaultUserBalancesError,
+        vaultUserBalancesLoading,
+        vaultUserBalances,
+        currentYield,
+        currentYieldQueryKey,
+        currentYieldLoading,
+        currentYieldError,
+    } = useVaultUserInfo(market.contractAddress as `0x${string}`, proxyAddress as `0x${string}`, market);
 
-    // callbacks are provided by parent
+    const {
+        write: redeemWinningTokens,
+        isLoading: redeemWinningTokensLoading,
+        promise: redeemWinningTokensPromise,
+    } = useProxyContractInteraction([useWriteRobinStakingVaultRedeemWinningForUsd]);
+
+    const {
+        write: harvestYield,
+        isLoading: harvestYieldLoading,
+        promise: harvestYieldPromise,
+    } = useProxyContractInteraction([useWriteRobinStakingVaultHarvestYield]);
+
+    const handleRedeemWinningTokens = async () => {
+        try {
+            await redeemWinningTokens({
+                address: market.contractAddress as `0x${string}`,
+                args: [],
+                hookIndex: 0,
+            });
+            await redeemWinningTokensPromise.current;
+            await invalidateQueries([tokenUserBalancesQueryKey, vaultUserBalancesQueryKey]);
+        } catch (error) {
+            toast.error('Failed to redeem winning tokens' + getErrorMessage(error));
+            console.error(error);
+        }
+    };
+
+    const handleHarvestYield = async () => {
+        try {
+            await harvestYield({
+                address: market.contractAddress as `0x${string}`,
+                args: [],
+                hookIndex: 0,
+            });
+            await harvestYieldPromise.current;
+            await invalidateQueries([tokenUserBalancesQueryKey, vaultUserBalancesQueryKey, currentYieldQueryKey]);
+        } catch (error) {
+            toast.error('Failed to harvest yield' + getErrorMessage(error));
+            console.error(error);
+        }
+    };
+
+    const winner = market.winningPosition;
+    const userWinningTokens =
+        winner === Outcome.Yes
+            ? vaultUserBalances?.[0] ?? 0n
+            : winner === Outcome.No
+            ? vaultUserBalances?.[1] ?? 0n
+            : winner === Outcome.Both
+            ? (vaultUserBalances?.[0] ?? 0n) + (vaultUserBalances?.[1] ?? 0n)
+            : 0n;
 
     return (
         <Card>
@@ -50,45 +100,56 @@ export default function CompletedMarketCard({ userPosition, winner, isRedeeming,
                 <div className="p-4 bg-muted/50 rounded-lg">
                     <div className="flex items-center justify-between">
                         <div className="text-sm text-muted-foreground">Winning Token</div>
-                        <OutcomeToken outcome={winner} className="text-lg font-semibold" />
+                        {winner ? (
+                            <OutcomeToken outcome={winner} symbolHolder={market} className="text-lg font-semibold" />
+                        ) : (
+                            <span className="text-lg font-semibold">-</span>
+                        )}
                     </div>
                     <div className="mt-3 flex items-center justify-between">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">Redemption (USDC)</div>
-                        <div className="text-lg font-semibold text-primary">${formatNumber(redemptionAmountUsd)}</div>
+                        <div className="text-lg font-semibold text-primary">
+                            $
+                            <ValueState
+                                value={formatUnits(userWinningTokens, UNDERYLING_DECIMALS)}
+                                loading={vaultUserBalancesLoading}
+                                error={!!vaultUserBalancesError}
+                            />
+                        </div>
                     </div>
                     <div className="mt-3 flex items-center justify-between">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">Earned Yield</div>
-                        <div className="text-lg font-semibold text-primary">${formatNumber(earnedYieldUsd)}</div>
+                        <div className="text-lg font-semibold text-primary">
+                            $
+                            <ValueState
+                                value={formatUnits(currentYield ?? 0n, UNDERYLING_DECIMALS)}
+                                loading={currentYieldLoading}
+                                error={!!currentYieldError}
+                            />
+                        </div>
                     </div>
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-3">
-                    <Button onClick={onRedeem} disabled={!winner || redemptionAmountUsd <= 0 || isRedeeming} className="w-full">
-                        <Coins className="w-4 h-4 mr-1" />
-                        {isRedeeming && <Loader className="w-4 h-4 mr-2 animate-spin" />}
-                        {isRedeeming ? 'Redeeming…' : 'Redeem Winning Tokens'}
+                    <Button
+                        onClick={handleRedeemWinningTokens}
+                        disabled={!winner || userWinningTokens <= 0n || redeemWinningTokensLoading}
+                        className="w-full"
+                    >
+                        {redeemWinningTokensLoading ? <Loader className="w-4 h-4 animate-spin" /> : <Coins className="w-4 h-4" />}
+                        Redeem
                     </Button>
-                    <Button onClick={onHarvest} variant="secondary" disabled={earnedYieldUsd <= 0 || isHarvesting} className="w-full">
-                        <Sprout className="w-4 h-4 mr-1" />
-                        {isHarvesting && <Loader className="w-4 h-4 mr-2 animate-spin" />}
-                        {isHarvesting ? 'Harvesting…' : `Harvest Yield`}
+                    <Button
+                        onClick={handleHarvestYield}
+                        variant="secondary"
+                        disabled={(currentYield ?? 0n) <= 0n || harvestYieldLoading}
+                        className="w-full"
+                    >
+                        {harvestYieldLoading ? <Loader className="w-4 h-4 animate-spin" /> : <Sprout className="w-4 h-4" />}
+                        Harvest Yield
                     </Button>
                 </div>
             </CardContent>
         </Card>
     );
-}
-
-function parseNumber(input: string): number {
-    const sanitized = input.replace(/[$,]/g, '').trim();
-    const n = Number.parseFloat(sanitized);
-    return Number.isFinite(n) ? n : 0;
-}
-
-function parseCurrency(input: string): number {
-    return parseNumber(input);
-}
-
-function formatNumber(n: number): string {
-    return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }

@@ -9,38 +9,81 @@ import { ArrowDownToLine, ArrowUpToLine, Loader } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { DateTime } from 'luxon';
-import type { MarketWithEvent } from '@robin-pm-staking/common/types/market';
+import type { MarketWithEvent, ParsedPolymarketMarket } from '@robin-pm-staking/common/types/market';
 import { Outcome } from '@robin-pm-staking/common/types/market';
 import OutcomeToken from '@robin-pm-staking/common/components/outcome-token';
-
-type UserPosition = {
-    yesTokens: string;
-    noTokens: string;
-    earnedYield: string;
-    balance: string;
-};
+import AmountSlider from '@robin-pm-staking/common/components/amount-slider';
+import { parseUnits } from 'viem';
+import { UNDERYLING_DECIMALS, USED_CONTRACTS } from '@robin-pm-staking/common/constants';
+import { formatUnits, getErrorMessage } from '@robin-pm-staking/common/lib/utils';
+import { toast } from 'sonner';
+import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
+import useInvalidateQueries from '@robin-pm-staking/common/hooks/use-invalidate-queries';
+import { useVaultUserInfo } from '@robin-pm-staking/common/hooks/use-vault-user-info';
+import {
+    useReadConditionalTokensIsApprovedForAll,
+    useWriteConditionalTokensSetApprovalForAll,
+    useWriteRobinStakingVaultDeposit,
+    useWriteRobinStakingVaultWithdraw,
+} from '@robin-pm-staking/common/types/contracts';
+import useProxyContractInteraction from '@robin-pm-staking/common/hooks/use-proxy-contract-interaction';
 
 type ManagePositionCardProps = {
     market: MarketWithEvent;
-    userPosition: UserPosition;
-    onDeposit: (side: Outcome, amount: number) => Promise<void> | void;
-    onWithdraw: (side: Outcome, amount: number) => Promise<void> | void;
+    polymarketMarket: ParsedPolymarketMarket;
 };
 
-export default function ManagePositionCard({ market, userPosition, onDeposit, onWithdraw }: ManagePositionCardProps) {
-    const [activeTab, setActiveTab] = useState('deposit');
-    const [depositAmount, setDepositAmount] = useState('');
-    const [withdrawAmount, setWithdrawAmount] = useState('');
-    const [depositSide, setDepositSide] = useState<Outcome>(Outcome.Yes);
-    const [isDepositing, setIsDepositing] = useState(false);
-    const [isWithdrawing, setIsWithdrawing] = useState(false);
+export default function ManagePositionCard({ market, polymarketMarket }: ManagePositionCardProps) {
+    const [tab, setTab] = useState<'stake' | 'withdraw'>('stake');
+    const [stakeAmount, setStakeAmount] = useState<string>('');
+    const [withdrawAmount, setWithdrawAmount] = useState<string>('');
+    const [side, setSide] = useState<Outcome>(Outcome.Yes);
+
+    const { proxyAddress } = useProxyAccount();
+    const invalidateQueries = useInvalidateQueries();
+    const vaultAddress = market.contractAddress as `0x${string}`;
+
+    const {
+        vaultUserBalancesQueryKey,
+        tokenUserBalancesQueryKey,
+        vaultCurrentApyQueryKey,
+        getUserBalances,
+        calculateUserInfo,
+        calculateExpectedYield,
+    } = useVaultUserInfo(vaultAddress as `0x${string}`, proxyAddress as `0x${string}`, market);
+
+    const { data: approvedForAll, queryKey: approvedForAllQueryKey } = useReadConditionalTokensIsApprovedForAll({
+        address: USED_CONTRACTS.CONDITIONAL_TOKENS,
+        args: [proxyAddress as `0x${string}`, vaultAddress as `0x${string}`],
+    });
+
+    const {
+        batch: stake,
+        isLoading: stakeLoading,
+        promise: stakePromise,
+    } = useProxyContractInteraction([useWriteConditionalTokensSetApprovalForAll, useWriteRobinStakingVaultDeposit]);
+
+    const {
+        write: withdraw,
+        isLoading: withdrawLoading,
+        promise: withdrawPromise,
+    } = useProxyContractInteraction([useWriteRobinStakingVaultWithdraw]);
 
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
-    const signMessage = async () => {};
 
-    const withdrawableAmount = depositSide === Outcome.Yes ? userPosition.yesTokens : userPosition.noTokens;
+    const { currentNoApyBps, currentYesApyBps } = calculateUserInfo(
+        Number(polymarketMarket.outcomePrices[0]),
+        Number(polymarketMarket.outcomePrices[1])
+    );
+
+    const expectedYield = calculateExpectedYield(
+        stakeAmount,
+        side,
+        Number(polymarketMarket.outcomePrices[0]),
+        Number(polymarketMarket.outcomePrices[1])
+    );
 
     const updateQueryParams = (updates: Record<string, string | null | undefined>) => {
         const params = new URLSearchParams(searchParams.toString());
@@ -60,77 +103,99 @@ export default function ManagePositionCard({ market, userPosition, onDeposit, on
 
     const loadQueryParams = () => {
         const tabParam = searchParams.get('tab');
-        if (tabParam === 'deposit' || tabParam === 'withdraw') {
-            if (tabParam !== activeTab) setActiveTab(tabParam);
+        if (tabParam === 'stake' || tabParam === 'withdraw') {
+            if (tabParam !== tab) setTab(tabParam);
         }
 
         const sideParam = searchParams.get('side');
         if (sideParam === Outcome.Yes || sideParam === Outcome.No) {
-            if (sideParam !== depositSide) setDepositSide(sideParam);
+            if (sideParam !== side) setSide(sideParam);
         }
     };
 
     useEffect(() => {
         loadQueryParams();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams]);
 
-    const handleMaxDeposit = () => {
-        setDepositAmount(userPosition.balance.replace('$', '').replace(/,/g, ''));
+    const handleMaxStake = () => {
+        setStakeAmount(formatUnits(side === Outcome.Yes ? tokenUserYes : tokenUserNo, UNDERYLING_DECIMALS));
     };
 
     const handleMaxWithdraw = () => {
-        setWithdrawAmount(withdrawableAmount.replace('$', '').replace(/,/g, ''));
-    };
-
-    const calculateExpectedYield = (amount: string) => {
-        const numAmount = Number.parseFloat(amount) || 0;
-        const apy = market.apyBps / 10_000;
-        const daysUntilResolution = DateTime.fromMillis(market.endDate ?? Date.now()).diff(DateTime.now(), 'days').days;
-        const expectedYield = (numAmount * apy * daysUntilResolution) / 365;
-        return expectedYield.toFixed(2);
+        setWithdrawAmount(formatUnits(side === Outcome.Yes ? vaultUserYes : vaultUserNo, UNDERYLING_DECIMALS));
     };
 
     const handleTabChange = (value: string) => {
-        const tab = value === 'withdraw' ? 'withdraw' : 'deposit';
-        setActiveTab(tab);
+        const tab = value === 'withdraw' ? 'withdraw' : 'stake';
+        setTab(tab);
         updateQueryParams({ tab });
     };
 
-    const handleDepositSideChange = (value: string) => {
+    const handleSideChange = (value: string) => {
         const side = value === Outcome.No ? Outcome.No : Outcome.Yes;
-        setDepositSide(side);
+        setSide(side);
         updateQueryParams({ side });
     };
 
-    const parseAmount = (value: string) => {
-        const n = Number.parseFloat(value);
-        return Number.isFinite(n) && n > 0 ? n : 0;
-    };
-
-    const handleDeposit = async () => {
-        const amount = parseAmount(depositAmount);
-        if (amount <= 0) return;
-        setIsDepositing(true);
+    const handleStake = async () => {
         try {
-            await onDeposit(depositSide, amount);
-            setDepositAmount('');
-        } finally {
-            setIsDepositing(false);
+            await stake([
+                ...((approvedForAll
+                    ? []
+                    : [
+                          {
+                              address: USED_CONTRACTS.CONDITIONAL_TOKENS,
+                              args: [vaultAddress as `0x${string}`, true],
+                              hookIndex: 0,
+                          },
+                      ]) as any),
+                {
+                    address: vaultAddress as `0x${string}`,
+                    args: [side === Outcome.Yes, parseUnits(stakeAmount, UNDERYLING_DECIMALS)],
+                    hookIndex: 1,
+                },
+            ]);
+            await stakePromise.current;
+            await invalidateQueries([vaultUserBalancesQueryKey, tokenUserBalancesQueryKey, vaultCurrentApyQueryKey, approvedForAllQueryKey]);
+            setStakeAmount('');
+        } catch (error) {
+            toast.error('Failed to stake' + getErrorMessage(error));
+            console.error(error);
         }
     };
 
     const handleWithdraw = async () => {
-        const amount = parseAmount(withdrawAmount);
-        if (amount <= 0) return;
-        setIsWithdrawing(true);
         try {
-            await onWithdraw(depositSide, amount);
+            await withdraw({
+                address: vaultAddress as `0x${string}`,
+                args: [
+                    side === Outcome.Yes ? parseUnits(withdrawAmount, UNDERYLING_DECIMALS) : 0n,
+                    side === Outcome.No ? parseUnits(withdrawAmount, UNDERYLING_DECIMALS) : 0n,
+                ],
+                hookIndex: 0,
+            });
+            await withdrawPromise.current;
+            await invalidateQueries([vaultUserBalancesQueryKey, tokenUserBalancesQueryKey, vaultCurrentApyQueryKey]);
             setWithdrawAmount('');
-        } finally {
-            setIsWithdrawing(false);
+        } catch (error) {
+            toast.error('Failed to withdraw' + getErrorMessage(error));
+            console.error(error);
         }
     };
+
+    const { tokenUserYes, tokenUserNo, vaultUserYes, vaultUserNo } = getUserBalances();
+    const outcomeSymbol = side === Outcome.Yes ? market.outcomes[0] : market.outcomes[1];
+
+    const stakeAmountParsed = parseUnits(stakeAmount, UNDERYLING_DECIMALS);
+    const withdrawAmountParsed = parseUnits(withdrawAmount, UNDERYLING_DECIMALS);
+    const stakeAmountInvalid =
+        stakeAmountParsed <= 0 ||
+        (side === Outcome.Yes && stakeAmountParsed > tokenUserYes) ||
+        (side === Outcome.No && stakeAmountParsed > tokenUserNo);
+    const withdrawAmountInvalid =
+        withdrawAmountParsed <= 0 ||
+        (side === Outcome.Yes && withdrawAmountParsed > vaultUserYes) ||
+        (side === Outcome.No && withdrawAmountParsed > vaultUserNo);
 
     return (
         <Card>
@@ -138,73 +203,84 @@ export default function ManagePositionCard({ market, userPosition, onDeposit, on
                 <CardTitle>Manage Position</CardTitle>
             </CardHeader>
             <CardContent>
-                <Tabs value={activeTab} onValueChange={handleTabChange}>
+                <Tabs value={tab} onValueChange={handleTabChange}>
                     <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="deposit">Deposit</TabsTrigger>
+                        <TabsTrigger value="stake">Stake</TabsTrigger>
                         <TabsTrigger value="withdraw">Withdraw</TabsTrigger>
                     </TabsList>
 
-                    <TabsContent value="deposit" className="space-y-4">
+                    <TabsContent value="stake" className="space-y-4">
                         <div className="space-y-2">
                             <div className="flex items-center justify-between gap-3 border-b pb-4">
                                 <Input
-                                    id="deposit-amount"
+                                    id="stake-amount"
                                     type="number"
                                     inputMode="decimal"
                                     placeholder="0"
-                                    value={depositAmount}
-                                    onChange={e => setDepositAmount(e.target.value)}
+                                    min={0}
+                                    value={stakeAmount}
+                                    onChange={e => setStakeAmount(e.target.value)}
                                     className="flex-1 border-0 rounded-none bg-transparent shadow-none focus-visible:ring-0 h-auto px-0 py-0 text-4xl sm:text-4xl md:text-4xl appearance-none font-semibold tracking-tight"
                                 />
-                                <Select value={depositSide} onValueChange={handleDepositSideChange}>
+                                <Select value={side} onValueChange={handleSideChange}>
                                     <SelectTrigger className="px-4 py-2 rounded-full border text-sm font-medium">
-                                        <OutcomeToken outcome={depositSide} />
+                                        <OutcomeToken outcome={side} symbolHolder={market} />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value={Outcome.Yes}>
-                                            <OutcomeToken outcome={Outcome.Yes} />
+                                            <OutcomeToken outcome={Outcome.Yes} symbolHolder={market} />
                                         </SelectItem>
                                         <SelectItem value={Outcome.No}>
-                                            <OutcomeToken outcome={Outcome.No} />
+                                            <OutcomeToken outcome={Outcome.No} symbolHolder={market} />
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
+                            <AmountSlider
+                                className="py-2"
+                                amount={stakeAmount}
+                                max={side === Outcome.Yes ? tokenUserYes : tokenUserNo}
+                                onAmountChange={setStakeAmount}
+                                showMax={false}
+                            />
                             <div className="flex space-x-2 justify-between">
-                                <p className="text-sm text-muted-foreground">Balance: {userPosition.balance}</p>
-                                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleMaxDeposit}>
+                                <p className="text-sm text-muted-foreground">
+                                    Balance: {formatUnits(side === Outcome.Yes ? tokenUserYes : tokenUserNo, UNDERYLING_DECIMALS)}
+                                </p>
+                                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleMaxStake}>
                                     Max
                                 </Button>
                             </div>
                         </div>
 
-                        {depositAmount && (
+                        {stakeAmountParsed > 0 && (
                             <div className="p-4 bg-muted/50 rounded-lg space-y-2">
                                 <h4 className="font-medium">Position Preview</h4>
                                 <div className="flex justify-between text-sm">
                                     <span>Your Position:</span>
                                     <span>
-                                        {depositAmount} {depositSide}
+                                        {stakeAmount} {outcomeSymbol}
                                     </span>
                                 </div>
                                 <div className="flex justify-between text-sm">
                                     <span>APY:</span>
-                                    <span className="text-primary">{((market.apyBps / 10_000) * 100).toFixed(2)}%</span>
+                                    <span className="text-primary">
+                                        {((Number(side === Outcome.Yes ? currentYesApyBps : currentNoApyBps) / 10_000) * 100).toFixed(2)}%
+                                    </span>
                                 </div>
                                 <div className="flex justify-between text-sm">
                                     <span>
                                         Expected Yield by{' '}
                                         {market.endDate ? DateTime.fromMillis(market.endDate).toLocaleString(DateTime.DATE_MED) : '—'}:
                                     </span>
-                                    <span className="text-primary">${calculateExpectedYield(depositAmount)}</span>
+                                    <span className="text-primary">${formatUnits(expectedYield, UNDERYLING_DECIMALS)}</span>
                                 </div>
                             </div>
                         )}
-
-                        <Button className="w-full" onClick={handleDeposit} disabled={isDepositing}>
-                            <ArrowUpToLine className="w-4 h-4 mr-2" />
-                            {isDepositing && <Loader className="w-4 h-4 mr-2 animate-spin" />}
-                            {isDepositing ? 'Signing…' : `Deposit ${depositAmount || '0.00'} ${depositSide}`}
+                        {stakeAmountInvalid && stakeAmount != '' && <span className="text-xs text-destructive mt-2">Invalid amount</span>}
+                        <Button className="w-full mt-2" onClick={handleStake} disabled={stakeLoading || stakeAmountInvalid}>
+                            {stakeLoading ? <Loader className="w-4 h-4 animate-spin" /> : <ArrowUpToLine className="w-4 h-4" />}
+                            {`Deposit ${stakeAmount || '0.00'} ${outcomeSymbol}`}
                         </Button>
                     </TabsContent>
 
@@ -216,58 +292,69 @@ export default function ManagePositionCard({ market, userPosition, onDeposit, on
                                     type="number"
                                     inputMode="decimal"
                                     placeholder="0"
+                                    min={0}
                                     value={withdrawAmount}
                                     onChange={e => setWithdrawAmount(e.target.value)}
                                     className="flex-1 border-0 rounded-none bg-transparent shadow-none focus-visible:ring-0 h-auto px-0 py-0 text-4xl sm:text-4xl md:text-4xl appearance-none font-semibold tracking-tight"
                                 />
-                                <Select value={depositSide} onValueChange={handleDepositSideChange}>
+                                <Select value={side} onValueChange={handleSideChange}>
                                     <SelectTrigger className="px-4 py-2 rounded-full border text-sm font-medium">
-                                        <OutcomeToken outcome={depositSide} />
+                                        <OutcomeToken outcome={side} symbolHolder={market} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="yes">
-                                            <OutcomeToken outcome={Outcome.Yes} />
+                                        <SelectItem value={Outcome.Yes}>
+                                            <OutcomeToken outcome={Outcome.Yes} symbolHolder={market} />
                                         </SelectItem>
-                                        <SelectItem value="no">
-                                            <OutcomeToken outcome={Outcome.No} />
+                                        <SelectItem value={Outcome.No}>
+                                            <OutcomeToken outcome={Outcome.No} symbolHolder={market} />
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
+                            <AmountSlider
+                                className="py-2"
+                                amount={withdrawAmount}
+                                max={side === Outcome.Yes ? vaultUserYes : vaultUserNo}
+                                onAmountChange={setWithdrawAmount}
+                                showMax={false}
+                            />
                             <div className="flex space-x-2 justify-between">
-                                <p className="text-sm text-muted-foreground">Balance: {withdrawableAmount}</p>
+                                <p className="text-sm text-muted-foreground">
+                                    Balance: {formatUnits(side === Outcome.Yes ? vaultUserYes : vaultUserNo, UNDERYLING_DECIMALS)}
+                                </p>
                                 <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleMaxWithdraw}>
                                     Max
                                 </Button>
                             </div>
                         </div>
 
-                        {withdrawAmount && (
+                        {withdrawAmountParsed > 0 && (
                             <div className="p-4 bg-muted/50 rounded-lg space-y-2">
                                 <h4 className="font-medium">Withdrawal Preview</h4>
                                 <div className="flex justify-between text-sm">
                                     <span>Withdrawal Amount:</span>
                                     <span>
-                                        {withdrawAmount} {depositSide}
+                                        {withdrawAmount} {outcomeSymbol}
                                     </span>
                                 </div>
                                 <div className="flex justify-between text-sm">
                                     <span>Remaining Position:</span>
                                     <span>
-                                        {(
-                                            Number.parseFloat(withdrawableAmount.replace('$', '').replace(/,/g, '')) -
-                                            (Number.parseFloat(withdrawAmount) || 0)
-                                        ).toFixed(2)}{' '}
-                                        {depositSide}
+                                        {formatUnits((side === Outcome.Yes ? vaultUserYes : vaultUserNo) - withdrawAmountParsed, UNDERYLING_DECIMALS)}{' '}
+                                        {outcomeSymbol}
                                     </span>
                                 </div>
                             </div>
                         )}
-
-                        <Button className="w-full" variant="secondary" onClick={handleWithdraw} disabled={isWithdrawing}>
-                            <ArrowDownToLine className="w-4 h-4 mr-2" />
-                            {isWithdrawing && <Loader className="w-4 h-4 mr-2 animate-spin" />}
-                            {isWithdrawing ? 'Signing…' : `Withdraw ${withdrawAmount || '0.00'} ${depositSide}`}
+                        {withdrawAmountInvalid && withdrawAmount != '' && <span className="text-xs text-destructive mt-2">Invalid amount</span>}
+                        <Button
+                            className="w-full mt-2"
+                            variant="secondary"
+                            onClick={handleWithdraw}
+                            disabled={withdrawLoading || withdrawAmountInvalid}
+                        >
+                            {withdrawLoading ? <Loader className="w-4 h-4 animate-spin" /> : <ArrowDownToLine className="w-4 h-4" />}
+                            {`Withdraw ${withdrawAmount || '0.00'} ${outcomeSymbol}`}
                         </Button>
                     </TabsContent>
                 </Tabs>

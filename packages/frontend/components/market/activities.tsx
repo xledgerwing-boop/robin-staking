@@ -1,15 +1,14 @@
 'use client';
 import type { MarketWithEvent } from '@robin-pm-staking/common/types/market';
 import { useMemo, useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
-import { Badge } from './ui/badge';
+import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
+import { Badge } from '../ui/badge';
 import Link from 'next/link';
 import { Activity } from 'lucide-react';
-import { Switch } from './ui/switch';
-import { Label } from './ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Switch } from '../ui/switch';
+import { Label } from '../ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { DateTime } from 'luxon';
 import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
 import { shortenAddress } from '@/lib/utils';
 
@@ -24,15 +23,7 @@ export type ActivityItem = {
     isCurrentUser: boolean;
 };
 
-export default function Activities({
-    market: _market,
-    activities: externalActivities,
-    wasInitialized,
-}: {
-    market: MarketWithEvent;
-    activities?: ActivityItem[];
-    wasInitialized: boolean;
-}) {
+export default function Activities({ market: _market }: { market: MarketWithEvent }) {
     const [showUserActivityOnly, setShowUserActivityOnly] = useState(false);
     const [activityTypeFilter, setActivityTypeFilter] = useState('all');
     const router = useRouter();
@@ -75,63 +66,10 @@ export default function Activities({
     }, [searchParams]);
     // Filter activities
     const filteredActivities = useMemo(() => {
-        const baseline: ActivityItem[] = wasInitialized
-            ? [
-                  {
-                      id: 1,
-                      walletAddress: proxyAddress ?? '',
-                      type: 'deposit',
-                      position: 'yes',
-                      info: 'Deposited 500 YES',
-                      time: DateTime.now().minus({ hours: 4 }).toLocaleString(DateTime.DATETIME_MED),
-                      txHash: '0xabc123...',
-                      isCurrentUser: true,
-                  },
-                  {
-                      id: 2,
-                      walletAddress: '0x9876...5432',
-                      type: 'withdraw',
-                      position: 'no',
-                      info: 'Withdrew 250 YES',
-                      time: DateTime.now().minus({ hours: 3 }).toLocaleString(DateTime.DATETIME_MED),
-                      txHash: '0xdef456...',
-                      isCurrentUser: false,
-                  },
-                  {
-                      id: 3,
-                      walletAddress: proxyAddress ?? '',
-                      type: 'harvest',
-                      position: 'both',
-                      info: 'Harvested $47.50 yield',
-                      time: DateTime.now().minus({ hours: 2 }).toLocaleString(DateTime.DATETIME_MED),
-                      txHash: '0xghi789...',
-                      isCurrentUser: true,
-                  },
-                  {
-                      id: 4,
-                      walletAddress: '0x5555...7777',
-                      type: 'deposit',
-                      position: 'no',
-                      info: 'Deposited 1000 YES',
-                      time: DateTime.now().minus({ hours: 1 }).toLocaleString(DateTime.DATETIME_MED),
-                      txHash: '0xjkl012...',
-                      isCurrentUser: false,
-                  },
-              ]
-            : [];
+        const baseline: ActivityItem[] = [];
 
-        let filtered: ActivityItem[] = [...(externalActivities && externalActivities.length > 0 ? externalActivities : []), ...baseline];
-
-        if (showUserActivityOnly) {
-            filtered = filtered.filter(activity => activity.isCurrentUser);
-        }
-
-        if (activityTypeFilter !== 'all') {
-            filtered = filtered.filter(activity => activity.type === activityTypeFilter);
-        }
-
-        return filtered;
-    }, [showUserActivityOnly, activityTypeFilter, externalActivities]);
+        return baseline;
+    }, [showUserActivityOnly, activityTypeFilter]);
 
     return (
         <Card>

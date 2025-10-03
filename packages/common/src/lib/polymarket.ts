@@ -25,6 +25,15 @@ export async function fetchMarketByConditionId(conditionId: string): Promise<Pol
     return data[0];
 }
 
+export const fetchMarketBySlug = async (slug: string): Promise<PolymarketMarketWithEvent> => {
+    const url = `${BASE_URL}/markets/slug/${slug}`;
+    const options = { method: 'GET', body: undefined };
+    const response = await fetch(url, options);
+    if (!response.ok) throw new Error('Failed to fetch market');
+    const data = await response.json();
+    return data;
+};
+
 export async function fetchEventAndMarketsByEventSlug(eventSlug: string): Promise<PolymarketEventWithMarkets> {
     const url = `${BASE_URL}/events/slug/${eventSlug}`;
     const options = { method: 'GET', body: undefined };

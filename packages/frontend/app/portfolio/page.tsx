@@ -6,6 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import Navbar from '@/components/navbar';
 import { MarketStatusBadge } from '@/components/market/market-status-badge';
+import { MarketStatus } from '@robin-pm-staking/common/types/market';
 
 export default function StakingPage() {
     const userTotals = {
@@ -91,8 +92,8 @@ export default function StakingPage() {
                                             <div>
                                                 <h3 className="font-semibold">{deposit.title}</h3>
                                                 <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                                                    <Clock className="w-3 h-3" />
-                                                    <span>Liquidates: {new Date(deposit.liquidationDate).toLocaleDateString()}</span>
+                                                    <Clock className="w-4 h-4" />
+                                                    <span>{new Date(deposit.liquidationDate).toLocaleDateString()}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -111,7 +112,7 @@ export default function StakingPage() {
                                                 <p className="font-medium text-primary">{deposit.earnedYield}</p>
                                             </div>
                                             <div className="flex items-center justify-center space-x-2 min-w-28">
-                                                <MarketStatusBadge status={deposit.status} initialized={true} />
+                                                <MarketStatusBadge status={deposit.status as MarketStatus} />
                                             </div>
                                         </div>
                                     </div>

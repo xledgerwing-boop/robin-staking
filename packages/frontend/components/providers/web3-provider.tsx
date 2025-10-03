@@ -2,7 +2,7 @@
 
 import { darkTheme, getDefaultConfig, lightTheme, RainbowKitProvider } from '@rainbow-me/rainbowkit';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { WagmiProvider } from 'wagmi';
+import { http, WagmiProvider } from 'wagmi';
 import { polygon } from 'wagmi/chains';
 import { metaMaskWallet, phantomWallet } from '@rainbow-me/rainbowkit/wallets';
 import '@rainbow-me/rainbowkit/styles.css';
@@ -20,9 +20,7 @@ const config = getDefaultConfig({
             wallets: [metaMaskWallet, phantomWallet],
         },
     ],
-    // transports: {
-    //     [polygon.id]: fallback([unstable_connector(injected)]),
-    // },
+    transports: { [polygon.id]: http('http://127.0.0.1:8545') },
 });
 
 const queryClient = new QueryClient();

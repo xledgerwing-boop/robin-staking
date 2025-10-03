@@ -15,7 +15,7 @@ import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-accoun
 import { fetchWalletPositions } from '@robin-pm-staking/common/lib/polymarket';
 import { DateTime } from 'luxon';
 import type { Market, MarketRow } from '@robin-pm-staking/common/types/market';
-import { MarketRowToMarket } from '@robin-pm-staking/common/types/market';
+import { MarketRowToMarket, MarketStatus } from '@robin-pm-staking/common/types/market';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { MarketStatusBadge } from '@/components/market/market-status-badge';
 
@@ -385,7 +385,7 @@ function StakingPageContent() {
                                                                 : '—'}
                                                         </span>
                                                         <div className="flex items-center">
-                                                            <MarketStatusBadge status="active" initialized={market.initialized} />
+                                                            <MarketStatusBadge status={market.status} />
                                                         </div>
                                                     </div>
                                                 </div>
@@ -395,19 +395,21 @@ function StakingPageContent() {
                                                 <div className="flex justify-between">
                                                     <span className="text-sm text-muted-foreground">TVL</span>
                                                     <span className="font-medium">
-                                                        {market.initialized ? `$${market.tvl.toLocaleString()}` : 'Uninitialized'}
+                                                        {market.status !== MarketStatus.Uninitialized
+                                                            ? `$${market.tvl.toLocaleString()}`
+                                                            : 'Uninitialized'}
                                                     </span>
                                                 </div>
                                                 <div className="flex justify-between">
                                                     <span className="text-sm text-muted-foreground">APY</span>
                                                     <span className="font-bold text-primary">
-                                                        {market.initialized ? `${((market.apyBps / 10_000) * 100).toFixed(2)}%` : 'Uninitialized'}
+                                                        {market.status !== MarketStatus.Uninitialized ? `${keyMetrics.averageAPY}%` : 'Uninitialized'}
                                                     </span>
                                                 </div>
 
                                                 <Button className="w-full" size="sm" asChild>
                                                     <Link href={`/market/${encodeURIComponent(market.slug)}`}>
-                                                        {market.initialized ? 'Stake Now' : 'Initialize Market'}
+                                                        {market.status !== MarketStatus.Uninitialized ? 'Stake Now' : 'Initialize Market'}
                                                         <ArrowUpRight className="w-4 h-4 ml-1" />
                                                     </Link>
                                                 </Button>

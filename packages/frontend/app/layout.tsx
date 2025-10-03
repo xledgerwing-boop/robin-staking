@@ -4,6 +4,7 @@ import PlausibleProvider from 'next-plausible';
 import localFont from 'next/font/local';
 import { ThemeProvider } from 'next-themes';
 import { Web3Provider } from '@/components/providers/web3-provider';
+import { Toaster } from '@/components/ui/sonner';
 
 const myFont = localFont({
     src: '../public/Satoshi-Variable.ttf',
@@ -79,7 +80,10 @@ export default function RootLayout({
             </head>
             <body className={`${myFont.className} antialiased`}>
                 <Web3Provider>
-                    <ThemeProvider>{children}</ThemeProvider>
+                    <ThemeProvider>
+                        {children}
+                        <Toaster />
+                    </ThemeProvider>
                 </Web3Provider>
             </body>
         </html>

@@ -13,6 +13,7 @@ export type AmountSliderProps = {
     className?: string;
     stickyPercents?: number[]; // e.g. [25, 50, 75]
     stickyThreshold?: number; // +/- percentage points within which to snap (legacy)
+    showMax?: boolean;
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -34,6 +35,7 @@ export function AmountSlider({
     className,
     stickyPercents = [25, 50, 75],
     stickyThreshold = 1.5,
+    showMax = true,
 }: AmountSliderProps) {
     // Percent from amount/max (integer percent for a clean UI)
     const percent = React.useMemo(() => {
@@ -91,7 +93,7 @@ export function AmountSlider({
                 className={cn('relative flex w-full touch-none select-none items-center', disabled ? 'opacity-50' : '')}
             >
                 {/* Track */}
-                <SliderPrimitive.Track className="relative h-1.5 w-full grow overflow-hidden rounded-full bg-primary/20">
+                <SliderPrimitive.Track className="cursor-pointer relative h-1.5 w-full grow overflow-hidden rounded-full bg-primary/20">
                     <SliderPrimitive.Range className="absolute h-full bg-primary" />
                 </SliderPrimitive.Track>
                 {/* Sticky marks */}
@@ -101,13 +103,13 @@ export function AmountSlider({
                     </div>
                 ))}
                 {/* Thumb + tooltip on hover */}
-                <SliderPrimitive.Thumb className="group relative block h-4 w-4 rounded-full border border-primary/50 bg-background shadow transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50">
+                <SliderPrimitive.Thumb className="cursor-pointer group relative block h-4 w-4 rounded-full border border-primary/50 bg-background shadow transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50">
                     <div className="pointer-events-none absolute -top-5 left-1/2 -translate-x-1/2 select-none text-[10px] leading-none opacity-0 transition-opacity group-hover:opacity-100">
                         <div className="rounded bg-primary px-1 py-[2px] text-background shadow">{internalPercent}%</div>
                     </div>
                 </SliderPrimitive.Thumb>
             </SliderPrimitive.Root>
-            <div className="text-xs text-muted-foreground whitespace-nowrap">Max: {formattedBalance}</div>
+            {showMax && <div className="text-xs text-muted-foreground whitespace-nowrap">Max: {formattedBalance}</div>}
         </div>
     );
 }
