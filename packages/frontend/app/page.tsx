@@ -18,18 +18,21 @@ import type { Market, MarketRow } from '@robin-pm-staking/common/types/market';
 import { MarketRowToMarket, MarketStatus } from '@robin-pm-staking/common/types/market';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { MarketStatusBadge } from '@/components/market/market-status-badge';
+import { formatUnits } from '@robin-pm-staking/common/lib/utils';
+import { UNDERYLING_DECIMALS } from '@robin-pm-staking/common/constants';
 
 function StakingPageContent() {
-    // Mock data for demonstration
+    // Static placeholder for APY until implemented
     const keyMetrics = {
-        averageAPY: '7.5%',
-        numberOfMarkets: 47,
-        totalTVL: '$12.4M',
-        totalUsers: 2847,
+        averageAPY: 280,
     };
 
     const { address, isConnected } = useProxyAccount();
     const [availableMarkets, setAvailableMarkets] = useState<Market[]>([]);
+    const [numberOfMarkets, setNumberOfMarkets] = useState(0);
+    const [totalTVL, setTotalTVL] = useState<bigint>(0n);
+    const [totalUsers, setTotalUsers] = useState(0);
+    const [metricsLoading, setMetricsLoading] = useState(true);
 
     // State for filtering controls
     const [showWalletOnly, setShowWalletOnly] = useState(false);
@@ -84,6 +87,27 @@ function StakingPageContent() {
         }
         setQueryParamsLoaded(true);
     };
+
+    // Load key metrics on mount
+    useEffect(() => {
+        const run = async () => {
+            try {
+                setMetricsLoading(true);
+                const res = await fetch('/api/metrics');
+                if (res.ok) {
+                    const data = (await res.json()) as { numberOfMarkets: number; totalTVL: string; totalUsers: number };
+                    setNumberOfMarkets(data.numberOfMarkets ?? 0);
+                    setTotalTVL(BigInt(data.totalTVL ?? '0'));
+                    setTotalUsers(data.totalUsers ?? 0);
+                }
+            } catch {
+                // ignore, keep defaults
+            } finally {
+                setMetricsLoading(false);
+            }
+        };
+        run();
+    }, []);
 
     // Sync URL -> state on mount and when navigating back/forward
     useEffect(() => {
@@ -205,7 +229,7 @@ function StakingPageContent() {
                                 </div>
                                 <div>
                                     <p className="text-sm text-muted-foreground">Average APY</p>
-                                    <p className="text-2xl font-bold">{keyMetrics.averageAPY}</p>
+                                    <p className="text-2xl font-bold">{((keyMetrics.averageAPY / 10_000) * 100).toFixed(2)}%</p>
                                 </div>
                             </div>
                         </CardContent>
@@ -219,7 +243,7 @@ function StakingPageContent() {
                                 </div>
                                 <div>
                                     <p className="text-sm text-muted-foreground">Markets</p>
-                                    <p className="text-2xl font-bold">{keyMetrics.numberOfMarkets}</p>
+                                    <p className="text-2xl font-bold">{numberOfMarkets.toLocaleString()}</p>
                                 </div>
                             </div>
                         </CardContent>
@@ -233,7 +257,7 @@ function StakingPageContent() {
                                 </div>
                                 <div>
                                     <p className="text-sm text-muted-foreground">Total TVL</p>
-                                    <p className="text-2xl font-bold">{keyMetrics.totalTVL}</p>
+                                    <p className="text-2xl font-bold">{`$${formatUnits(totalTVL, UNDERYLING_DECIMALS)}`}</p>
                                 </div>
                             </div>
                         </CardContent>
@@ -247,7 +271,7 @@ function StakingPageContent() {
                                 </div>
                                 <div>
                                     <p className="text-sm text-muted-foreground">Active Users</p>
-                                    <p className="text-2xl font-bold">{keyMetrics.totalUsers.toLocaleString()}</p>
+                                    <p className="text-2xl font-bold">{totalUsers.toLocaleString()}</p>
                                 </div>
                             </div>
                         </CardContent>
@@ -403,7 +427,7 @@ function StakingPageContent() {
                                                 <div className="flex justify-between">
                                                     <span className="text-sm text-muted-foreground">APY</span>
                                                     <span className="font-bold text-primary">
-                                                        {market.status !== MarketStatus.Uninitialized ? `${keyMetrics.averageAPY}%` : 'Uninitialized'}
+                                                        {`${((keyMetrics.averageAPY / 10_000) * 100).toFixed(2)}%`}
                                                     </span>
                                                 </div>
 
