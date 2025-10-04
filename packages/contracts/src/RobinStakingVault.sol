@@ -350,7 +350,7 @@ abstract contract RobinStakingVault is Initializable, ReentrancyGuardUpgradeable
         if (toPay > usdBalance) revert InsufficientUSD(usdBalance, toPay);
         _usdTransfer(sender, toPay);
 
-        emit RedeemedWinningForUSD(sender, toPayUsd, toPay);
+        emit RedeemedWinningForUSD(sender, tokensConsumed, toPay);
     }
 
     /// @notice Set the per-side deposit limit (in outcome units). 0 = unlimited.

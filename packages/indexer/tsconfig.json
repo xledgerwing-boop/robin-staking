@@ -1,0 +1,23 @@
+{
+    "compilerOptions": {
+        "incremental": true,
+        "target": "es2022",
+        "module": "esnext",
+        "moduleResolution": "bundler",
+        "lib": ["es2022"],
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "outDir": "./dist",
+        "resolveJsonModule": true,
+        "allowSyntheticDefaultImports": true,
+        "paths": {
+            "@/*": ["./*"],
+            "@robin-pm-staking/common": ["../common/src"],
+            "@robin-pm-staking/common/*": ["../common/src/*"]
+        }
+    },
+    "include": ["src/**/*", "src/**/*.json"],
+    "exclude": ["node_modules", "dist"]
+}

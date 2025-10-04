@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import { ensureSchema, queryMarkets, upsertEvent, upsertMarket } from '@/lib/repos';
-import { fetchEventAndMarketsByEventSlug, fetchMarketByConditionId } from '@robin-pm-staking/common/lib/polymarket';
-import { Knex } from 'knex';
+import { queryMarkets } from '@/lib/repos';
+import { fetchMarketByConditionId } from '@robin-pm-staking/common/lib/polymarket';
+import { getAndSaveEventAndMarkets } from '@robin-pm-staking/common/lib/repos';
 
 function isPolymarketUrl(input: string): boolean {
     try {
@@ -32,26 +32,13 @@ function extractEventSlugFromUrl(input: string): string | null {
     }
 }
 
-async function getAndSaveEventAndMarkets(db: Knex, slug: string) {
-    const payload = await fetchEventAndMarketsByEventSlug(slug);
-    if (!payload) return;
-    await upsertEvent(db, payload);
-    await Promise.all(
-        payload.markets.map(async m => {
-            m.eventId = payload.id;
-            await upsertMarket(db, m, true, '0x0');
-        })
-    );
-}
-
 export async function GET(req: NextRequest) {
-    const db = getDb();
-    await ensureSchema(db);
+    const db = await getDb();
 
     const { searchParams } = new URL(req.url);
     let search = searchParams.get('search') || undefined;
     const walletOnly = searchParams.get('walletOnly') === 'true';
-    const sortFieldParam = (searchParams.get('sortField') as 'apy' | 'tvl' | 'liquidationDate' | 'title') || undefined;
+    const sortFieldParam = (searchParams.get('sortField') as 'tvl' | 'liquidationDate' | 'title') || undefined;
     const sortDirectionParam = (searchParams.get('sortDirection') as 'asc' | 'desc') || undefined;
     // Frontend supplies conditionIds when walletOnly is true
     const conditionIdsParam = searchParams.get('conditionIds');

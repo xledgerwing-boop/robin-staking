@@ -4,26 +4,17 @@ import { useMemo, useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import Link from 'next/link';
-import { Activity } from 'lucide-react';
+import { Activity as ActivityIcon } from 'lucide-react';
 import { Switch } from '../ui/switch';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
 import { shortenAddress } from '@/lib/utils';
+import { ActivityInfo } from './activity-info';
+import { Activity } from '@robin-pm-staking/common/types/activity';
 
-export type ActivityItem = {
-    id: string | number;
-    walletAddress: string;
-    type: 'deposit' | 'withdraw' | 'harvest' | 'finalize' | 'redeem' | 'initialize';
-    position: 'yes' | 'no' | 'both' | 'n/a';
-    info: string;
-    time: string;
-    txHash: string;
-    isCurrentUser: boolean;
-};
-
-export default function Activities({ market: _market }: { market: MarketWithEvent }) {
+export default function ActivityTable({ market: _market }: { market: MarketWithEvent }) {
     const [showUserActivityOnly, setShowUserActivityOnly] = useState(false);
     const [activityTypeFilter, setActivityTypeFilter] = useState('all');
     const router = useRouter();
@@ -66,7 +57,7 @@ export default function Activities({ market: _market }: { market: MarketWithEven
     }, [searchParams]);
     // Filter activities
     const filteredActivities = useMemo(() => {
-        const baseline: ActivityItem[] = [];
+        const baseline: Activity[] = [];
 
         return baseline;
     }, [showUserActivityOnly, activityTypeFilter]);
@@ -76,7 +67,7 @@ export default function Activities({ market: _market }: { market: MarketWithEven
             <CardHeader>
                 <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center space-x-2">
-                        <Activity className="w-5 h-5" />
+                        <ActivityIcon className="w-5 h-5" />
                         <span>Recent Activities</span>
                     </CardTitle>
                     <div className="flex items-center space-x-4">
@@ -126,19 +117,19 @@ export default function Activities({ market: _market }: { market: MarketWithEven
                                 <div className="w-2 h-2 rounded-full bg-primary"></div>
                                 <div>
                                     <p className="font-medium text-sm">
-                                        {shortenAddress(activity.walletAddress)}
-                                        {activity.isCurrentUser && <span className="text-primary ml-1">(You)</span>}
+                                        {shortenAddress(activity.userAddress)}
+                                        {activity.userAddress === proxyAddress && <span className="text-primary ml-1">(You)</span>}
                                     </p>
-                                    <p className="text-xs text-muted-foreground">{activity.info}</p>
+                                    <ActivityInfo activity={activity} market={_market} />
                                 </div>
                             </div>
                             <div className="text-right">
                                 <Badge variant="outline" className="mb-1">
                                     {activity.type}
                                 </Badge>
-                                <p className="text-xs text-muted-foreground">{activity.time}</p>
+                                <p className="text-xs text-muted-foreground">{activity.timestamp}</p>
                                 <Link
-                                    href={`https://etherscan.io/tx/${activity.txHash}`}
+                                    href={`https://etherscan.io/tx/${activity.transactionHash}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-xs text-primary hover:underline"

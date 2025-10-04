@@ -21,6 +21,9 @@ export interface MarketRow {
     unmatchedNoTokens: string;
     matchedTokens: string;
     winningPosition?: Outcome;
+    creator?: string;
+    vaultCreatedBlockNumber?: string;
+    vaultCreatedAt?: string;
 }
 
 export interface MarketRowWithEvent extends MarketRow {
@@ -48,6 +51,9 @@ export interface Market {
     unmatchedNoTokens: bigint;
     matchedTokens: bigint;
     winningPosition?: Outcome;
+    creator?: string;
+    vaultCreatedBlockNumber?: number;
+    vaultCreatedAt?: number;
 }
 
 export interface MarketWithEvent extends Market {
@@ -67,6 +73,8 @@ export function MarketRowToMarket(row: MarketRow): Market {
         unmatchedYesTokens: BigInt(row.unmatchedYesTokens),
         unmatchedNoTokens: BigInt(row.unmatchedNoTokens),
         matchedTokens: BigInt(row.matchedTokens),
+        vaultCreatedBlockNumber: row.vaultCreatedBlockNumber ? Number.parseInt(row.vaultCreatedBlockNumber) : undefined,
+        vaultCreatedAt: row.vaultCreatedAt ? Number.parseInt(row.vaultCreatedAt) : undefined,
     };
 }
 

@@ -80,9 +80,9 @@ export function useVaultUserInfo(vaultAddress: `0x${string}`, userAddress: `0x${
     const getVaultApys = (yesPrice: bigint, noPrice: bigint) => {
         const halfUnderlying = UNDERYLING_PRECISION_BIG_INT / 2n;
         const currentYesApyBps =
-            (((halfUnderlying * UNDERYLING_PRECISION_BIG_INT) / yesPrice) * (vaultCurrentApy ?? 0n)) / UNDERYLING_PRECISION_BIG_INT;
+            (((halfUnderlying * UNDERYLING_PRECISION_BIG_INT) / (yesPrice || 1n)) * (vaultCurrentApy ?? 0n)) / UNDERYLING_PRECISION_BIG_INT;
         const currentNoApyBps =
-            (((halfUnderlying * UNDERYLING_PRECISION_BIG_INT) / noPrice) * (vaultCurrentApy ?? 0n)) / UNDERYLING_PRECISION_BIG_INT;
+            (((halfUnderlying * UNDERYLING_PRECISION_BIG_INT) / (noPrice || 1n)) * (vaultCurrentApy ?? 0n)) / UNDERYLING_PRECISION_BIG_INT;
         return { currentYesApyBps, currentNoApyBps };
     };
 

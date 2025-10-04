@@ -11,7 +11,7 @@ export async function fetchWalletPositions(address: string): Promise<string[]> {
 
     const response = await fetch(url, options);
     if (!response.ok) throw new Error('Failed to fetch wallet positions');
-    const data = await response.json();
+    const data = (await response.json()) as { conditionId: string }[];
     return data.map((p: { conditionId: string }) => p.conditionId);
 }
 
@@ -21,7 +21,7 @@ export async function fetchMarketByConditionId(conditionId: string): Promise<Pol
 
     const response = await fetch(url, options);
     if (!response.ok) throw new Error('Failed to fetch market');
-    const data = await response.json();
+    const data = (await response.json()) as PolymarketMarketWithEvent[];
     return data[0];
 }
 
@@ -30,7 +30,7 @@ export const fetchMarketBySlug = async (slug: string): Promise<PolymarketMarketW
     const options = { method: 'GET', body: undefined };
     const response = await fetch(url, options);
     if (!response.ok) throw new Error('Failed to fetch market');
-    const data = await response.json();
+    const data = (await response.json()) as PolymarketMarketWithEvent;
     return data;
 };
 
@@ -40,6 +40,6 @@ export async function fetchEventAndMarketsByEventSlug(eventSlug: string): Promis
 
     const response = await fetch(url, options);
     if (!response.ok) throw new Error('Failed to fetch event and markets');
-    const data = await response.json();
+    const data = (await response.json()) as PolymarketEventWithMarkets;
     return data;
 }

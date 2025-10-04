@@ -8,12 +8,11 @@ import {
     MarketRowWithEvent,
     MarketStatus,
     MarketWithEvent,
-    Outcome,
     ParsedPolymarketMarket,
     parsePolymarketMarket,
     PolymarketMarketWithEvent,
 } from '@robin-pm-staking/common/types/market';
-import Activities from '@/components/market/activities';
+import ActivityTable from '@/components/market/activity-table';
 import ManagePositionCard from '@/components/market/manage-position-card';
 import CompletedMarketCard from '@/components/market/completed-market-card';
 import InitializeMarketCard from '@/components/market/initialize-market-card';
@@ -23,7 +22,6 @@ import NoVaultEndedNotice from '@/components/market/no-vault-ended-notice';
 import EndedMarketActions from '@/components/market/ended-market-actions';
 import PartialUnlockActions from '@/components/market/partial-unlock-actions';
 import { Loader } from 'lucide-react';
-import { formatUnits } from '@robin-pm-staking/common/lib/utils';
 
 export default function MarketDetailPage() {
     const params = useParams();
@@ -31,14 +29,21 @@ export default function MarketDetailPage() {
 
     const [market, setMarket] = useState<MarketWithEvent | null>(null);
     const [polymarketMarket, setPolymarketMarket] = useState<ParsedPolymarketMarket | null>(null);
+    const [marketLoading, setMarketLoading] = useState(true);
 
     const fetchMarket = async () => {
-        const market = await fetch(`/api/markets/${marketSlug}`);
-        const marketData = (await market.json()) as { market: MarketRowWithEvent; polymarketMarket: PolymarketMarketWithEvent } | null;
-        const m = marketData ? MarketRowToMarketWithEvent(marketData.market) : null;
-        const p = marketData ? parsePolymarketMarket(marketData.polymarketMarket) : null;
-        setMarket(m);
-        setPolymarketMarket(p);
+        try {
+            const market = await fetch(`/api/markets/${marketSlug}`);
+            const marketData = (await market.json()) as { market: MarketRowWithEvent; polymarketMarket: PolymarketMarketWithEvent } | null;
+            const m = marketData ? MarketRowToMarketWithEvent(marketData.market) : null;
+            const p = marketData ? parsePolymarketMarket(marketData.polymarketMarket) : null;
+            setMarket(m);
+            setPolymarketMarket(p);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setMarketLoading(false);
+        }
     };
 
     useEffect(() => {
@@ -49,13 +54,25 @@ export default function MarketDetailPage() {
         await fetchMarket();
     };
 
-    if (!market || !polymarketMarket)
+    if (marketLoading)
         return (
             <div className="min-h-screen bg-background">
                 <Navbar />
                 <div className="h-auto w-full">
                     <div className="container h-full mx-auto flex items-center justify-center mt-24">
                         <Loader className="w-8 h-8 animate-spin" />
+                    </div>
+                </div>
+            </div>
+        );
+
+    if (!market || !polymarketMarket)
+        return (
+            <div className="min-h-screen bg-background">
+                <Navbar />
+                <div className="h-auto w-full">
+                    <div className="container h-full mx-auto flex items-center justify-center mt-24">
+                        <p className="text-sm text-muted-foreground">Market not found</p>
                     </div>
                 </div>
             </div>
@@ -71,7 +88,7 @@ export default function MarketDetailPage() {
                 <div className="hidden lg:grid lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 space-y-6">
                         <UserPosition market={market} polymarketMarket={polymarketMarket} />
-                        <Activities market={market} />
+                        <ActivityTable market={market} />
                     </div>
 
                     <div>
@@ -107,7 +124,7 @@ export default function MarketDetailPage() {
                             <CompletedMarketCard market={market} />
                         ) : null}
                     </div>
-                    <Activities market={market} />
+                    <ActivityTable market={market} />
                 </div>
             </div>
         </div>
