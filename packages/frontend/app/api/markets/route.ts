@@ -3,6 +3,7 @@ import { getDb } from '@/lib/db';
 import { queryMarkets } from '@/lib/repos';
 import { fetchMarketByConditionId } from '@robin-pm-staking/common/lib/polymarket';
 import { getAndSaveEventAndMarkets } from '@robin-pm-staking/common/lib/repos';
+import { rateLimit } from '@/lib/rate-limit';
 
 function isPolymarketUrl(input: string): boolean {
     try {
@@ -33,6 +34,13 @@ function extractEventSlugFromUrl(input: string): string | null {
 }
 
 export async function GET(req: NextRequest) {
+    const ip = req.headers.get('x-forwarded-for') || 'unknown';
+    const endpoint = '/api/markets'; // Unique identifier per API
+
+    if (!rateLimit(ip, endpoint)) {
+        return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
+
     const db = await getDb();
 
     const { searchParams } = new URL(req.url);

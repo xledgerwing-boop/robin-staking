@@ -1,6 +1,6 @@
 'use client';
 import type { MarketWithEvent } from '@robin-pm-staking/common/types/market';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import Link from 'next/link';
@@ -12,16 +12,51 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
 import { shortenAddress } from '@/lib/utils';
 import { ActivityInfo } from './activity-info';
-import { Activity } from '@robin-pm-staking/common/types/activity';
+import { Activity, ActivityType } from '@robin-pm-staking/common/types/activity';
+import { USED_CONTRACTS } from '@robin-pm-staking/common/constants';
+import { VaultEvent } from '@robin-pm-staking/common/types/conract-events';
+import { Skeleton } from '../ui/skeleton';
 
-export default function ActivityTable({ market: _market }: { market: MarketWithEvent }) {
+const typesMapping: Record<string, { title: string; types: VaultEvent[] }> = {
+    deposits_withdrawals: {
+        title: 'Deposits/Withdrawals',
+        types: [VaultEvent.Deposited, VaultEvent.Withdrawn],
+    },
+    market_status: {
+        title: 'Market Status',
+        types: [
+            VaultEvent.MarketFinalized,
+            VaultEvent.YieldUnlockStarted,
+            VaultEvent.YieldUnlockProgress,
+            VaultEvent.YieldUnlocked,
+            VaultEvent.HarvestedProtocolYield,
+        ],
+    },
+    redeem: {
+        title: 'Redemptions',
+        types: [VaultEvent.RedeemedWinningForUSD],
+    },
+    harvest: {
+        title: 'Yield Harvest',
+        types: [VaultEvent.HarvestedYield, VaultEvent.HarvestedProtocolYield],
+    },
+};
+
+export default function ActivityTable({ market }: { market: MarketWithEvent }) {
     const [showUserActivityOnly, setShowUserActivityOnly] = useState(false);
-    const [activityTypeFilter, setActivityTypeFilter] = useState('all');
+    const activitiesMap = useRef<Map<string, Activity>>(new Map());
+    const [activities, setActivities] = useState<Activity[]>([]);
+    const [lastTimestamp, setLastTimestamp] = useState<number | null>(null);
+    const [hasMore, setHasMore] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [selectedType, setSelectedType] = useState<string | null>(null);
+    const observerRef = useRef<HTMLDivElement>(null);
+    const tableRef = useRef<HTMLDivElement>(null);
+
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const { proxyAddress } = useProxyAccount();
-    void _market;
 
     const updateQueryParams = (updates: Record<string, string | null | undefined>) => {
         const params = new URLSearchParams(searchParams.toString());
@@ -44,23 +79,114 @@ export default function ActivityTable({ market: _market }: { market: MarketWithE
         const spUserOnly = userOnlyParam === '1' || userOnlyParam === 'true';
         if (spUserOnly !== showUserActivityOnly) setShowUserActivityOnly(spUserOnly);
 
-        const allowedTypes = ['all', 'deposit', 'withdraw', 'harvest', 'finalize', 'redeem', 'initialize'];
+        const allowedTypes = Object.keys(typesMapping);
         const typeParam = searchParams.get('activityType');
-        if (typeParam && allowedTypes.includes(typeParam) && typeParam !== activityTypeFilter) {
-            setActivityTypeFilter(typeParam);
+        if (typeParam && allowedTypes.includes(typeParam) && typeParam !== selectedType) {
+            setSelectedType(typeParam);
         }
     };
 
     useEffect(() => {
         loadQueryParams();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchParams]);
-    // Filter activities
-    const filteredActivities = useMemo(() => {
-        const baseline: Activity[] = [];
 
-        return baseline;
-    }, [showUserActivityOnly, activityTypeFilter]);
+    // Fetch new activities (for polling)
+    const fetchNewActivities = async () => {
+        if (!market.contractAddress) return;
+        try {
+            const urlParams = new URLSearchParams({ vaultAddress: market.contractAddress });
+            if (lastTimestamp) urlParams.set('since', lastTimestamp.toString());
+            (selectedType ? typesMapping[selectedType]?.types ?? [] : []).forEach(t => urlParams.append('types', t));
+            if (showUserActivityOnly && proxyAddress) urlParams.set('userAddress', proxyAddress);
+
+            const res = await fetch(`/api/activities?${urlParams}`);
+            if (!res.ok) throw new Error('Failed to fetch new activities');
+            const newActivities: Activity[] = await res.json();
+
+            if (newActivities.length > 0) {
+                const scrollTop = tableRef.current?.scrollTop || 0;
+                setActivities(prev => [...newActivities, ...prev]);
+                setLastTimestamp(newActivities[0]?.timestamp ?? null);
+                // Adjust scroll position to account for new items
+                if (tableRef.current) {
+                    tableRef.current.scrollTop = scrollTop + newActivities.length * 40;
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching new activities:', error);
+        }
+    };
+
+    // Fetch historical activities (for infinite scroll)
+    const fetchHistoricalActivities = async () => {
+        if (!market.contractAddress) return;
+        try {
+            setLoadingMore(true);
+            const urlParams = new URLSearchParams({ vaultAddress: market.contractAddress });
+            if (activities.length > 0) urlParams.set('skip', activities.length.toString());
+            (selectedType ? typesMapping[selectedType]?.types ?? [] : []).forEach(t => urlParams.append('types', t));
+            if (showUserActivityOnly && proxyAddress) urlParams.set('userAddress', proxyAddress);
+
+            const res = await fetch(`/api/activities?${urlParams}`);
+            if (!res.ok) throw new Error('Failed to fetch historical activities');
+            const newActivities: Activity[] = await res.json();
+
+            if (newActivities.length > 0) {
+                newActivities.forEach(activity => {
+                    activitiesMap.current.set(activity.id, activity);
+                });
+                const sortedActivities = [...activitiesMap.current.values()].sort((a, b) => b.timestamp - a.timestamp);
+                setActivities(sortedActivities);
+                setLastTimestamp(sortedActivities[0]?.timestamp ?? null);
+                setHasMore(newActivities.length === 10);
+            } else {
+                setHasMore(false);
+            }
+        } catch (error) {
+            console.error('Error fetching historical activities:', error);
+        } finally {
+            setLoadingMore(false);
+        }
+    };
+
+    //Polling for new activities every 2 seconds
+    useEffect(() => {
+        const interval = setInterval(() => {
+            fetchNewActivities();
+        }, 4000);
+        return () => clearInterval(interval);
+    }, [market.contractAddress, lastTimestamp]);
+
+    // Infinite scroll observer
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            entries => {
+                if (entries[0]?.isIntersecting && hasMore && !loadingMore) {
+                    fetchHistoricalActivities();
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        if (observerRef.current) {
+            observer.observe(observerRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, [hasMore, loadingMore, lastTimestamp]);
+
+    // Reset state when filters change
+    useEffect(() => {
+        setActivities([]);
+        activitiesMap.current.clear();
+        setLastTimestamp(null);
+        setHasMore(true);
+    }, [selectedType]);
+
+    // Fetch data when filters change or initial load
+    useEffect(() => {
+        fetchHistoricalActivities();
+    }, [market.contractAddress]);
 
     return (
         <Card>
@@ -85,33 +211,32 @@ export default function ActivityTable({ market: _market }: { market: MarketWithE
                             </Label>
                         </div>
                         <Select
-                            value={activityTypeFilter}
+                            value={selectedType ?? 'all'}
                             onValueChange={(value: string) => {
-                                const valid = ['deposit', 'withdraw', 'harvest', 'finalize', 'redeem', 'initialize'];
-                                const next = valid.includes(value) ? value : 'all';
-                                setActivityTypeFilter(next);
-                                updateQueryParams({ activityType: next === 'all' ? null : next });
+                                const valid = Object.keys(typesMapping);
+                                const next = valid.includes(value) ? value : null;
+                                setSelectedType(next);
+                                updateQueryParams({ activityType: next === null ? null : next });
                             }}
                         >
-                            <SelectTrigger className="w-32">
+                            <SelectTrigger className="w-50">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">All Types</SelectItem>
-                                <SelectItem value="deposit">Deposits</SelectItem>
-                                <SelectItem value="withdraw">Withdrawals</SelectItem>
-                                <SelectItem value="harvest">Harvests</SelectItem>
-                                <SelectItem value="initialize">Initializations</SelectItem>
-                                <SelectItem value="finalize">Finalizations</SelectItem>
-                                <SelectItem value="redeem">Redemptions</SelectItem>
+                                {Object.keys(typesMapping).map(key => (
+                                    <SelectItem key={key} value={key}>
+                                        {typesMapping[key].title}
+                                    </SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                     </div>
                 </div>
             </CardHeader>
             <CardContent>
-                <div className="space-y-3 max-h-[530px] overflow-y-auto">
-                    {filteredActivities.map((activity, idx) => (
+                <div ref={tableRef} className="space-y-3 overflow-y-auto h-[300px]">
+                    {activities.map((activity, idx) => (
                         <div key={`${activity.id}-${idx}`} className="flex items-center justify-between p-3 border rounded-lg">
                             <div className="flex items-center space-x-3">
                                 <div className="w-2 h-2 rounded-full bg-primary"></div>
@@ -120,7 +245,7 @@ export default function ActivityTable({ market: _market }: { market: MarketWithE
                                         {shortenAddress(activity.userAddress)}
                                         {activity.userAddress === proxyAddress && <span className="text-primary ml-1">(You)</span>}
                                     </p>
-                                    <ActivityInfo activity={activity} market={_market} />
+                                    <ActivityInfo activity={activity} market={market} />
                                 </div>
                             </div>
                             <div className="text-right">
@@ -129,7 +254,7 @@ export default function ActivityTable({ market: _market }: { market: MarketWithE
                                 </Badge>
                                 <p className="text-xs text-muted-foreground">{activity.timestamp}</p>
                                 <Link
-                                    href={`https://etherscan.io/tx/${activity.transactionHash}`}
+                                    href={`${USED_CONTRACTS.EXPLORER_URL}/tx/${activity.transactionHash}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-xs text-primary hover:underline"
@@ -139,7 +264,9 @@ export default function ActivityTable({ market: _market }: { market: MarketWithE
                             </div>
                         </div>
                     ))}
-                    {filteredActivities.length === 0 && <p className="text-center text-muted-foreground py-4">No activity yet.</p>}
+                    {loadingMore && <Skeleton className="h-4 mt-2 w-full" />}
+                    {hasMore && <div ref={observerRef} className="h-4" />}
+                    {activities.length === 0 && <p className="text-center text-muted-foreground py-4">No activity yet.</p>}
                 </div>
             </CardContent>
         </Card>

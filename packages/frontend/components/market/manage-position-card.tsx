@@ -140,7 +140,8 @@ export default function ManagePositionCard({ market, polymarketMarket }: ManageP
     const handleStake = async () => {
         try {
             await stake([
-                ...((approvedForAll
+                // @ts-expect-error fix typing
+                ...(approvedForAll
                     ? []
                     : [
                           {
@@ -148,9 +149,10 @@ export default function ManagePositionCard({ market, polymarketMarket }: ManageP
                               args: [vaultAddress as `0x${string}`, true],
                               hookIndex: 0,
                           },
-                      ]) as any),
+                      ]),
                 {
                     address: vaultAddress as `0x${string}`,
+                    // @ts-expect-error fix typing
                     args: [side === Outcome.Yes, parseUnits(stakeAmount, UNDERYLING_DECIMALS)],
                     hookIndex: 1,
                 },

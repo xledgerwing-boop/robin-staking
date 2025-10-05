@@ -1,9 +1,17 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { ACTIVITIES_TABLE, MARKETS_TABLE } from '@robin-pm-staking/common/src/lib/repos';
 import { MarketStatus } from '@robin-pm-staking/common/types/market';
+import { rateLimit } from '@/lib/rate-limit';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+    const ip = req.headers.get('x-forwarded-for') || 'unknown';
+    const endpoint = '/api/metrics'; // Unique identifier per API
+
+    if (!rateLimit(ip, endpoint)) {
+        return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
+
     try {
         const db = await getDb();
 

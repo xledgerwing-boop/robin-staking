@@ -22,7 +22,6 @@ export default function StakingPage() {
             liquidationDate: '2024-11-05',
             yesTokens: '1,250',
             noTokens: '1,250',
-            earnedYield: '$247.50',
             status: 'active',
         },
         {
@@ -32,7 +31,6 @@ export default function StakingPage() {
             liquidationDate: '2024-12-31',
             yesTokens: '850',
             noTokens: '850',
-            earnedYield: '$89.25',
             status: 'active',
         },
         {
@@ -42,7 +40,6 @@ export default function StakingPage() {
             liquidationDate: '2024-03-15',
             yesTokens: '2,100',
             noTokens: '2,100',
-            earnedYield: '$420.00',
             status: 'completed',
         },
     ];
@@ -107,10 +104,10 @@ export default function StakingPage() {
                                                 <p className="text-sm text-muted-foreground">NO Tokens</p>
                                                 <p className="font-medium">{deposit.noTokens}</p>
                                             </div>
-                                            <div className="text-center">
+                                            {/* <div className="text-center">
                                                 <p className="text-sm text-muted-foreground">Earned Yield</p>
                                                 <p className="font-medium text-primary">{deposit.earnedYield}</p>
-                                            </div>
+                                            </div> */}
                                             <div className="flex items-center justify-center space-x-2 min-w-28">
                                                 <MarketStatusBadge status={deposit.status as MarketStatus} />
                                             </div>

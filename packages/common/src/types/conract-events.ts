@@ -99,6 +99,13 @@ export enum WinningPosition {
     Both = 3,
 }
 
+export const winningPositionToString = (winningPosition: WinningPosition) => {
+    if (winningPosition === WinningPosition.Unresolved) return 'Unresolved';
+    if (winningPosition === WinningPosition.Yes) return 'Yes';
+    if (winningPosition === WinningPosition.No) return 'No';
+    return 'Both';
+};
+
 export type VaultEventInfo =
     | DepositedEvent
     | WithdrawnEvent
