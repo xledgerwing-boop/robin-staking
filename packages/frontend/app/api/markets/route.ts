@@ -57,6 +57,10 @@ export async function GET(req: NextRequest) {
               .filter(Boolean)
         : [];
 
+    const pageParam = parseInt(searchParams.get('page') || '1', 10);
+    const page = Math.max(1, isNaN(pageParam) ? 1 : pageParam);
+    const pageSize = 12;
+
     let conditionIds: string[] = [];
     let includeUninitialized = false;
 
@@ -80,8 +84,15 @@ export async function GET(req: NextRequest) {
             if (slug) {
                 try {
                     // First: check DB for existing markets by event_slug
-                    const existing = await queryMarkets(db, { search: slug, includeUninitialized: true });
-                    if (existing.length > 0) return NextResponse.json(existing);
+                    const existing = await queryMarkets(db, {
+                        search: slug,
+                        includeUninitialized: true,
+                        sortField: sortFieldParam,
+                        sortDirection: sortDirectionParam,
+                        page,
+                        pageSize,
+                    });
+                    if (existing.rows.length > 0) return NextResponse.json({ markets: existing.rows, page, pageSize, totalCount: existing.count });
                     // Otherwise fetch from Polymarket and upsert
                     await getAndSaveEventAndMarkets(db, slug);
                     search = slug;
@@ -93,8 +104,16 @@ export async function GET(req: NextRequest) {
             includeUninitialized = true;
             try {
                 // DB-first: if exists, skip
-                const existing = await queryMarkets(db, { search: trimmed, includeUninitialized: true });
-                if (existing.some(m => m.conditionId === trimmed)) return NextResponse.json(existing); // already present
+                const existing = await queryMarkets(db, {
+                    search: trimmed,
+                    includeUninitialized: true,
+                    sortField: sortFieldParam,
+                    sortDirection: sortDirectionParam,
+                    page,
+                    pageSize,
+                });
+                if (existing.rows.some(m => m.conditionId === trimmed))
+                    return NextResponse.json({ markets: existing.rows, page, pageSize, totalCount: existing.count }); // already present
                 const market = await fetchMarketByConditionId(trimmed);
                 if (!market) return;
                 await getAndSaveEventAndMarkets(db, market.events[0].slug);
@@ -104,14 +123,16 @@ export async function GET(req: NextRequest) {
         }
     }
     try {
-        const results = await queryMarkets(db, {
+        const { count, rows } = await queryMarkets(db, {
             search: search || null,
             conditionIds: conditionIds.length ? conditionIds : null,
             includeUninitialized,
             sortField: sortFieldParam,
             sortDirection: sortDirectionParam,
+            page,
+            pageSize,
         });
-        return NextResponse.json(results);
+        return NextResponse.json({ markets: rows, page, pageSize, totalCount: count });
     } catch (e) {
         console.log('error', e);
         return NextResponse.json({ error: 'Failed to query markets' }, { status: 500 });

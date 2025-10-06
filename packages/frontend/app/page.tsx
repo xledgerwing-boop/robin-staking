@@ -51,6 +51,9 @@ function StakingPageContent() {
     const [searchQuery, setSearchQuery] = useState('');
     const [walletConditionIds, setWalletConditionIds] = useState<string[]>([]);
     const [marketsLoading, setMarketsLoading] = useState(true);
+    const [page, setPage] = useState(1);
+    const [pageSize] = useState(12);
+    const [totalCount, setTotalCount] = useState(0);
     const [queryParamsLoaded, setQueryParamsLoaded] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -147,10 +150,13 @@ function StakingPageContent() {
                 // pass sorting to server
                 params.set('sortField', sortField);
                 params.set('sortDirection', sortDirection);
+                params.set('page', String(page));
+                params.set('pageSize', String(pageSize));
                 const res = await fetch(`/api/markets?${params.toString()}`, { signal: controller.signal });
                 if (!res.ok) throw new Error('Failed to load markets');
-                const data = (await res.json()) as MarketRow[];
-                setAvailableMarkets(data.map(MarketRowToMarket));
+                const data = (await res.json()) as { markets: MarketRow[]; page: number; pageSize: number; totalCount: number };
+                setAvailableMarkets((data.markets ?? []).map(MarketRowToMarket));
+                setTotalCount(data.totalCount ?? 0);
             } catch (e) {
                 console.error(e);
                 setAvailableMarkets([]);
@@ -159,7 +165,7 @@ function StakingPageContent() {
             }
         };
         fetchMarkets();
-    }, [searchQuery, showWalletOnly, isConnected, address, walletConditionIds, sortField, sortDirection, queryParamsLoaded]);
+    }, [searchQuery, showWalletOnly, isConnected, address, walletConditionIds, sortField, sortDirection, queryParamsLoaded, page, pageSize]);
 
     useEffect(() => {
         const controller = new AbortController();
@@ -471,6 +477,35 @@ function StakingPageContent() {
                                 </div>
                             )}
                         </div>
+                        {totalCount > 0 && (
+                            <div className="flex items-center justify-between pt-2 mt-8">
+                                <div className="text-sm text-muted-foreground">
+                                    {`Showing ${Math.min((page - 1) * pageSize + 1, totalCount)}-${Math.min(
+                                        page * pageSize,
+                                        totalCount
+                                    )} of ${totalCount}`}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                                        disabled={page <= 1 || marketsLoading}
+                                    >
+                                        Prev
+                                    </Button>
+                                    <div className="text-sm">Page {page}</div>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => setPage(p => (p * pageSize < totalCount ? p + 1 : p))}
+                                        disabled={page * pageSize >= totalCount || marketsLoading}
+                                    >
+                                        Next
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>

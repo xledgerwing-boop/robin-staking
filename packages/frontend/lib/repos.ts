@@ -10,6 +10,8 @@ export interface MarketsQuery {
     includeUninitialized?: boolean;
     sortField?: 'tvl' | 'endDate' | 'title';
     sortDirection?: 'asc' | 'desc';
+    page?: number | null;
+    pageSize?: number | null;
 }
 
 export async function queryEvent(db: Knex, eventSlug: string): Promise<EventRow | null> {
@@ -24,8 +26,8 @@ export async function queryMarketBySlug(db: Knex, slug: string): Promise<MarketR
     return rows[0];
 }
 
-export async function queryMarkets(db: Knex, q: MarketsQuery): Promise<MarketRow[]> {
-    const builder = db(MARKETS_TABLE).select(`${MARKETS_TABLE}.*`).leftJoin(EVENTS_TABLE, `${EVENTS_TABLE}.id`, `${MARKETS_TABLE}.eventId`);
+export async function queryMarkets(db: Knex, q: MarketsQuery): Promise<{ rows: MarketRow[]; count: number }> {
+    const builder = db(MARKETS_TABLE).leftJoin(EVENTS_TABLE, `${EVENTS_TABLE}.id`, `${MARKETS_TABLE}.eventId`);
 
     if (!q.includeUninitialized) {
         builder.whereNot(`${MARKETS_TABLE}.status`, MarketStatus.Uninitialized);
@@ -41,9 +43,14 @@ export async function queryMarkets(db: Knex, q: MarketsQuery): Promise<MarketRow
             b.whereILike(`${MARKETS_TABLE}.conditionId`, `%${s}%`)
                 .orWhereILike(`${MARKETS_TABLE}.question`, `%${s}%`)
                 .orWhereILike(`${MARKETS_TABLE}.slug`, `%${s}%`)
-                .orWhereILike(`${EVENTS_TABLE}.slug`, `%${s}%`);
+                .orWhereILike(`${EVENTS_TABLE}.slug`, `%${s}%`)
+                .orWhereILike(`${EVENTS_TABLE}.title`, `%${s}%`);
         });
     }
+
+    const countBuilder = builder.clone().countDistinct<{ count: string }[]>({ count: `${MARKETS_TABLE}.id` });
+
+    builder.select(`${MARKETS_TABLE}.*`);
 
     // Sorting
     const sortField = q.sortField ?? 'tvl';
@@ -55,6 +62,14 @@ export async function queryMarkets(db: Knex, q: MarketsQuery): Promise<MarketRow
     } as const;
     builder.orderBy(sortMap[sortField], sortDirection);
 
-    const rows = await builder;
-    return rows;
+    // Pagination
+    if (q.page && q.pageSize) {
+        const page = Math.max(1, q.page);
+        const pageSize = Math.max(1, Math.min(q.pageSize, 100));
+        builder.limit(pageSize).offset((page - 1) * pageSize);
+    }
+
+    const [rows, countRow] = await Promise.all([builder, countBuilder]);
+    const count = Number(countRow?.[0]?.count ?? 0);
+    return { rows, count };
 }
