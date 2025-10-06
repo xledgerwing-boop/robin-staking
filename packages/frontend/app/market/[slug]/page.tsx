@@ -22,6 +22,7 @@ import NoVaultEndedNotice from '@/components/market/no-vault-ended-notice';
 import EndedMarketActions from '@/components/market/ended-market-actions';
 import PartialUnlockActions from '@/components/market/partial-unlock-actions';
 import { Loader } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function MarketDetailPage() {
     const params = useParams();
@@ -41,6 +42,7 @@ export default function MarketDetailPage() {
             setPolymarketMarket(p);
         } catch (error) {
             console.error(error);
+            toast.error('Failed to fetch market');
         } finally {
             setMarketLoading(false);
         }

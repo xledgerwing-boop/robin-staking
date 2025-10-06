@@ -16,6 +16,7 @@ import { Activity, ActivityType } from '@robin-pm-staking/common/types/activity'
 import { USED_CONTRACTS } from '@robin-pm-staking/common/constants';
 import { VaultEvent } from '@robin-pm-staking/common/types/conract-events';
 import { Skeleton } from '../ui/skeleton';
+import { toast } from 'sonner';
 
 const typesMapping: Record<string, { title: string; types: VaultEvent[] }> = {
     deposits_withdrawals: {
@@ -114,6 +115,7 @@ export default function ActivityTable({ market }: { market: Market }) {
             }
         } catch (error) {
             console.error('Error fetching new activities:', error);
+            toast.error('Failed to fetch activities');
         }
     };
 
@@ -144,6 +146,7 @@ export default function ActivityTable({ market }: { market: Market }) {
             }
         } catch (error) {
             console.error('Error fetching historical activities:', error);
+            toast.error('Failed to fetch activities');
         } finally {
             setLoadingMore(false);
         }

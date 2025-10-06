@@ -23,6 +23,7 @@ import { UNDERYLING_DECIMALS } from '@robin-pm-staking/common/constants';
 import { useReadRobinStakingVaultGetCurrentApy } from '@robin-pm-staking/common/types/contracts';
 import { zeroAddress } from 'viem';
 import { ValueState } from '@/components/value-state';
+import { toast } from 'sonner';
 
 function StakingPageContent() {
     const { address, isConnected } = useProxyAccount();
@@ -121,8 +122,9 @@ function StakingPageContent() {
                     setTotalUsers(data.totalUsers ?? 0);
                     setVaultAddress(data.contractAddress);
                 }
-            } catch {
-                // ignore, keep defaults
+            } catch (e) {
+                console.error(e);
+                toast.error('Failed to fetch metrics');
             } finally {
                 setMetricsLoading(false);
             }
@@ -159,6 +161,7 @@ function StakingPageContent() {
                 setTotalCount(data.totalCount ?? 0);
             } catch (e) {
                 console.error(e);
+                toast.error('Failed to fetch markets');
                 setAvailableMarkets([]);
             } finally {
                 setMarketsLoading(false);
