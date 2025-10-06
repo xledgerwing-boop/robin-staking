@@ -80,7 +80,7 @@ export default function RootLayout({
             </head>
             <body className={`${myFont.className} antialiased`}>
                 <Web3Provider>
-                    <ThemeProvider>
+                    <ThemeProvider defaultTheme="light">
                         {children}
                         <Toaster />
                     </ThemeProvider>

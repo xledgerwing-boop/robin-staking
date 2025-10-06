@@ -97,7 +97,7 @@ export default function ManagePositionCard({ market, polymarketMarket }: ManageP
         const prev = searchParams.toString();
         const next = params.toString();
         if (prev !== next) {
-            router.replace(`${pathname}${next ? `?${next}` : ''}`);
+            router.replace(`${pathname}${next ? `?${next}` : ''}`, { scroll: false });
         }
     };
 

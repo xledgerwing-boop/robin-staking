@@ -80,7 +80,7 @@ function StakingPageContent() {
         const prev = searchParams.toString();
         const next = params.toString();
         if (prev !== next) {
-            router.replace(`${pathname}${next ? `?${next}` : ''}`);
+            router.replace(`${pathname}${next ? `?${next}` : ''}`, { scroll: false });
         }
     };
 
@@ -110,18 +110,17 @@ function StakingPageContent() {
             try {
                 setMetricsLoading(true);
                 const res = await fetch('/api/metrics');
-                if (res.ok) {
-                    const data = (await res.json()) as {
-                        numberOfMarkets: number;
-                        totalTVL: string;
-                        totalUsers: number;
-                        contractAddress: `0x${string}` | null;
-                    };
-                    setNumberOfMarkets(data.numberOfMarkets ?? 0);
-                    setTotalTVL(BigInt(data.totalTVL ?? '0'));
-                    setTotalUsers(data.totalUsers ?? 0);
-                    setVaultAddress(data.contractAddress);
-                }
+                if (!res.ok) throw new Error('Failed to fetch metrics');
+                const data = (await res.json()) as {
+                    numberOfMarkets: number;
+                    totalTVL: string;
+                    totalUsers: number;
+                    contractAddress: `0x${string}` | null;
+                };
+                setNumberOfMarkets(data.numberOfMarkets ?? 0);
+                setTotalTVL(BigInt(data.totalTVL ?? '0'));
+                setTotalUsers(data.totalUsers ?? 0);
+                setVaultAddress(data.contractAddress);
             } catch (e) {
                 console.error(e);
                 toast.error('Failed to fetch metrics');
@@ -405,7 +404,7 @@ function StakingPageContent() {
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
                             {marketsLoading ? (
                                 <div className="col-span-full h-full flex items-center justify-center">
                                     <Loader className="w-12 h-12 animate-spin" />

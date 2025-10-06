@@ -35,7 +35,7 @@ export default function Navbar() {
                     <Image src={logo} alt="Robin Logo" width={32} height={32} className="rounded-lg" />
                     <span className="text-xl font-bold text-foreground">Robin</span>
                 </div>
-                <nav className="hidden md:flex items-center space-x-2">
+                <nav className="flex items-center space-x-2">
                     <Link href="/portfolio">
                         <Button variant="outline" className="size-9 h-9 w-9">
                             <WalletMinimal className="w-4 h-4" />

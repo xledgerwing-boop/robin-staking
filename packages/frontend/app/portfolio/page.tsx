@@ -47,7 +47,7 @@ export default function PortfolioPage() {
                 params.set('page', String(page));
                 params.set('pageSize', String(pageSize));
                 const res = await fetch(`/api/portfolio?${params.toString()}`);
-                if (!res.ok) return;
+                if (!res.ok) throw new Error('Failed to fetch portfolio');
                 const data: {
                     totalYes: string;
                     totalNo: string;
@@ -88,23 +88,22 @@ export default function PortfolioPage() {
                 {/* Your Deposits Section */}
                 <Card className="mb-8">
                     <CardHeader>
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <CardTitle className="text-xl">Your Deposits</CardTitle>
-                                <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    onClick={() => {
-                                        setPage(1);
-                                        setRefreshTick(t => t + 1);
-                                    }}
-                                    disabled={loading}
-                                >
-                                    <RefreshCcw className="w-1 h-1" />
-                                </Button>
-                            </div>
-
-                            <div className="flex items-center gap-3">
+                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div className="flex items-center gap-2 justify-between w-full">
+                                <div className="flex items-center gap-2">
+                                    <CardTitle className="text-xl">Your Deposits</CardTitle>
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        onClick={() => {
+                                            setPage(1);
+                                            setRefreshTick(t => t + 1);
+                                        }}
+                                        disabled={loading}
+                                    >
+                                        <RefreshCcw className="w-1 h-1" />
+                                    </Button>
+                                </div>
                                 <Select
                                     value={filter}
                                     onValueChange={v => {
@@ -121,7 +120,10 @@ export default function PortfolioPage() {
                                         <SelectItem value="ended">Ended</SelectItem>
                                     </SelectContent>
                                 </Select>
-                                <div className="flex space-x-6 text-sm">
+                            </div>
+
+                            <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-center shrink-0">
+                                <div className="flex w-full justify-between text-sm md:w-auto md:justify-start md:space-x-6">
                                     <div>
                                         <span className="text-muted-foreground">Total Supplied: </span>
                                         <span className="font-bold">
@@ -141,43 +143,62 @@ export default function PortfolioPage() {
                             {!loading &&
                                 userDeposits.map(deposit => (
                                     <Link key={deposit.slug} href={`/market/${encodeURIComponent(deposit.slug)}`}>
-                                        <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer mt-2">
-                                            <div className="flex items-center space-x-4">
-                                                <div className="relative w-12 h-12 shrink-0">
-                                                    <Image
-                                                        src={deposit.image || '/placeholder.png'}
-                                                        alt={deposit.question ?? 'Market'}
-                                                        fill
-                                                        className="rounded-lg object-cover"
-                                                        sizes="150px"
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <h3 className="font-semibold">{deposit.question}</h3>
-                                                    <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                                                        <Clock className="w-4 h-4" />
-                                                        <span>{deposit.endDate ? new Date(deposit.endDate).toLocaleDateString() : '—'}</span>
+                                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between p-3 md:p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer mt-2">
+                                            <div className="flex w-full items-center space-x-4 md:w-auto justify-between">
+                                                <div className="flex items-center space-x-4">
+                                                    <div className="relative w-12 h-12 shrink-0">
+                                                        <Image
+                                                            src={deposit.image || '/placeholder.png'}
+                                                            alt={deposit.question ?? 'Market'}
+                                                            fill
+                                                            className="rounded-lg object-cover"
+                                                            sizes="150px"
+                                                        />
                                                     </div>
+                                                    <div>
+                                                        <h3 className="font-semibold">{deposit.question}</h3>
+                                                        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                                                            <Clock className="w-4 h-4" />
+                                                            <span>{deposit.endDate ? new Date(deposit.endDate).toLocaleDateString() : '—'}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="col-span-2 flex items-center justify-end space-x-3 md:hidden">
+                                                    <span title="Redeemed">
+                                                        <Trophy
+                                                            className={`w-5 h-5 ${
+                                                                deposit.usdRedeemed > 0n ? 'text-primary' : 'text-muted-foreground'
+                                                            }`}
+                                                        />
+                                                    </span>
+                                                    <span title="Harvested">
+                                                        <HandCoins
+                                                            className={`w-5 h-5 ${
+                                                                deposit.yieldHarvested > 0n ? 'text-primary' : 'text-muted-foreground'
+                                                            }`}
+                                                        />
+                                                    </span>
+                                                    <MarketStatusBadge status={deposit.status as MarketStatus} />
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center space-x-6">
+                                            <div className="grid w-full grid-cols-2 gap-4 md:w-auto md:flex md:items-center md:space-x-6">
                                                 <div className="text-center">
-                                                    <p className="text-sm text-muted-foreground">YES Tokens</p>
+                                                    <p className="text-xs text-muted-foreground md:text-sm">YES Tokens</p>
                                                     <p className="font-medium">
                                                         {formatUnits(BigInt(deposit.yesTokens ?? '0'), UNDERYLING_DECIMALS)}
                                                     </p>
                                                 </div>
                                                 <div className="text-center">
-                                                    <p className="text-sm text-muted-foreground">NO Tokens</p>
+                                                    <p className="text-xs text-muted-foreground md:text-sm">NO Tokens</p>
                                                     <p className="font-medium">{formatUnits(BigInt(deposit.noTokens ?? '0'), UNDERYLING_DECIMALS)}</p>
                                                 </div>
                                                 {/* <div className="text-center">
                                                 <p className="text-sm text-muted-foreground">Earned Yield</p>
                                                 <p className="font-medium text-primary">{deposit.earnedYield}</p>
-                                            </div> */}
+                                                </div> */}
                                                 {/* Icons for redemption/harvesting status */}
-                                                <div className="flex items-center justify-center space-x-3 min-w-28">
+                                                <div className="items-center justify-center space-x-3 min-w-28 hidden md:flex">
                                                     <span title="Redeemed">
                                                         <Trophy
                                                             className={`w-5 h-5 ${

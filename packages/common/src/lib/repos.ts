@@ -6,7 +6,7 @@ import { fetchEventAndMarketsByEventSlug, fetchMarketByConditionId } from './pol
 export const EVENTS_TABLE = 'events';
 export const MARKETS_TABLE = 'markets';
 export const ACTIVITIES_TABLE = 'activities';
-export const USER_POSITIONS_TABLE = 'user_positions';
+export const USER_POSITIONS_TABLE = 'userPositions';
 
 export async function ensureSchema(db: Knex): Promise<void> {
     const hasEvents = await db.schema.hasTable(EVENTS_TABLE);
@@ -15,10 +15,10 @@ export async function ensureSchema(db: Knex): Promise<void> {
             table.string('id').primary();
             table.string('slug').notNullable().index();
             table.string('title');
-            table.bigint('end_date');
+            table.bigint('endDate');
             table.string('image');
-            table.bigint('created_at');
-            table.bigint('updated_at');
+            table.bigint('createdAt');
+            table.bigint('updatedAt');
         });
     }
 
@@ -26,29 +26,29 @@ export async function ensureSchema(db: Knex): Promise<void> {
     if (!hasMarkets) {
         await db.schema.createTable(MARKETS_TABLE, table => {
             table.string('id').primary();
-            table.string('contract_address').unique().nullable();
+            table.string('contractAddress').unique().nullable();
             table.string('question');
-            table.string('condition_id').unique().index();
+            table.string('conditionId').unique().index();
             table.string('slug');
-            table.string('event_slug').notNullable();
-            table.bigint('end_date').nullable();
-            table.bigint('start_date').nullable();
+            table.string('eventSlug').notNullable();
+            table.bigint('endDate').nullable();
+            table.bigint('startDate').nullable();
             table.string('image').nullable();
             table.string('status').notNullable().defaultTo(MarketStatus.Uninitialized);
             table.jsonb('outcomes');
-            table.jsonb('clob_token_ids');
-            table.boolean('neg_risk').nullable();
-            table.string('event_id').notNullable().references('id').inTable(EVENTS_TABLE);
+            table.jsonb('clobTokenIds');
+            table.boolean('negRisk').nullable();
+            table.string('eventId').notNullable().references('id').inTable(EVENTS_TABLE);
             table.decimal('tvl', 78, 0);
-            table.decimal('unmatched_yes_tokens', 78, 0);
-            table.decimal('unmatched_no_tokens', 78, 0);
-            table.decimal('matched_tokens', 78, 0);
-            table.string('winning_position').nullable();
+            table.decimal('unmatchedYesTokens', 78, 0);
+            table.decimal('unmatchedNoTokens', 78, 0);
+            table.decimal('matchedTokens', 78, 0);
+            table.string('winningPosition').nullable();
             table.string('creator').nullable();
-            table.bigint('vault_created_block_number').nullable();
-            table.bigint('vault_created_at').nullable();
-            table.bigint('created_at');
-            table.bigint('updated_at');
+            table.bigint('vaultCreatedBlockNumber').nullable();
+            table.bigint('vaultCreatedAt').nullable();
+            table.bigint('createdAt');
+            table.bigint('updatedAt');
         });
     }
 
@@ -71,16 +71,16 @@ export async function ensureSchema(db: Knex): Promise<void> {
     if (!hasUserPositions) {
         await db.schema.createTable(USER_POSITIONS_TABLE, (table: Knex.CreateTableBuilder) => {
             table.string('id').primary();
-            table.string('user_address').notNullable().index();
-            table.string('condition_id').notNullable().index();
-            table.string('vault_address').notNullable().index();
-            table.decimal('yes_tokens', 78, 0).notNullable().defaultTo(0);
-            table.decimal('no_tokens', 78, 0).notNullable().defaultTo(0);
-            table.decimal('yield_earned', 78, 0).notNullable().defaultTo(0);
-            table.decimal('usd_redeemed', 78, 0).notNullable().defaultTo(0);
-            table.bigint('created_at');
-            table.bigint('updated_at');
-            table.unique(['user_address', 'condition_id']);
+            table.string('userAddress').notNullable().index();
+            table.string('conditionId').notNullable().index();
+            table.string('vaultAddress').notNullable().index();
+            table.decimal('yesTokens', 78, 0).notNullable().defaultTo(0);
+            table.decimal('noTokens', 78, 0).notNullable().defaultTo(0);
+            table.decimal('yieldHarvested', 78, 0).notNullable().defaultTo(0);
+            table.decimal('usdRedeemed', 78, 0).notNullable().defaultTo(0);
+            table.bigint('createdAt');
+            table.bigint('updatedAt');
+            table.unique(['userAddress', 'conditionId']);
         });
     }
 }

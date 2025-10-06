@@ -35,6 +35,7 @@ export default function MarketDetailPage() {
     const fetchMarket = async () => {
         try {
             const market = await fetch(`/api/markets/${marketSlug}`);
+            if (!market.ok) throw new Error('Failed to fetch market');
             const marketData = (await market.json()) as { market: MarketRow; polymarketMarket: PolymarketMarketWithEvent } | null;
             const m = marketData ? MarketRowToMarket(marketData.market) : null;
             const p = marketData ? parsePolymarketMarket(marketData.polymarketMarket) : null;

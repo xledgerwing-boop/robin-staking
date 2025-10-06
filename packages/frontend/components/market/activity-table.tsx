@@ -12,11 +12,12 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
 import { shortenAddress } from '@/lib/utils';
 import { ActivityInfo } from './activity-info';
-import { Activity, ActivityType } from '@robin-pm-staking/common/types/activity';
+import { Activity } from '@robin-pm-staking/common/types/activity';
 import { USED_CONTRACTS } from '@robin-pm-staking/common/constants';
 import { VaultEvent } from '@robin-pm-staking/common/types/conract-events';
 import { Skeleton } from '../ui/skeleton';
 import { toast } from 'sonner';
+import { formatDistanceToNow } from 'date-fns';
 
 const typesMapping: Record<string, { title: string; types: VaultEvent[] }> = {
     deposits_withdrawals: {
@@ -71,7 +72,7 @@ export default function ActivityTable({ market }: { market: Market }) {
         const prev = searchParams.toString();
         const next = params.toString();
         if (prev !== next) {
-            router.replace(`${pathname}${next ? `?${next}` : ''}`);
+            router.replace(`${pathname}${next ? `?${next}` : ''}`, { scroll: false });
         }
     };
 
@@ -105,13 +106,8 @@ export default function ActivityTable({ market }: { market: Market }) {
             const newActivities: Activity[] = await res.json();
 
             if (newActivities.length > 0) {
-                const scrollTop = tableRef.current?.scrollTop || 0;
                 setActivities(prev => [...newActivities, ...prev]);
                 setLastTimestamp(newActivities[0]?.timestamp ?? null);
-                // Adjust scroll position to account for new items
-                if (tableRef.current) {
-                    tableRef.current.scrollTop = scrollTop + newActivities.length * 40;
-                }
             }
         } catch (error) {
             console.error('Error fetching new activities:', error);
@@ -184,7 +180,7 @@ export default function ActivityTable({ market }: { market: Market }) {
         activitiesMap.current.clear();
         setLastTimestamp(null);
         setHasMore(true);
-    }, [selectedType]);
+    }, [selectedType, showUserActivityOnly]);
 
     // Fetch data when filters change or initial load
     useEffect(() => {
@@ -194,25 +190,12 @@ export default function ActivityTable({ market }: { market: Market }) {
     return (
         <Card>
             <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex items-start justify-between">
                     <CardTitle className="flex items-center space-x-2">
                         <ActivityIcon className="w-5 h-5" />
                         <span>Recent Activities</span>
                     </CardTitle>
-                    <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-2">
-                            <Switch
-                                id="user-activity"
-                                checked={showUserActivityOnly}
-                                onCheckedChange={(checked: boolean) => {
-                                    setShowUserActivityOnly(checked);
-                                    updateQueryParams({ userOnly: checked ? '1' : null });
-                                }}
-                            />
-                            <Label htmlFor="user-activity" className="text-sm">
-                                My activity only
-                            </Label>
-                        </div>
+                    <div className="flex flex-col md:flex-row items-center space-x-0 md:space-x-4">
                         <Select
                             value={selectedType ?? 'all'}
                             onValueChange={(value: string) => {
@@ -234,6 +217,19 @@ export default function ActivityTable({ market }: { market: Market }) {
                                 ))}
                             </SelectContent>
                         </Select>
+                        <div className="flex items-center space-x-2 md:mt-0 mt-2">
+                            <Switch
+                                id="user-activity"
+                                checked={showUserActivityOnly}
+                                onCheckedChange={(checked: boolean) => {
+                                    setShowUserActivityOnly(checked);
+                                    updateQueryParams({ userOnly: checked ? '1' : null });
+                                }}
+                            />
+                            <Label htmlFor="user-activity" className="text-sm">
+                                My activity only
+                            </Label>
+                        </div>
                     </div>
                 </div>
             </CardHeader>
@@ -255,7 +251,9 @@ export default function ActivityTable({ market }: { market: Market }) {
                                 <Badge variant="outline" className="mb-1">
                                     {activity.type}
                                 </Badge>
-                                <p className="text-xs text-muted-foreground">{activity.timestamp}</p>
+                                <p className="text-xs text-muted-foreground">
+                                    {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
+                                </p>
                                 <Link
                                     href={`${USED_CONTRACTS.EXPLORER_URL}/tx/${activity.transactionHash}`}
                                     target="_blank"
@@ -267,7 +265,7 @@ export default function ActivityTable({ market }: { market: Market }) {
                             </div>
                         </div>
                     ))}
-                    {loadingMore && <Skeleton className="h-4 mt-2 w-full" />}
+                    {loadingMore && <Skeleton className="h-20 mt-2 w-full" />}
                     {hasMore && <div ref={observerRef} className="h-4" />}
                     {activities.length === 0 && <p className="text-center text-muted-foreground py-4">No activity yet.</p>}
                 </div>
