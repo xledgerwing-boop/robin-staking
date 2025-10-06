@@ -6,6 +6,7 @@ export interface MarketRow {
     question: string;
     conditionId: string;
     slug: string;
+    eventSlug: string;
     endDate?: string;
     startDate?: string;
     image?: string;
@@ -26,16 +27,13 @@ export interface MarketRow {
     vaultCreatedAt?: string;
 }
 
-export interface MarketRowWithEvent extends MarketRow {
-    eventSlug: string;
-}
-
 export interface Market {
     id: string;
     contractAddress?: string;
     question: string;
     conditionId: string;
     slug: string;
+    eventSlug: string;
     endDate?: number;
     startDate?: number;
     image?: string;
@@ -56,10 +54,6 @@ export interface Market {
     vaultCreatedAt?: number;
 }
 
-export interface MarketWithEvent extends Market {
-    eventSlug: string;
-}
-
 export function MarketRowToMarket(row: MarketRow): Market {
     return {
         ...row,
@@ -75,14 +69,6 @@ export function MarketRowToMarket(row: MarketRow): Market {
         matchedTokens: BigInt(row.matchedTokens),
         vaultCreatedBlockNumber: row.vaultCreatedBlockNumber ? Number.parseInt(row.vaultCreatedBlockNumber) : undefined,
         vaultCreatedAt: row.vaultCreatedAt ? Number.parseInt(row.vaultCreatedAt) : undefined,
-    };
-}
-
-export function MarketRowToMarketWithEvent(row: MarketRowWithEvent): MarketWithEvent {
-    const market = MarketRowToMarket(row);
-    return {
-        ...market,
-        eventSlug: row.eventSlug,
     };
 }
 

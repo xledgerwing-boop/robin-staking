@@ -1,6 +1,6 @@
 'use client';
-import type { MarketWithEvent } from '@robin-pm-staking/common/types/market';
-import { useMemo, useState, useEffect, useRef } from 'react';
+import type { Market } from '@robin-pm-staking/common/types/market';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import Link from 'next/link';
@@ -42,7 +42,7 @@ const typesMapping: Record<string, { title: string; types: VaultEvent[] }> = {
     },
 };
 
-export default function ActivityTable({ market }: { market: MarketWithEvent }) {
+export default function ActivityTable({ market }: { market: Market }) {
     const [showUserActivityOnly, setShowUserActivityOnly] = useState(false);
     const activitiesMap = useRef<Map<string, Activity>>(new Map());
     const [activities, setActivities] = useState<Activity[]>([]);

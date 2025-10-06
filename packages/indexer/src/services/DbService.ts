@@ -2,7 +2,8 @@ import knex, { Knex } from 'knex';
 import { knexSnakeCaseMappers } from 'objection';
 import { ActivityRow } from '@robin-pm-staking/common/types/activity';
 import { MarketRow } from '@robin-pm-staking/common/types/market';
-import { ensureSchema } from '@robin-pm-staking/common/lib/repos';
+import { ensureSchema, USER_POSITIONS_TABLE } from '@robin-pm-staking/common/lib/repos';
+import { UserPositionRow } from '@robin-pm-staking/common/types/position';
 
 export class DBService {
     public knex: Knex;
@@ -38,6 +39,44 @@ export class DBService {
 
     public async insertActivity(activity: ActivityRow) {
         await this.knex('activities').insert(activity).onConflict('id').ignore();
+    }
+
+    public async adjustUserPosition(
+        userAddress: string,
+        conditionId: string,
+        vaultAddress: string | undefined,
+        deltas: { yesDelta?: bigint; noDelta?: bigint; yieldDelta?: bigint; usdRedeemedDelta?: bigint }
+    ) {
+        const now = Date.now().toString();
+        const id = `${userAddress.toLowerCase()}:${conditionId}`;
+        const yesDelta = (deltas.yesDelta ?? 0n).toString();
+        const noDelta = (deltas.noDelta ?? 0n).toString();
+        const yieldDelta = (deltas.yieldDelta ?? 0n).toString();
+        const usdRedeemedDelta = (deltas.usdRedeemedDelta ?? 0n).toString();
+
+        // Insert-then-merge with atomic increments
+        await this.knex(USER_POSITIONS_TABLE)
+            .insert(<UserPositionRow>{
+                id,
+                userAddress: userAddress.toLowerCase(),
+                conditionId,
+                vaultAddress,
+                yesTokens: yesDelta,
+                noTokens: noDelta,
+                yieldHarvested: yieldDelta,
+                usdRedeemed: usdRedeemedDelta,
+                createdAt: now,
+                updatedAt: now,
+            })
+            .onConflict(['userAddress', 'conditionId'])
+            .merge({
+                vaultAddress,
+                updatedAt: now,
+                yesTokens: this.knex.raw('?? + ?', ['yes_tokens', yesDelta]),
+                noTokens: this.knex.raw('?? + ?', ['no_tokens', noDelta]),
+                yieldHarvested: this.knex.raw('?? + ?', ['yield_earned', yieldDelta]),
+                usdRedeemed: this.knex.raw('?? + ?', ['usd_redeemed', usdRedeemedDelta]),
+            });
     }
 
     public async setupDatabase() {

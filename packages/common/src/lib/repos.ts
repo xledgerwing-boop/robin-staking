@@ -1,4 +1,4 @@
-import { MarketRow, MarketStatus, PolymarketMarket, PolymarketMarketWithEvent } from '../types/market';
+import { MarketRow, MarketStatus, PolymarketMarket } from '../types/market';
 import { Knex } from 'knex';
 import { PolymarketEvent, EventRow } from '../types/event';
 import { fetchEventAndMarketsByEventSlug, fetchMarketByConditionId } from './polymarket';
@@ -6,6 +6,7 @@ import { fetchEventAndMarketsByEventSlug, fetchMarketByConditionId } from './pol
 export const EVENTS_TABLE = 'events';
 export const MARKETS_TABLE = 'markets';
 export const ACTIVITIES_TABLE = 'activities';
+export const USER_POSITIONS_TABLE = 'user_positions';
 
 export async function ensureSchema(db: Knex): Promise<void> {
     const hasEvents = await db.schema.hasTable(EVENTS_TABLE);
@@ -29,6 +30,7 @@ export async function ensureSchema(db: Knex): Promise<void> {
             table.string('question');
             table.string('condition_id').unique().index();
             table.string('slug');
+            table.string('event_slug').notNullable();
             table.bigint('end_date').nullable();
             table.bigint('start_date').nullable();
             table.string('image').nullable();
@@ -64,6 +66,23 @@ export async function ensureSchema(db: Knex): Promise<void> {
             table.bigint('blockNumber').notNullable();
         });
     }
+
+    const hasUserPositions = await db.schema.hasTable(USER_POSITIONS_TABLE);
+    if (!hasUserPositions) {
+        await db.schema.createTable(USER_POSITIONS_TABLE, (table: Knex.CreateTableBuilder) => {
+            table.string('id').primary();
+            table.string('user_address').notNullable().index();
+            table.string('condition_id').notNullable().index();
+            table.string('vault_address').notNullable().index();
+            table.decimal('yes_tokens', 78, 0).notNullable().defaultTo(0);
+            table.decimal('no_tokens', 78, 0).notNullable().defaultTo(0);
+            table.decimal('yield_earned', 78, 0).notNullable().defaultTo(0);
+            table.decimal('usd_redeemed', 78, 0).notNullable().defaultTo(0);
+            table.bigint('created_at');
+            table.bigint('updated_at');
+            table.unique(['user_address', 'condition_id']);
+        });
+    }
 }
 
 export async function insertEvent(db: Knex, evt: PolymarketEvent): Promise<EventRow> {
@@ -80,14 +99,15 @@ export async function insertEvent(db: Knex, evt: PolymarketEvent): Promise<Event
     return row;
 }
 
-export async function insertInactiveMarket(db: Knex, market: PolymarketMarket | PolymarketMarketWithEvent): Promise<MarketRow> {
-    const eventId = (market as PolymarketMarket).eventId ?? (market as PolymarketMarketWithEvent).events[0].id;
+export async function insertInactiveMarket(db: Knex, market: PolymarketMarket, eventSlug: string): Promise<MarketRow> {
+    const eventId = market.eventId;
     const row: MarketRow = {
         id: market.id,
         eventId,
         question: market.question,
         conditionId: market.conditionId,
         slug: market.slug,
+        eventSlug,
         endDate: market.endDate ? new Date(market.endDate).getTime().toString() : undefined,
         startDate: market.startDate ? new Date(market.startDate).getTime().toString() : undefined,
         image: market.image,
@@ -121,7 +141,7 @@ export async function getAndSaveEventAndMarkets(db: Knex, eventSlug?: string, co
     await Promise.all(
         payload.markets.map(async m => {
             m.eventId = payload.id;
-            await insertInactiveMarket(db, m);
+            await insertInactiveMarket(db, m, payload.slug);
         })
     );
 }

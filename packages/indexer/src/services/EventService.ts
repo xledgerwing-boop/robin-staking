@@ -95,6 +95,10 @@ export class EventService {
                     unmatchedNoTokens: nnt1.toString(),
                     tvl: nt1.toString(),
                 });
+                await this.dbService.adjustUserPosition(depositedData.user, market.conditionId, vaultAddress, {
+                    yesDelta: depositedData.isYes ? depositedData.amount : 0n,
+                    noDelta: depositedData.isYes ? 0n : depositedData.amount,
+                });
                 break;
             case VaultEvent.Withdrawn:
                 const withdrawnData = logData as WithdrawnEvent;
@@ -110,6 +114,10 @@ export class EventService {
                     unmatchedYesTokens: nyt2.toString(),
                     unmatchedNoTokens: nnt2.toString(),
                     tvl: nt2.toString(),
+                });
+                await this.dbService.adjustUserPosition(withdrawnData.user, market.conditionId, vaultAddress, {
+                    yesDelta: -withdrawnData.yesAmount,
+                    noDelta: -withdrawnData.noAmount,
                 });
                 break;
             case VaultEvent.MarketFinalized:
@@ -146,6 +154,9 @@ export class EventService {
                 const harvestedYieldData = logData as HarvestedYieldEvent;
                 activity.position = null;
                 activity.userAddress = harvestedYieldData.user;
+                await this.dbService.adjustUserPosition(harvestedYieldData.user, market.conditionId, vaultAddress, {
+                    yieldDelta: harvestedYieldData.amount,
+                });
                 break;
             case VaultEvent.RedeemedWinningForUSD:
                 const redeemedWinningForUSDData = logData as RedeemedWinningForUSDEvent;
@@ -172,6 +183,12 @@ export class EventService {
                     unmatchedYesTokens: nyt3.toString(),
                     unmatchedNoTokens: nnt3.toString(),
                     tvl: nt3.toString(),
+                });
+                // Adjust user side: remove winning tokens and record USD redeemed
+                await this.dbService.adjustUserPosition(redeemedWinningForUSDData.user, market.conditionId, vaultAddress, {
+                    yesDelta: market.winningPosition === Outcome.Yes || market.winningPosition === Outcome.Both ? -yesDelta : 0n,
+                    noDelta: market.winningPosition === Outcome.No || market.winningPosition === Outcome.Both ? -noDelta : 0n,
+                    usdRedeemedDelta: redeemedWinningForUSDData.usdPaid,
                 });
                 break;
             case VaultEvent.HarvestedProtocolYield:

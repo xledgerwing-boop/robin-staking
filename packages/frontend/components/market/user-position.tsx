@@ -1,13 +1,13 @@
 import { WalletMinimal } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { MarketWithEvent, ParsedPolymarketMarket } from '@robin-pm-staking/common/types/market';
+import { Market, ParsedPolymarketMarket } from '@robin-pm-staking/common/types/market';
 import { UNDERYLING_DECIMALS } from '@robin-pm-staking/common/constants';
 import { formatUnits } from '@robin-pm-staking/common/lib/utils';
 import { useVaultUserInfo } from '@robin-pm-staking/common/hooks/use-vault-user-info';
 import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
 import { ValueState } from '../value-state';
 
-export default function UserPosition({ market, polymarketMarket }: { market: MarketWithEvent; polymarketMarket: ParsedPolymarketMarket }) {
+export default function UserPosition({ market, polymarketMarket }: { market: Market; polymarketMarket: ParsedPolymarketMarket }) {
     const { proxyAddress } = useProxyAccount();
 
     const {

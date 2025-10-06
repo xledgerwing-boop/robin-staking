@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CircleCheck, Coins, Loader, Sprout } from 'lucide-react';
-import type { MarketWithEvent } from '@robin-pm-staking/common/types/market';
+import { Market } from '@robin-pm-staking/common/types/market';
 import { Outcome } from '@robin-pm-staking/common/types/market';
 import OutcomeToken from '@robin-pm-staking/common/components/outcome-token';
 import { useVaultUserInfo } from '@robin-pm-staking/common/hooks/use-vault-user-info';
@@ -17,7 +17,7 @@ import { UNDERYLING_DECIMALS } from '@robin-pm-staking/common/constants';
 import { ValueState } from '../value-state';
 
 type CompletedMarketCardProps = {
-    market: MarketWithEvent;
+    market: Market;
 };
 
 export default function CompletedMarketCard({ market }: CompletedMarketCardProps) {

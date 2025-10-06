@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
 import { MarketStatusBadge } from './market-status-badge';
-import { MarketStatus, MarketWithEvent, Outcome, ParsedPolymarketMarket } from '@robin-pm-staking/common/types/market';
+import { Market, MarketStatus, Outcome, ParsedPolymarketMarket } from '@robin-pm-staking/common/types/market';
 import aaveLogo from '@/public/aave.png';
 import { formatUnits } from '@robin-pm-staking/common/lib/utils';
 import { UNDERYLING_DECIMALS } from '@robin-pm-staking/common/constants';
@@ -15,7 +15,7 @@ import OutcomeToken from '@robin-pm-staking/common/components/outcome-token';
 import { ValueState } from '../value-state';
 import { Badge } from '../ui/badge';
 
-export default function MarketHeader({ market, polymarketMarket }: { market: MarketWithEvent; polymarketMarket: ParsedPolymarketMarket }) {
+export default function MarketHeader({ market, polymarketMarket }: { market: Market; polymarketMarket: ParsedPolymarketMarket }) {
     const { proxyAddress } = useProxyAccount();
 
     const { vaultCurrentApyLoading, vaultCurrentApyError, calculateUserInfo } = useVaultUserInfo(

@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     let search = searchParams.get('search') || undefined;
     const walletOnly = searchParams.get('walletOnly') === 'true';
-    const sortFieldParam = (searchParams.get('sortField') as 'tvl' | 'liquidationDate' | 'title') || undefined;
+    const sortFieldParam = (searchParams.get('sortField') as 'tvl' | 'endDate' | 'title') || undefined;
     const sortDirectionParam = (searchParams.get('sortDirection') as 'asc' | 'desc') || undefined;
     // Frontend supplies conditionIds when walletOnly is true
     const conditionIdsParam = searchParams.get('conditionIds');

@@ -9,7 +9,7 @@ import { ArrowDownToLine, ArrowUpToLine, Loader } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { DateTime } from 'luxon';
-import type { MarketWithEvent, ParsedPolymarketMarket } from '@robin-pm-staking/common/types/market';
+import { Market, ParsedPolymarketMarket } from '@robin-pm-staking/common/types/market';
 import { Outcome } from '@robin-pm-staking/common/types/market';
 import OutcomeToken from '@robin-pm-staking/common/components/outcome-token';
 import AmountSlider from '@robin-pm-staking/common/components/amount-slider';
@@ -29,7 +29,7 @@ import {
 import useProxyContractInteraction from '@robin-pm-staking/common/hooks/use-proxy-contract-interaction';
 
 type ManagePositionCardProps = {
-    market: MarketWithEvent;
+    market: Market;
     polymarketMarket: ParsedPolymarketMarket;
 };
 

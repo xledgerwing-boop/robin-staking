@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Navbar from '@/components/navbar';
 import {
-    MarketRowToMarketWithEvent,
-    MarketRowWithEvent,
+    Market,
+    MarketRow,
+    MarketRowToMarket,
     MarketStatus,
-    MarketWithEvent,
     ParsedPolymarketMarket,
     parsePolymarketMarket,
     PolymarketMarketWithEvent,
@@ -27,15 +27,15 @@ export default function MarketDetailPage() {
     const params = useParams();
     const marketSlug = params.slug as string;
 
-    const [market, setMarket] = useState<MarketWithEvent | null>(null);
+    const [market, setMarket] = useState<Market | null>(null);
     const [polymarketMarket, setPolymarketMarket] = useState<ParsedPolymarketMarket | null>(null);
     const [marketLoading, setMarketLoading] = useState(true);
 
     const fetchMarket = async () => {
         try {
             const market = await fetch(`/api/markets/${marketSlug}`);
-            const marketData = (await market.json()) as { market: MarketRowWithEvent; polymarketMarket: PolymarketMarketWithEvent } | null;
-            const m = marketData ? MarketRowToMarketWithEvent(marketData.market) : null;
+            const marketData = (await market.json()) as { market: MarketRow; polymarketMarket: PolymarketMarketWithEvent } | null;
+            const m = marketData ? MarketRowToMarket(marketData.market) : null;
             const p = marketData ? parsePolymarketMarket(marketData.polymarketMarket) : null;
             setMarket(m);
             setPolymarketMarket(p);

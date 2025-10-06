@@ -1,12 +1,6 @@
 import { Knex } from 'knex';
-import type { EventRow, PolymarketEvent } from '@robin-pm-staking/common/types/event';
-import {
-    MarketStatus,
-    type MarketRow,
-    type MarketRowWithEvent,
-    type PolymarketMarket,
-    type PolymarketMarketWithEvent,
-} from '@robin-pm-staking/common/types/market';
+import type { EventRow } from '@robin-pm-staking/common/types/event';
+import { MarketStatus, MarketRow } from '@robin-pm-staking/common/types/market';
 import { EVENTS_TABLE, MARKETS_TABLE } from '@robin-pm-staking/common/src/lib/repos';
 
 export interface MarketsQuery {
@@ -14,7 +8,7 @@ export interface MarketsQuery {
     conditionIds?: string[] | null;
     eventSlug?: string | null;
     includeUninitialized?: boolean;
-    sortField?: 'tvl' | 'liquidationDate' | 'title';
+    sortField?: 'tvl' | 'endDate' | 'title';
     sortDirection?: 'asc' | 'desc';
 }
 
@@ -24,11 +18,8 @@ export async function queryEvent(db: Knex, eventSlug: string): Promise<EventRow 
     return rows[0];
 }
 
-export async function queryMarketBySlug(db: Knex, slug: string): Promise<MarketRowWithEvent | null> {
-    const builder = db(MARKETS_TABLE)
-        .select(`${MARKETS_TABLE}.*`, `${EVENTS_TABLE}.slug as eventSlug`)
-        .where(`${MARKETS_TABLE}.slug`, slug)
-        .leftJoin(EVENTS_TABLE, `${EVENTS_TABLE}.id`, `${MARKETS_TABLE}.eventId`);
+export async function queryMarketBySlug(db: Knex, slug: string): Promise<MarketRow | null> {
+    const builder = db(MARKETS_TABLE).select(`${MARKETS_TABLE}.*`).where(`${MARKETS_TABLE}.slug`, slug);
     const rows = await builder;
     return rows[0];
 }
@@ -59,7 +50,7 @@ export async function queryMarkets(db: Knex, q: MarketsQuery): Promise<MarketRow
     const sortDirection = q.sortDirection ?? 'desc';
     const sortMap: Record<typeof sortField, string> = {
         tvl: `${MARKETS_TABLE}.tvl`,
-        liquidationDate: `${MARKETS_TABLE}.endDate`,
+        endDate: `${MARKETS_TABLE}.endDate`,
         title: `${MARKETS_TABLE}.question`,
     } as const;
     builder.orderBy(sortMap[sortField], sortDirection);

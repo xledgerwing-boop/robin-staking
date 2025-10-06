@@ -1,48 +1,77 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Clock } from 'lucide-react';
+import { Clock, RefreshCcw, HandCoins, Trophy, Loader } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import Navbar from '@/components/navbar';
 import { MarketStatusBadge } from '@/components/market/market-status-badge';
 import { MarketStatus } from '@robin-pm-staking/common/types/market';
+import { useEffect, useState } from 'react';
+import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
+import { formatUnits } from '@robin-pm-staking/common/lib/utils';
+import { UNDERYLING_DECIMALS } from '@robin-pm-staking/common/constants';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { UserPositionInfo, UserPositionInfoRow, userPositionRowToUserPosition } from '@robin-pm-staking/common/types/position';
+import { toast } from 'sonner';
 
-export default function StakingPage() {
-    const userTotals = {
-        totalSupplied: '$45,230',
-        totalEarned: '$3,847',
-    };
+export default function PortfolioPage() {
+    const { proxyAddress: address } = useProxyAccount();
+    const [totalYes, setTotalYes] = useState<bigint>(0n);
+    const [totalNo, setTotalNo] = useState<bigint>(0n);
+    const [totalHarvested, setTotalHarvested] = useState<bigint>(0n);
+    const [userDeposits, setUserDeposits] = useState<UserPositionInfo[]>([]);
+    const [filter, setFilter] = useState<'all' | 'active' | 'ended'>('active');
+    const [page, setPage] = useState(1);
+    const [pageSize] = useState(10);
+    const [totalCount, setTotalCount] = useState(0);
+    const [loading, setLoading] = useState(false);
+    const [refreshTick, setRefreshTick] = useState(0);
 
-    const userDeposits = [
-        {
-            id: 1,
-            image: '/placeholder.png',
-            title: '2024 US Election',
-            liquidationDate: '2024-11-05',
-            yesTokens: '1,250',
-            noTokens: '1,250',
-            status: 'active',
-        },
-        {
-            id: 2,
-            image: '/placeholder.png',
-            title: 'BTC > $100k by EOY',
-            liquidationDate: '2024-12-31',
-            yesTokens: '850',
-            noTokens: '850',
-            status: 'active',
-        },
-        {
-            id: 3,
-            image: '/placeholder.png',
-            title: 'ETH Merge Success',
-            liquidationDate: '2024-03-15',
-            yesTokens: '2,100',
-            noTokens: '2,100',
-            status: 'completed',
-        },
-    ];
+    useEffect(() => {
+        if (!address) {
+            setTotalYes(0n);
+            setTotalNo(0n);
+            setTotalHarvested(0n);
+            setUserDeposits([]);
+            setTotalCount(0);
+            return;
+        }
+        const run = async () => {
+            try {
+                setLoading(true);
+                const params = new URLSearchParams();
+                params.set('address', address);
+                params.set('filter', filter);
+                params.set('page', String(page));
+                params.set('pageSize', String(pageSize));
+                const res = await fetch(`/api/portfolio?${params.toString()}`);
+                if (!res.ok) return;
+                const data: {
+                    totalYes: string;
+                    totalNo: string;
+                    totalHarvested: string;
+                    page: number;
+                    pageSize: number;
+                    totalCount: number;
+                    filter: 'all' | 'active' | 'ended';
+                    deposits: UserPositionInfoRow[];
+                } = await res.json();
+                setTotalYes(BigInt(data.totalYes ?? '0'));
+                setTotalNo(BigInt(data.totalNo ?? '0'));
+                setTotalHarvested(BigInt(data.totalHarvested ?? '0'));
+                setUserDeposits(data.deposits.map(userPositionRowToUserPosition));
+                setTotalCount(data.totalCount ?? 0);
+            } catch (e) {
+                console.error(e);
+                toast.error('Failed to fetch portfolio');
+            } finally {
+                setLoading(false);
+            }
+        };
+        run();
+    }, [address, filter, page, pageSize, refreshTick]);
 
     return (
         <div className="min-h-screen bg-background">
@@ -60,61 +89,147 @@ export default function StakingPage() {
                 <Card className="mb-8">
                     <CardHeader>
                         <div className="flex items-center justify-between">
-                            <CardTitle className="text-xl">Your Deposits</CardTitle>
-                            <div className="flex space-x-6 text-sm">
-                                <div>
-                                    <span className="text-muted-foreground">Total Supplied: </span>
-                                    <span className="font-bold">{userTotals.totalSupplied}</span>
-                                </div>
-                                <div>
-                                    <span className="text-muted-foreground">Total Earned: </span>
-                                    <span className="font-bold text-primary">{userTotals.totalEarned}</span>
+                            <div className="flex items-center gap-2">
+                                <CardTitle className="text-xl">Your Deposits</CardTitle>
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => {
+                                        setPage(1);
+                                        setRefreshTick(t => t + 1);
+                                    }}
+                                    disabled={loading}
+                                >
+                                    <RefreshCcw className="w-1 h-1" />
+                                </Button>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                <Select
+                                    value={filter}
+                                    onValueChange={v => {
+                                        setPage(1);
+                                        setFilter(v as any);
+                                    }}
+                                >
+                                    <SelectTrigger size="sm" className="min-w-32">
+                                        <SelectValue placeholder="Filter" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="active">Active</SelectItem>
+                                        <SelectItem value="all">All</SelectItem>
+                                        <SelectItem value="ended">Ended</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <div className="flex space-x-6 text-sm">
+                                    <div>
+                                        <span className="text-muted-foreground">Total Supplied: </span>
+                                        <span className="font-bold">
+                                            {formatUnits(totalYes, UNDERYLING_DECIMALS)} Yes | {formatUnits(totalNo, UNDERYLING_DECIMALS)} No
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span className="text-muted-foreground">Total Harvested: </span>
+                                        <span className="font-bold text-primary">${formatUnits(totalHarvested, UNDERYLING_DECIMALS)}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
-                            {userDeposits.map(deposit => (
-                                <Link key={deposit.id} href={`/market/${deposit.id}`}>
-                                    <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer mt-2">
-                                        <div className="flex items-center space-x-4">
-                                            <Image
-                                                src={deposit.image || '/placeholder.png'}
-                                                alt={deposit.title}
-                                                width={40}
-                                                height={40}
-                                                className="rounded-lg"
-                                            />
-                                            <div>
-                                                <h3 className="font-semibold">{deposit.title}</h3>
-                                                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                                                    <Clock className="w-4 h-4" />
-                                                    <span>{new Date(deposit.liquidationDate).toLocaleDateString()}</span>
+                            {!loading &&
+                                userDeposits.map(deposit => (
+                                    <Link key={deposit.slug} href={`/market/${encodeURIComponent(deposit.slug)}`}>
+                                        <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer mt-2">
+                                            <div className="flex items-center space-x-4">
+                                                <div className="relative w-12 h-12 shrink-0">
+                                                    <Image
+                                                        src={deposit.image || '/placeholder.png'}
+                                                        alt={deposit.question ?? 'Market'}
+                                                        fill
+                                                        className="rounded-lg object-cover"
+                                                        sizes="150px"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-semibold">{deposit.question}</h3>
+                                                    <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                                                        <Clock className="w-4 h-4" />
+                                                        <span>{deposit.endDate ? new Date(deposit.endDate).toLocaleDateString() : '—'}</span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
 
-                                        <div className="flex items-center space-x-6">
-                                            <div className="text-center">
-                                                <p className="text-sm text-muted-foreground">YES Tokens</p>
-                                                <p className="font-medium">{deposit.yesTokens}</p>
-                                            </div>
-                                            <div className="text-center">
-                                                <p className="text-sm text-muted-foreground">NO Tokens</p>
-                                                <p className="font-medium">{deposit.noTokens}</p>
-                                            </div>
-                                            {/* <div className="text-center">
+                                            <div className="flex items-center space-x-6">
+                                                <div className="text-center">
+                                                    <p className="text-sm text-muted-foreground">YES Tokens</p>
+                                                    <p className="font-medium">
+                                                        {formatUnits(BigInt(deposit.yesTokens ?? '0'), UNDERYLING_DECIMALS)}
+                                                    </p>
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="text-sm text-muted-foreground">NO Tokens</p>
+                                                    <p className="font-medium">{formatUnits(BigInt(deposit.noTokens ?? '0'), UNDERYLING_DECIMALS)}</p>
+                                                </div>
+                                                {/* <div className="text-center">
                                                 <p className="text-sm text-muted-foreground">Earned Yield</p>
                                                 <p className="font-medium text-primary">{deposit.earnedYield}</p>
                                             </div> */}
-                                            <div className="flex items-center justify-center space-x-2 min-w-28">
-                                                <MarketStatusBadge status={deposit.status as MarketStatus} />
+                                                {/* Icons for redemption/harvesting status */}
+                                                <div className="flex items-center justify-center space-x-3 min-w-28">
+                                                    <span title="Redeemed">
+                                                        <Trophy
+                                                            className={`w-5 h-5 ${
+                                                                deposit.usdRedeemed > 0n ? 'text-primary' : 'text-muted-foreground'
+                                                            }`}
+                                                        />
+                                                    </span>
+                                                    <span title="Harvested">
+                                                        <HandCoins
+                                                            className={`w-5 h-5 ${
+                                                                deposit.yieldHarvested > 0n ? 'text-primary' : 'text-muted-foreground'
+                                                            }`}
+                                                        />
+                                                    </span>
+                                                    <MarketStatusBadge status={deposit.status as MarketStatus} />
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </Link>
-                            ))}
+                                    </Link>
+                                ))}
+                            {loading && (
+                                <div className="flex items-center justify-center h-full">
+                                    <Loader className="mt-8 w-8 h-8 animate-spin" />
+                                </div>
+                            )}
+                            {userDeposits.length === 0 && !loading && <div className="text-sm text-muted-foreground">No positions found.</div>}
+                            <div className="flex items-center justify-between pt-2 mt-8">
+                                <div className="text-sm text-muted-foreground">
+                                    {totalCount > 0
+                                        ? `Showing ${(page - 1) * pageSize + 1}-${Math.min(page * pageSize, totalCount)} of ${totalCount}`
+                                        : '—'}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                                        disabled={page <= 1 || loading}
+                                    >
+                                        Prev
+                                    </Button>
+                                    <div className="text-sm">Page {page}</div>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => setPage(p => (p * pageSize < totalCount ? p + 1 : p))}
+                                        disabled={page * pageSize >= totalCount || loading}
+                                    >
+                                        Next
+                                    </Button>
+                                </div>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>

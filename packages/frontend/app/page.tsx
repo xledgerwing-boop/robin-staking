@@ -50,12 +50,12 @@ function StakingPageContent() {
     const [showWalletOnly, setShowWalletOnly] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [walletConditionIds, setWalletConditionIds] = useState<string[]>([]);
-    const [marketsLoading, setMarketsLoading] = useState(false);
+    const [marketsLoading, setMarketsLoading] = useState(true);
     const [queryParamsLoaded, setQueryParamsLoaded] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
 
     // Sorting state
-    type SortField = 'tvl' | 'liquidationDate' | 'title';
+    type SortField = 'tvl' | 'endDate' | 'title';
     type SortDirection = 'asc' | 'desc';
     const [sortField, setSortField] = useState<SortField>('tvl');
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -88,7 +88,7 @@ function StakingPageContent() {
         const spWalletOnly = walletOnlyParam === '1' || walletOnlyParam === 'true';
         if (spWalletOnly !== showWalletOnly) setShowWalletOnly(spWalletOnly);
 
-        const allowedSortFields: SortField[] = ['tvl', 'liquidationDate', 'title'];
+        const allowedSortFields: SortField[] = ['tvl', 'endDate', 'title'];
         const spSortField = searchParams.get('sortField') as SortField | null;
         const spSortDirection = searchParams.get('sortDirection') as SortDirection | null;
         if (spSortField && allowedSortFields.includes(spSortField) && spSortField !== sortField) {
@@ -181,13 +181,13 @@ function StakingPageContent() {
 
     const defaultDirectionByField: Record<SortField, SortDirection> = {
         tvl: 'desc',
-        liquidationDate: 'asc',
+        endDate: 'asc',
         title: 'asc',
     };
 
     const sortLabels: Record<SortField, string> = {
         tvl: 'TVL',
-        liquidationDate: 'End Date',
+        endDate: 'End Date',
         title: 'Name',
     };
 
@@ -366,9 +366,9 @@ function StakingPageContent() {
                                                 <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
                                             )}
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleSortSelect('liquidationDate')}>
+                                        <DropdownMenuItem onClick={() => handleSortSelect('endDate')}>
                                             <span className="flex-1">End Date</span>
-                                            {sortField === 'liquidationDate' ? (
+                                            {sortField === 'endDate' ? (
                                                 sortDirection === 'asc' ? (
                                                     <ArrowUp className="w-4 h-4 text-primary" />
                                                 ) : (
