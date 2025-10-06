@@ -6,7 +6,7 @@ import { fetchEventAndMarketsByEventSlug, fetchMarketByConditionId } from './pol
 export const EVENTS_TABLE = 'events';
 export const MARKETS_TABLE = 'markets';
 export const ACTIVITIES_TABLE = 'activities';
-export const USER_POSITIONS_TABLE = 'userPositions';
+export const USER_POSITIONS_TABLE = 'user_positions';
 
 export async function ensureSchema(db: Knex): Promise<void> {
     const hasEvents = await db.schema.hasTable(EVENTS_TABLE);
