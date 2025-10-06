@@ -24,7 +24,7 @@ import {
     useWriteRobinVaultManagerCreateVault,
 } from '@robin-pm-staking/common/types/contracts';
 import { USED_CONTRACTS } from '@robin-pm-staking/common/constants';
-import { ArrowDownToLine, ArrowUpFromLine, Coins, Sprout, Loader } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, Coins, Sprout, Loader, Link, ExternalLink } from 'lucide-react';
 import { parseUnits, zeroAddress } from 'viem';
 import useInvalidateQueries from '@robin-pm-staking/common/hooks/use-invalidate-queries';
 import { Separator } from './ui/separator';
@@ -134,9 +134,21 @@ export function StakingCard() {
                 <CardHeader className="p-3">
                     <CardTitle>
                         <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-2 text-primary w-5 h-5">
-                                <img src={`${rootPath()}logo.png`} alt="Robin" width={20} height={20} className="w-5 h-5" /> Robin
+                            <div className="">
+                                <a
+                                    className="flex items-center gap-2 text-primary w-5 h-5"
+                                    href={
+                                        !!market && !!vaultExists
+                                            ? `https://staking.robin.markets/market/${market.slug}`
+                                            : 'https://staking.robin.markets'
+                                    }
+                                    target="_blank"
+                                >
+                                    <img src={`${rootPath()}logo.png`} alt="Robin" width={20} height={20} className="w-5 h-5" /> Robin
+                                    <div>{vaultExists && market?.slug && <ExternalLink className="w-3 h-3 text-foreground" />}</div>
+                                </a>
                             </div>
+
                             <span className="text-sm">{isConnected ? `Using ${formatAddress(address)}` : 'Wallet not connected'}</span>
                         </div>
                     </CardTitle>

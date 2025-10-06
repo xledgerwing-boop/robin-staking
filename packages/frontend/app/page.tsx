@@ -344,7 +344,7 @@ function StakingPageContent() {
                                 )}
                             </div>
                             <div className="flex items-center space-x-2">
-                                <Switch id="wallet-only" checked={showWalletOnly} onCheckedChange={handleWalletOnlyChange} />
+                                <Switch id="wallet-only" checked={showWalletOnly} onCheckedChange={handleWalletOnlyChange} disabled />
                                 <Label htmlFor="wallet-only" className="text-sm font-medium">
                                     Show wallet only
                                 </Label>
