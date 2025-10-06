@@ -24,7 +24,10 @@ export async function GET(req: NextRequest) {
         const usersCountRow = await db(ACTIVITIES_TABLE).whereNotNull('userAddress').countDistinct<{ count: string }[]>({ count: 'userAddress' });
         const totalUsers = Number(usersCountRow?.[0]?.count ?? 0);
 
-        return NextResponse.json({ numberOfMarkets, totalTVL, totalUsers });
+        const contractAddressRow = await db(MARKETS_TABLE).whereNot('status', MarketStatus.Uninitialized).select('contractAddress').first();
+        const contractAddress = contractAddressRow?.contractAddress ?? null;
+
+        return NextResponse.json({ numberOfMarkets, totalTVL, totalUsers, contractAddress });
     } catch (e) {
         console.error(e);
         return NextResponse.json({ error: 'Failed to compute metrics' }, { status: 500 });

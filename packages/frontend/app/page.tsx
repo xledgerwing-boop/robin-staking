@@ -20,19 +20,31 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { MarketStatusBadge } from '@/components/market/market-status-badge';
 import { formatUnits } from '@robin-pm-staking/common/lib/utils';
 import { UNDERYLING_DECIMALS } from '@robin-pm-staking/common/constants';
+import { useReadRobinStakingVaultGetCurrentApy } from '@robin-pm-staking/common/types/contracts';
+import { zeroAddress } from 'viem';
+import { ValueState } from '@/components/value-state';
 
 function StakingPageContent() {
-    // Static placeholder for APY until implemented
-    const keyMetrics = {
-        averageAPY: 280,
-    };
-
     const { address, isConnected } = useProxyAccount();
     const [availableMarkets, setAvailableMarkets] = useState<Market[]>([]);
     const [numberOfMarkets, setNumberOfMarkets] = useState(0);
     const [totalTVL, setTotalTVL] = useState<bigint>(0n);
     const [totalUsers, setTotalUsers] = useState(0);
     const [metricsLoading, setMetricsLoading] = useState(true);
+    const [vaultAddress, setVaultAddress] = useState<`0x${string}` | null>(null);
+
+    const {
+        data: averageApy,
+        isLoading: averageApyLoading,
+        isEnabled: averageApyEnabled,
+        error: averageApyError,
+    } = useReadRobinStakingVaultGetCurrentApy({
+        address: vaultAddress as `0x${string}`,
+        args: [],
+        query: {
+            enabled: !!vaultAddress && vaultAddress !== zeroAddress,
+        },
+    });
 
     // State for filtering controls
     const [showWalletOnly, setShowWalletOnly] = useState(false);
@@ -43,7 +55,7 @@ function StakingPageContent() {
     const inputRef = useRef<HTMLInputElement>(null);
 
     // Sorting state
-    type SortField = 'apy' | 'tvl' | 'liquidationDate' | 'title';
+    type SortField = 'tvl' | 'liquidationDate' | 'title';
     type SortDirection = 'asc' | 'desc';
     const [sortField, setSortField] = useState<SortField>('tvl');
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -76,7 +88,7 @@ function StakingPageContent() {
         const spWalletOnly = walletOnlyParam === '1' || walletOnlyParam === 'true';
         if (spWalletOnly !== showWalletOnly) setShowWalletOnly(spWalletOnly);
 
-        const allowedSortFields: SortField[] = ['apy', 'tvl', 'liquidationDate', 'title'];
+        const allowedSortFields: SortField[] = ['tvl', 'liquidationDate', 'title'];
         const spSortField = searchParams.get('sortField') as SortField | null;
         const spSortDirection = searchParams.get('sortDirection') as SortDirection | null;
         if (spSortField && allowedSortFields.includes(spSortField) && spSortField !== sortField) {
@@ -95,10 +107,16 @@ function StakingPageContent() {
                 setMetricsLoading(true);
                 const res = await fetch('/api/metrics');
                 if (res.ok) {
-                    const data = (await res.json()) as { numberOfMarkets: number; totalTVL: string; totalUsers: number };
+                    const data = (await res.json()) as {
+                        numberOfMarkets: number;
+                        totalTVL: string;
+                        totalUsers: number;
+                        contractAddress: `0x${string}` | null;
+                    };
                     setNumberOfMarkets(data.numberOfMarkets ?? 0);
                     setTotalTVL(BigInt(data.totalTVL ?? '0'));
                     setTotalUsers(data.totalUsers ?? 0);
+                    setVaultAddress(data.contractAddress);
                 }
             } catch {
                 // ignore, keep defaults
@@ -162,14 +180,12 @@ function StakingPageContent() {
     }, [showWalletOnly, isConnected, address]);
 
     const defaultDirectionByField: Record<SortField, SortDirection> = {
-        apy: 'desc',
         tvl: 'desc',
         liquidationDate: 'asc',
         title: 'asc',
     };
 
     const sortLabels: Record<SortField, string> = {
-        apy: 'APY',
         tvl: 'TVL',
         liquidationDate: 'End Date',
         title: 'Name',
@@ -229,7 +245,13 @@ function StakingPageContent() {
                                 </div>
                                 <div>
                                     <p className="text-sm text-muted-foreground">Average APY</p>
-                                    <p className="text-2xl font-bold">{((keyMetrics.averageAPY / 10_000) * 100).toFixed(2)}%</p>
+                                    <span className="text-2xl font-bold">
+                                        <ValueState
+                                            value={`${((Number(averageApy) / 10_000) * 100).toFixed(2)}%`}
+                                            loading={averageApyLoading || !averageApyEnabled}
+                                            error={!!averageApyError}
+                                        />
+                                    </span>
                                 </div>
                             </div>
                         </CardContent>
@@ -243,7 +265,9 @@ function StakingPageContent() {
                                 </div>
                                 <div>
                                     <p className="text-sm text-muted-foreground">Markets</p>
-                                    <p className="text-2xl font-bold">{numberOfMarkets.toLocaleString()}</p>
+                                    <span className="text-2xl font-bold">
+                                        <ValueState value={numberOfMarkets.toLocaleString()} loading={metricsLoading} error={false} />
+                                    </span>
                                 </div>
                             </div>
                         </CardContent>
@@ -257,7 +281,9 @@ function StakingPageContent() {
                                 </div>
                                 <div>
                                     <p className="text-sm text-muted-foreground">Total TVL</p>
-                                    <p className="text-2xl font-bold">{`$${formatUnits(totalTVL, UNDERYLING_DECIMALS)}`}</p>
+                                    <span className="text-2xl font-bold">
+                                        <ValueState value={`$${formatUnits(totalTVL, UNDERYLING_DECIMALS)}`} loading={metricsLoading} error={false} />
+                                    </span>
                                 </div>
                             </div>
                         </CardContent>
@@ -271,7 +297,9 @@ function StakingPageContent() {
                                 </div>
                                 <div>
                                     <p className="text-sm text-muted-foreground">Active Users</p>
-                                    <p className="text-2xl font-bold">{totalUsers.toLocaleString()}</p>
+                                    <span className="text-2xl font-bold">
+                                        <ValueState value={totalUsers.toLocaleString()} loading={metricsLoading} error={false} />
+                                    </span>
                                 </div>
                             </div>
                         </CardContent>
@@ -326,18 +354,6 @@ function StakingPageContent() {
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" className="w-48">
-                                        {/* <DropdownMenuItem onClick={() => handleSortSelect('apy')}>
-                                            <span className="flex-1">APY</span>
-                                            {sortField === 'apy' ? (
-                                                sortDirection === 'asc' ? (
-                                                    <ArrowUp className="w-4 h-4 text-primary" />
-                                                ) : (
-                                                    <ArrowDown className="w-4 h-4 text-primary" />
-                                                )
-                                            ) : (
-                                                <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
-                                            )}
-                                        </DropdownMenuItem> */}
                                         <DropdownMenuItem onClick={() => handleSortSelect('tvl')}>
                                             <span className="flex-1">TVL</span>
                                             {sortField === 'tvl' ? (
@@ -427,7 +443,11 @@ function StakingPageContent() {
                                                 <div className="flex justify-between">
                                                     <span className="text-sm text-muted-foreground">APY</span>
                                                     <span className="font-bold text-primary">
-                                                        {`${((keyMetrics.averageAPY / 10_000) * 100).toFixed(2)}%`}
+                                                        <ValueState
+                                                            value={`${((Number(averageApy) / 10_000) * 100).toFixed(2)}%`}
+                                                            loading={averageApyLoading || !averageApyEnabled}
+                                                            error={!!averageApyError}
+                                                        />
                                                     </span>
                                                 </div>
 
