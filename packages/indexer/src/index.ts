@@ -4,6 +4,7 @@ import { StreamsIndexer } from './services/StreamsIndexer';
 import { logger } from './utils/logger';
 import { DBService } from './services/DbService';
 import crypto from 'crypto';
+import { USED_CONTRACTS } from '@robin-pm-staking/common/constants';
 
 dotenv.config();
 
@@ -11,7 +12,8 @@ enum IndexerType {
     STREAMS = 'streams',
 }
 
-const { POSTGRES_URI, RPC_URL, RPC_CHAIN_ID, MANAGER_ADDRESS, WEBHOOK_PORT, INDEXER_TYPE, QUICKNODE_SECURITY_TOKEN } = process.env;
+const { POSTGRES_URI, RPC_URL, RPC_CHAIN_ID, WEBHOOK_PORT, INDEXER_TYPE, QUICKNODE_SECURITY_TOKEN } = process.env;
+const MANAGER_ADDRESS = USED_CONTRACTS.VAULT_MANAGER;
 
 let app: express.Application | null = null;
 let server: any = null;

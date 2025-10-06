@@ -9,6 +9,8 @@ import '@rainbow-me/rainbowkit/styles.css';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 
+const localTransport = process.env.NEXT_PUBLIC_LOCAL_TRANSPORT_ENABLED === 'true';
+
 const config = getDefaultConfig({
     chains: [polygon],
     ssr: false,
@@ -20,7 +22,7 @@ const config = getDefaultConfig({
             wallets: [metaMaskWallet, phantomWallet],
         },
     ],
-    transports: { [polygon.id]: http('http://127.0.0.1:8545') },
+    transports: localTransport ? { [polygon.id]: http('http://127.0.0.1:8545') } : undefined,
 });
 
 const queryClient = new QueryClient();
