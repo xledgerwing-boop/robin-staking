@@ -144,6 +144,7 @@ export default function ActivityTable({ market }: { market: Market }) {
             console.error('Error fetching historical activities:', error);
             toast.error('Failed to fetch activities');
         } finally {
+            setHasMore(false);
             setLoadingMore(false);
         }
     };

@@ -23,6 +23,7 @@ import EndedMarketActions from '@/components/market/ended-market-actions';
 import PartialUnlockActions from '@/components/market/partial-unlock-actions';
 import { Loader } from 'lucide-react';
 import { toast } from 'sonner';
+import { useIsLgScreen } from '@/hooks/use-lg-screen';
 
 export default function MarketDetailPage() {
     const params = useParams();
@@ -31,6 +32,7 @@ export default function MarketDetailPage() {
     const [market, setMarket] = useState<Market | null>(null);
     const [polymarketMarket, setPolymarketMarket] = useState<ParsedPolymarketMarket | null>(null);
     const [marketLoading, setMarketLoading] = useState(true);
+    const isLg = useIsLgScreen();
 
     const fetchMarket = async () => {
         try {
@@ -88,47 +90,51 @@ export default function MarketDetailPage() {
             <div className="container mx-auto px-4 py-8">
                 <MarketHeader market={market} polymarketMarket={polymarketMarket} />
 
-                <div className="hidden lg:grid lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2 space-y-6">
+                {isLg && (
+                    <div className="grid grid-cols-3 gap-8">
+                        <div className="col-span-2 space-y-6">
+                            <UserPosition market={market} polymarketMarket={polymarketMarket} />
+                            <ActivityTable market={market} />
+                        </div>
+
+                        <div>
+                            {market.status === MarketStatus.Uninitialized && !polymarketMarket?.closed ? (
+                                <InitializeMarketCard market={market} onInitialized={reloadMarket} />
+                            ) : market.status === MarketStatus.Uninitialized && polymarketMarket?.closed ? (
+                                <NoVaultEndedNotice polymarketMarket={polymarketMarket} />
+                            ) : market.status === MarketStatus.Active && !polymarketMarket?.closed ? (
+                                <ManagePositionCard market={market} polymarketMarket={polymarketMarket} />
+                            ) : market.status === MarketStatus.Active && polymarketMarket?.closed ? (
+                                <EndedMarketActions market={market} polymarketMarket={polymarketMarket} onFinalized={reloadMarket} />
+                            ) : market.status === MarketStatus.Finalized ? (
+                                <PartialUnlockActions market={market} onUnlocked={reloadMarket} />
+                            ) : market.status === MarketStatus.Unlocked ? (
+                                <CompletedMarketCard market={market} />
+                            ) : null}
+                        </div>
+                    </div>
+                )}
+                {!isLg && (
+                    <div className="flex flex-col gap-8">
                         <UserPosition market={market} polymarketMarket={polymarketMarket} />
+                        <div>
+                            {market.status === MarketStatus.Uninitialized && !polymarketMarket?.closed ? (
+                                <InitializeMarketCard market={market} onInitialized={reloadMarket} />
+                            ) : market.status === MarketStatus.Uninitialized && polymarketMarket?.closed ? (
+                                <NoVaultEndedNotice polymarketMarket={polymarketMarket} />
+                            ) : market.status === MarketStatus.Active && !polymarketMarket?.closed ? (
+                                <ManagePositionCard market={market} polymarketMarket={polymarketMarket} />
+                            ) : market.status === MarketStatus.Active && polymarketMarket?.closed ? (
+                                <EndedMarketActions market={market} polymarketMarket={polymarketMarket} onFinalized={reloadMarket} />
+                            ) : market.status === MarketStatus.Finalized ? (
+                                <PartialUnlockActions market={market} onUnlocked={reloadMarket} />
+                            ) : market.status === MarketStatus.Unlocked ? (
+                                <CompletedMarketCard market={market} />
+                            ) : null}
+                        </div>
                         <ActivityTable market={market} />
                     </div>
-
-                    <div>
-                        {market.status === MarketStatus.Uninitialized && !polymarketMarket?.closed ? (
-                            <InitializeMarketCard market={market} onInitialized={reloadMarket} />
-                        ) : market.status === MarketStatus.Uninitialized && polymarketMarket?.closed ? (
-                            <NoVaultEndedNotice polymarketMarket={polymarketMarket} />
-                        ) : market.status === MarketStatus.Active && !polymarketMarket?.closed ? (
-                            <ManagePositionCard market={market} polymarketMarket={polymarketMarket} />
-                        ) : market.status === MarketStatus.Active && polymarketMarket?.closed ? (
-                            <EndedMarketActions market={market} polymarketMarket={polymarketMarket} onFinalized={reloadMarket} />
-                        ) : market.status === MarketStatus.Finalized ? (
-                            <PartialUnlockActions market={market} onUnlocked={reloadMarket} />
-                        ) : market.status === MarketStatus.Unlocked ? (
-                            <CompletedMarketCard market={market} />
-                        ) : null}
-                    </div>
-                </div>
-                <div className="flex flex-col lg:hidden gap-8">
-                    <UserPosition market={market} polymarketMarket={polymarketMarket} />
-                    <div>
-                        {market.status === MarketStatus.Uninitialized && !polymarketMarket?.closed ? (
-                            <InitializeMarketCard market={market} onInitialized={reloadMarket} />
-                        ) : market.status === MarketStatus.Uninitialized && polymarketMarket?.closed ? (
-                            <NoVaultEndedNotice polymarketMarket={polymarketMarket} />
-                        ) : market.status === MarketStatus.Active && !polymarketMarket?.closed ? (
-                            <ManagePositionCard market={market} polymarketMarket={polymarketMarket} />
-                        ) : market.status === MarketStatus.Active && polymarketMarket?.closed ? (
-                            <EndedMarketActions market={market} polymarketMarket={polymarketMarket} onFinalized={reloadMarket} />
-                        ) : market.status === MarketStatus.Finalized ? (
-                            <PartialUnlockActions market={market} onUnlocked={reloadMarket} />
-                        ) : market.status === MarketStatus.Unlocked ? (
-                            <CompletedMarketCard market={market} />
-                        ) : null}
-                    </div>
-                    <ActivityTable market={market} />
-                </div>
+                )}
             </div>
         </div>
     );
