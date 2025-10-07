@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
         }
 
         if (userAddress) {
-            query = query.where('userAddress', userAddress);
+            query = query.where('userAddress', userAddress.toLowerCase());
         }
 
         const activities = await query;

@@ -99,7 +99,7 @@ export default function ActivityTable({ market }: { market: Market }) {
             const urlParams = new URLSearchParams({ vaultAddress: market.contractAddress });
             if (lastTimestamp) urlParams.set('since', lastTimestamp.toString());
             (selectedType ? typesMapping[selectedType]?.types ?? [] : []).forEach(t => urlParams.append('types', t));
-            if (showUserActivityOnly && proxyAddress) urlParams.set('userAddress', proxyAddress);
+            if (showUserActivityOnly && proxyAddress) urlParams.set('userAddress', proxyAddress.toLowerCase());
 
             const res = await fetch(`/api/activities?${urlParams}`);
             if (!res.ok) throw new Error('Failed to fetch new activities');
@@ -123,7 +123,7 @@ export default function ActivityTable({ market }: { market: Market }) {
             const urlParams = new URLSearchParams({ vaultAddress: market.contractAddress });
             if (activities.length > 0) urlParams.set('skip', activities.length.toString());
             (selectedType ? typesMapping[selectedType]?.types ?? [] : []).forEach(t => urlParams.append('types', t));
-            if (showUserActivityOnly && proxyAddress) urlParams.set('userAddress', proxyAddress);
+            if (showUserActivityOnly && proxyAddress) urlParams.set('userAddress', proxyAddress.toLowerCase());
 
             const res = await fetch(`/api/activities?${urlParams}`);
             if (!res.ok) throw new Error('Failed to fetch historical activities');
@@ -243,7 +243,9 @@ export default function ActivityTable({ market }: { market: Market }) {
                                 <div>
                                     <p className="font-medium text-sm">
                                         {shortenAddress(activity.userAddress)}
-                                        {activity.userAddress === proxyAddress && <span className="text-primary ml-1">(You)</span>}
+                                        {activity.userAddress?.toLowerCase() === proxyAddress?.toLowerCase() && (
+                                            <span className="text-primary ml-1">(You)</span>
+                                        )}
                                     </p>
                                     <ActivityInfo activity={activity} market={market} />
                                 </div>
