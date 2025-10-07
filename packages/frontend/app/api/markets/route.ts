@@ -73,18 +73,46 @@ export async function GET(req: NextRequest) {
     let conditionIds: string[] = [];
     let includeUninitialized = false;
 
-    // If walletOnly, use provided conditionIds from client, return only initialized markets, do not upsert
+    // If walletOnly, use provided conditionIds from client, ensure they exist in DB (upsert if needed)
     if (walletOnly) {
         conditionIds = conditionIdsFromClient;
-        includeUninitialized = false; // explicitly only initialized
+        includeUninitialized = true; // include newly created/uninitialized markets as well
         // If client provided walletOnly but no ids, short-circuit to empty list
         if (conditionIds.length === 0) {
-            return NextResponse.json({ markets: [] });
+            return NextResponse.json({ markets: [], page, pageSize, totalCount: 0 });
+        }
+
+        try {
+            // For each conditionId, ensure corresponding market exists by fetching from Polymarket if missing
+            // We batch-check existence using one DB query
+            const existing = await queryMarkets(db, {
+                conditionIds,
+                includeUninitialized: true,
+                page: 1,
+                pageSize: conditionIds.length,
+            });
+            const existingIds = new Set(existing.rows.map(m => m.conditionId));
+            const missingIds = conditionIds.filter(id => !existingIds.has(id));
+
+            for (const id of missingIds) {
+                try {
+                    const market = await fetchMarketByConditionId(id);
+                    if (market && market.events && market.events.length > 0) {
+                        const eventSlug = market.events[0].slug;
+                        await getAndSaveEventAndMarkets(db, eventSlug);
+                    }
+                } catch (e) {
+                    // Continue on errors per id to avoid failing the whole request
+                    console.log('walletOnly upsert error', e);
+                }
+            }
+        } catch (e) {
+            console.log('walletOnly prefetch error', e);
         }
     }
 
     // If there is a search, and it looks like conditionId or Polymarket URL, attempt to upsert missing
-    if (search) {
+    if (!walletOnly && search) {
         const trimmed = search.trim();
         const looksLikeConditionId = !isPolymarketUrl(trimmed) && isConditionId(trimmed);
         if (isPolymarketUrl(trimmed)) {
@@ -133,15 +161,26 @@ export async function GET(req: NextRequest) {
     }
     try {
         const { count, rows } = await queryMarkets(db, {
-            search: search || null,
+            search: walletOnly ? null : search || null,
             conditionIds: conditionIds.length ? conditionIds : null,
             includeUninitialized,
-            sortField: sortFieldParam,
-            sortDirection: sortDirectionParam,
-            page,
-            pageSize,
+            sortField: walletOnly ? undefined : sortFieldParam,
+            sortDirection: walletOnly ? undefined : sortDirectionParam,
+            page: walletOnly ? 1 : page,
+            pageSize: walletOnly ? conditionIds.length || pageSize : pageSize,
         });
-        return NextResponse.json({ markets: rows, page, pageSize, totalCount: count });
+
+        // If walletOnly, we want to preserve the input order of conditionIds and ignore DB sorting
+        const orderedRows = walletOnly
+            ? [...rows].sort((a, b) => {
+                  const ia = conditionIds.indexOf(a.conditionId);
+                  const ib = conditionIds.indexOf(b.conditionId);
+                  return ia - ib;
+              })
+            : rows;
+
+        const total = walletOnly ? orderedRows.length : count;
+        return NextResponse.json({ markets: orderedRows, page, pageSize, totalCount: total });
     } catch (e) {
         console.log('error', e);
         return NextResponse.json({ error: 'Failed to query markets' }, { status: 500 });

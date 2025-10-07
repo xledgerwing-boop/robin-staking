@@ -12,7 +12,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Navbar from '@/components/navbar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
-import { fetchWalletPositions } from '@robin-pm-staking/common/lib/polymarket';
+import { fetchWalletPositions, fetchWalletPositionsPage } from '@robin-pm-staking/common/lib/polymarket';
 import { DateTime } from 'luxon';
 import type { Market, MarketRow } from '@robin-pm-staking/common/types/market';
 import { MarketRowToMarket, MarketStatus } from '@robin-pm-staking/common/types/market';
@@ -26,7 +26,7 @@ import { ValueState } from '@/components/value-state';
 import { toast } from 'sonner';
 
 function StakingPageContent() {
-    const { address, isConnected } = useProxyAccount();
+    const { proxyAddress: address, isConnected } = useProxyAccount();
     const [availableMarkets, setAvailableMarkets] = useState<Market[]>([]);
     const [numberOfMarkets, setNumberOfMarkets] = useState(0);
     const [totalTVL, setTotalTVL] = useState<bigint>(0n);
@@ -48,7 +48,7 @@ function StakingPageContent() {
     });
 
     // State for filtering controls
-    const [showWalletOnly, setShowWalletOnly] = useState(false);
+    const [showWalletOnly, setShowWalletOnly] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [walletConditionIds, setWalletConditionIds] = useState<string[]>([]);
     const [marketsLoading, setMarketsLoading] = useState(true);
@@ -57,6 +57,7 @@ function StakingPageContent() {
     const [totalCount, setTotalCount] = useState(0);
     const [queryParamsLoaded, setQueryParamsLoaded] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
+    const [hasMoreWalletPositions, setHasMoreWalletPositions] = useState(false);
 
     // Sorting state
     type SortField = 'tvl' | 'endDate' | 'title';
@@ -88,7 +89,7 @@ function StakingPageContent() {
         const spSearch = searchParams.get('search') ?? '';
         if (spSearch !== searchQuery) setSearchQuery(spSearch);
 
-        const walletOnlyParam = searchParams.get('walletOnly');
+        const walletOnlyParam = searchParams.get('walletOnly') || 'true';
         const spWalletOnly = walletOnlyParam === '1' || walletOnlyParam === 'true';
         if (spWalletOnly !== showWalletOnly) setShowWalletOnly(spWalletOnly);
 
@@ -143,21 +144,23 @@ function StakingPageContent() {
             setMarketsLoading(true);
             try {
                 const params = new URLSearchParams();
-                if (searchQuery.trim()) params.set('search', searchQuery.trim());
+                if (!showWalletOnly && searchQuery.trim()) params.set('search', searchQuery.trim());
                 if (showWalletOnly && walletConditionIds.length > 0) {
                     params.set('walletOnly', 'true');
                     params.set('conditionIds', walletConditionIds.join(','));
                 }
                 // pass sorting to server
-                params.set('sortField', sortField);
-                params.set('sortDirection', sortDirection);
+                if (!showWalletOnly) {
+                    params.set('sortField', sortField);
+                    params.set('sortDirection', sortDirection);
+                }
                 params.set('page', String(page));
                 params.set('pageSize', String(pageSize));
                 const res = await fetch(`/api/markets?${params.toString()}`, { signal: controller.signal });
                 if (!res.ok) throw new Error('Failed to load markets');
                 const data = (await res.json()) as { markets: MarketRow[]; page: number; pageSize: number; totalCount: number };
                 setAvailableMarkets((data.markets ?? []).map(MarketRowToMarket));
-                setTotalCount(data.totalCount ?? 0);
+                if (!showWalletOnly) setTotalCount(data.totalCount ?? 0);
             } catch (e) {
                 console.error(e);
                 toast.error('Failed to fetch markets');
@@ -174,18 +177,29 @@ function StakingPageContent() {
         const run = async () => {
             if (showWalletOnly && isConnected && address) {
                 try {
-                    const positions = await fetchWalletPositions(address);
-                    setWalletConditionIds(Array.from(new Set(positions.map(p => p))));
+                    const { conditionIds, hasMore } = await fetchWalletPositionsPage(address, {
+                        page,
+                        pageSize,
+                        title: searchQuery.trim() || undefined,
+                    });
+                    setWalletConditionIds(conditionIds);
+                    setHasMoreWalletPositions(hasMore);
+                    const offset = (page - 1) * pageSize;
+                    const estTotal = hasMore ? page * pageSize + 1 : offset + conditionIds.length;
+                    setTotalCount(estTotal);
                 } catch {
                     setWalletConditionIds([]);
+                    setHasMoreWalletPositions(false);
+                    setTotalCount(0);
                 }
             } else {
                 setWalletConditionIds([]);
+                setHasMoreWalletPositions(false);
             }
         };
         run();
         return () => controller.abort();
-    }, [showWalletOnly, isConnected, address]);
+    }, [showWalletOnly, isConnected, address, page, pageSize, searchQuery]);
 
     const defaultDirectionByField: Record<SortField, SortDirection> = {
         tvl: 'desc',
@@ -216,6 +230,7 @@ function StakingPageContent() {
         setSearchQuery(value);
         const trimmed = value.trim();
         updateQueryParams({ search: trimmed || null });
+        if (showWalletOnly) setPage(1);
     };
 
     const handleClearSearch = () => {
@@ -227,6 +242,7 @@ function StakingPageContent() {
     const handleWalletOnlyChange = (checked: boolean) => {
         setShowWalletOnly(checked);
         updateQueryParams({ walletOnly: checked ? '1' : null });
+        setPage(1);
     };
 
     return (
@@ -348,7 +364,12 @@ function StakingPageContent() {
                                 )}
                             </div>
                             <div className="flex items-center space-x-2">
-                                <Switch id="wallet-only" checked={showWalletOnly} onCheckedChange={handleWalletOnlyChange} disabled />
+                                <Switch
+                                    id="wallet-only"
+                                    checked={showWalletOnly}
+                                    onCheckedChange={handleWalletOnlyChange}
+                                    disabled={!isConnected || !address}
+                                />
                                 <Label htmlFor="wallet-only" className="text-sm font-medium">
                                     Show wallet only
                                 </Label>
@@ -356,7 +377,7 @@ function StakingPageContent() {
                             <div className="flex items-center">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="outline" size="sm" className="min-w-36 justify-between">
+                                        <Button variant="outline" size="sm" className="min-w-36 justify-between" disabled={showWalletOnly}>
                                             <span className="flex items-center gap-2">{sortLabels[sortField]}</span>
                                             {sortDirection === 'asc' ? (
                                                 <ArrowUp className="w-4 h-4 text-primary" />
@@ -366,7 +387,7 @@ function StakingPageContent() {
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" className="w-48">
-                                        <DropdownMenuItem onClick={() => handleSortSelect('tvl')}>
+                                        <DropdownMenuItem onClick={() => handleSortSelect('tvl')} disabled={showWalletOnly}>
                                             <span className="flex-1">TVL</span>
                                             {sortField === 'tvl' ? (
                                                 sortDirection === 'asc' ? (
@@ -378,7 +399,7 @@ function StakingPageContent() {
                                                 <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
                                             )}
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleSortSelect('endDate')}>
+                                        <DropdownMenuItem onClick={() => handleSortSelect('endDate')} disabled={showWalletOnly}>
                                             <span className="flex-1">End Date</span>
                                             {sortField === 'endDate' ? (
                                                 sortDirection === 'asc' ? (
@@ -390,7 +411,7 @@ function StakingPageContent() {
                                                 <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
                                             )}
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleSortSelect('title')}>
+                                        <DropdownMenuItem onClick={() => handleSortSelect('title')} disabled={showWalletOnly}>
                                             <span className="flex-1">Name</span>
                                             {sortField === 'title' ? (
                                                 sortDirection === 'asc' ? (
