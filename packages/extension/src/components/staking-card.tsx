@@ -230,9 +230,9 @@ function HoldingsSummaryRow({ market, vaultAddress }: { market: ParsedPolymarket
     const loading = vaultUserBalancesLoading || tokenUserBalancesLoading || vaultCurrentApyLoading || currentYieldLoading;
 
     const userYes = `${formatUnits(vaultUserYes, UNDERYLING_DECIMALS)} / ${formatUnits(tokenUserYes + vaultUserYes, UNDERYLING_DECIMALS)}`;
-    const userYesProgress = vaultUserYes === 0n && tokenUserYes === 0n ? 50 : (Number(vaultUserYes) / Number(tokenUserYes + vaultUserYes)) * 100;
+    const userYesProgress = vaultUserYes === 0n && tokenUserYes === 0n ? 0 : (Number(vaultUserYes) / Number(tokenUserYes + vaultUserYes)) * 100;
     const userNo = `${formatUnits(vaultUserNo, UNDERYLING_DECIMALS)} / ${formatUnits(tokenUserNo + vaultUserNo, UNDERYLING_DECIMALS)}`;
-    const userNoProgress = vaultUserNo === 0n && tokenUserNo === 0n ? 50 : (Number(vaultUserNo) / Number(tokenUserNo + vaultUserNo)) * 100;
+    const userNoProgress = vaultUserNo === 0n && tokenUserNo === 0n ? 0 : (Number(vaultUserNo) / Number(tokenUserNo + vaultUserNo)) * 100;
     const earningsPerDayString = formatUnits(earningsPerDay, UNDERYLING_DECIMALS);
 
     return (

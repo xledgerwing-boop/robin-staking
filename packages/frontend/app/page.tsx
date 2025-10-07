@@ -141,13 +141,18 @@ function StakingPageContent() {
         if (!queryParamsLoaded) return;
         const controller = new AbortController();
         const fetchMarkets = async () => {
+            if (showWalletOnly && walletConditionIds.length === 0) {
+                setAvailableMarkets([]);
+                setTotalCount(0);
+                return;
+            }
             setMarketsLoading(true);
             try {
                 const params = new URLSearchParams();
                 if (!showWalletOnly && searchQuery.trim()) params.set('search', searchQuery.trim());
-                if (showWalletOnly && walletConditionIds.length > 0) {
+                if (showWalletOnly) {
                     params.set('walletOnly', 'true');
-                    params.set('conditionIds', walletConditionIds.join(','));
+                    if (walletConditionIds.length > 0) params.set('conditionIds', walletConditionIds.join(','));
                 }
                 // pass sorting to server
                 if (!showWalletOnly) {

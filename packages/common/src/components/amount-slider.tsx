@@ -26,6 +26,13 @@ function toCompactNumberString(value: string, maxFractionDigits = 6) {
     return n.toLocaleString(undefined, { maximumFractionDigits: maxFractionDigits });
 }
 
+function toOneDecimalIfNecessary(value: string) {
+    const n = Number(value);
+    if (!isFinite(n)) return value;
+    const rounded = Math.round(n * 10) / 10;
+    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
 export function AmountSlider({
     amount,
     max,
@@ -63,7 +70,8 @@ export function AmountSlider({
 
         const amountUnits = (max * BigInt(Math.round(next))) / 100n; // integer percent of max
         const amountStr = formatUnits(amountUnits, decimals);
-        onAmountChange(amountStr);
+        const roundedStr = toOneDecimalIfNecessary(amountStr);
+        onAmountChange(roundedStr);
     };
 
     const handleValueCommit = (values: number[]) => {
@@ -76,7 +84,8 @@ export function AmountSlider({
         }
         const amountUnits = (max * BigInt(Math.round(next))) / 100n;
         const amountStr = formatUnits(amountUnits, decimals);
-        onAmountChange(amountStr);
+        const roundedStr = toOneDecimalIfNecessary(amountStr);
+        onAmountChange(roundedStr);
     };
 
     const formattedBalance = React.useMemo(() => toCompactNumberString(formatUnits(max, decimals)), [max, decimals]);
