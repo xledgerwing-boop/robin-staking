@@ -25,19 +25,17 @@ async function checkForNewMarkets(receipts) {
         for (const log of receipt.decodedLogs) {
             if (log.address.toLowerCase() !== vaultManager) continue;
             if (log.name != 'VaultCreated') continue;
-            await addContractsToList(log.vault);
+            await addContractToList(log.vault);
         }
     }
 }
 
-async function addContractsToList(contracts) {
-    for (const address in contracts) {
-        await qnLib.qnAddListItem(CONTRACTS_LIST_KEY, address);
-    }
+async function addContractToList(contract) {
+    await qnLib.qnAddListItem(CONTRACTS_LIST_KEY, contract);
 }
 
-const CONTRACTS_LIST_KEY = 'sstaking_vault_contracts';
-const vaultManager = '0xC29419d633BAd008e08694cbBcc58598219cBA6b'.toLowerCase();
+const CONTRACTS_LIST_KEY = 'staking_vault_contracts';
+const vaultManager = '0x443d773831c8B542F20bd9712c672084911eE10B'.toLowerCase();
 
 const robinVaultManagerAbi = [
     { type: 'constructor', inputs: [], stateMutability: 'nonpayable' },

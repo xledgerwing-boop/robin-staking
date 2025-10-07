@@ -72,10 +72,10 @@ export class DBService {
             .merge({
                 vaultAddress,
                 updatedAt: now,
-                yesTokens: this.knex.raw('?? + ?', ['yes_tokens', yesDelta]),
-                noTokens: this.knex.raw('?? + ?', ['no_tokens', noDelta]),
-                yieldHarvested: this.knex.raw('?? + ?', ['yield_earned', yieldDelta]),
-                usdRedeemed: this.knex.raw('?? + ?', ['usd_redeemed', usdRedeemedDelta]),
+                yesTokens: this.knex.raw('??.?? + ?', [USER_POSITIONS_TABLE, 'yes_tokens', yesDelta]),
+                noTokens: this.knex.raw('??.?? + ?', [USER_POSITIONS_TABLE, 'no_tokens', noDelta]),
+                yieldHarvested: this.knex.raw('??.?? + ?', [USER_POSITIONS_TABLE, 'yield_harvested', yieldDelta]),
+                usdRedeemed: this.knex.raw('??.?? + ?', [USER_POSITIONS_TABLE, 'usd_redeemed', usdRedeemedDelta]),
             });
     }
 
