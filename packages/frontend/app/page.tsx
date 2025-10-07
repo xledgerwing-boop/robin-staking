@@ -12,7 +12,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Navbar from '@/components/navbar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
-import { fetchWalletPositions, fetchWalletPositionsPage } from '@robin-pm-staking/common/lib/polymarket';
+import { fetchWalletPositionsPage } from '@robin-pm-staking/common/lib/polymarket';
 import { DateTime } from 'luxon';
 import type { Market, MarketRow } from '@robin-pm-staking/common/types/market';
 import { MarketRowToMarket, MarketStatus } from '@robin-pm-staking/common/types/market';
@@ -26,7 +26,7 @@ import { ValueState } from '@/components/value-state';
 import { toast } from 'sonner';
 
 function StakingPageContent() {
-    const { proxyAddress: address, isConnected } = useProxyAccount();
+    const { proxyAddress: address, isConnected, isConnecting } = useProxyAccount();
     const [availableMarkets, setAvailableMarkets] = useState<Market[]>([]);
     const [numberOfMarkets, setNumberOfMarkets] = useState(0);
     const [totalTVL, setTotalTVL] = useState<bigint>(0n);
@@ -134,8 +134,9 @@ function StakingPageContent() {
 
     // Sync URL -> state on mount and when navigating back/forward
     useEffect(() => {
+        if (isConnecting) return;
         loadQueryParams();
-    }, [searchParams]);
+    }, [searchParams, isConnecting]);
 
     useEffect(() => {
         if (!queryParamsLoaded) return;
