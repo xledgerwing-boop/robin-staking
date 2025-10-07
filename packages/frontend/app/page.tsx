@@ -89,7 +89,7 @@ function StakingPageContent() {
         const spSearch = searchParams.get('search') ?? '';
         if (spSearch !== searchQuery) setSearchQuery(spSearch);
 
-        const walletOnlyParam = searchParams.get('walletOnly') || 'true';
+        const walletOnlyParam = isConnected ? searchParams.get('walletOnly') || 'true' : 'false';
         const spWalletOnly = walletOnlyParam === '1' || walletOnlyParam === 'true';
         if (spWalletOnly !== showWalletOnly) setShowWalletOnly(spWalletOnly);
 
