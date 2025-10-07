@@ -37,12 +37,12 @@ export default function Navbar() {
                 </div>
                 <nav className="flex items-center space-x-2">
                     <Link href="/portfolio">
-                        <Button variant="outline" className="size-9 h-9 w-9">
-                            <WalletMinimal className="w-4 h-4" />
+                        <Button variant="default">
+                            <WalletMinimal className="w-4 h-4" /> Portfolio
                         </Button>
                     </Link>
-                    <ThemeToggle />
                     <ConnectButton />
+                    <ThemeToggle />
                 </nav>
             </div>
         </header>

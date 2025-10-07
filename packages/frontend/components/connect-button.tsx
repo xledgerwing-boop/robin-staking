@@ -27,7 +27,7 @@ export function ConnectButton({ className, connectTitle = 'Connect Wallet' }: { 
                         {(() => {
                             if (!connected) {
                                 return (
-                                    <Button variant="default" onClick={openConnectModal} className={cn('transition-colors', className)}>
+                                    <Button variant="outline" onClick={openConnectModal} className={cn('transition-colors', className)}>
                                         {connectTitle}
                                     </Button>
                                 );
@@ -42,7 +42,7 @@ export function ConnectButton({ className, connectTitle = 'Connect Wallet' }: { 
                             }
 
                             return (
-                                <Button onClick={openAccountModal} className={cn('transition-colors', className)}>
+                                <Button variant="outline" onClick={openAccountModal} className={cn('transition-colors', className)}>
                                     {account.displayName}
                                     {/* <br />
                                     {shortenAddress(proxyAddress, 4)} */}
