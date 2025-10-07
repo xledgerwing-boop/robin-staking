@@ -254,11 +254,15 @@ function StakingPageContent() {
                                 <div>
                                     <p className="text-sm text-muted-foreground">Average APY</p>
                                     <span className="text-2xl font-bold">
-                                        <ValueState
-                                            value={`${((Number(averageApy) / 10_000) * 100).toFixed(2)}%`}
-                                            loading={averageApyLoading || !averageApyEnabled}
-                                            error={!!averageApyError}
-                                        />
+                                        {vaultAddress ? (
+                                            <ValueState
+                                                value={`${((Number(averageApy) / 10_000) * 100).toFixed(2)}%`}
+                                                loading={averageApyLoading || !averageApyEnabled}
+                                                error={!!averageApyError}
+                                            />
+                                        ) : (
+                                            '—'
+                                        )}
                                     </span>
                                 </div>
                             </div>
