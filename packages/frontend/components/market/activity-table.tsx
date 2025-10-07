@@ -255,7 +255,7 @@ export default function ActivityTable({ market }: { market: Market }) {
                                     {activity.type}
                                 </Badge>
                                 <p className="text-xs text-muted-foreground">
-                                    {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
+                                    {formatDistanceToNow(new Date(activity.timestamp * 1000), { addSuffix: true })}
                                 </p>
                                 <Link
                                     href={`${USED_CONTRACTS.EXPLORER_URL}/tx/${activity.transactionHash}`}
