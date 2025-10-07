@@ -86,16 +86,12 @@ export class EventService {
                 activity.position = depositedData.isYes ? ActivityPosition.Yes : ActivityPosition.No;
                 let yesDelta = depositedData.isYes ? depositedData.amount : 0n;
                 let noDelta = depositedData.isYes ? 0n : depositedData.amount;
-                const {
-                    matchedTokens: nt1,
-                    unmatchedYesTokens: nyt1,
-                    unmatchedNoTokens: nnt1,
-                } = this.calculateTokenAmounts(yesDelta, noDelta, market);
+                let calculatedAmounts = this.calculateTokenAmounts(yesDelta, noDelta, market);
                 await this.dbService.updateMarket(vaultAddress, {
-                    matchedTokens: nt1.toString(),
-                    unmatchedYesTokens: nyt1.toString(),
-                    unmatchedNoTokens: nnt1.toString(),
-                    tvl: nt1.toString(),
+                    matchedTokens: calculatedAmounts.matchedTokens.toString(),
+                    unmatchedYesTokens: calculatedAmounts.unmatchedYesTokens.toString(),
+                    unmatchedNoTokens: calculatedAmounts.unmatchedNoTokens.toString(),
+                    tvl: calculatedAmounts.matchedTokens.toString(),
                 });
                 await this.dbService.adjustUserPosition(depositedData.user, market.conditionId, vaultAddress, {
                     yesDelta: yesDelta,
@@ -106,16 +102,12 @@ export class EventService {
                 const withdrawnData = logData as WithdrawnEvent;
                 activity.userAddress = withdrawnData.user;
                 activity.position = ActivityPosition.Both;
-                const {
-                    matchedTokens: nt2,
-                    unmatchedYesTokens: nyt2,
-                    unmatchedNoTokens: nnt2,
-                } = this.calculateTokenAmounts(-withdrawnData.yesAmount, -withdrawnData.noAmount, market);
+                calculatedAmounts = this.calculateTokenAmounts(-withdrawnData.yesAmount, -withdrawnData.noAmount, market);
                 await this.dbService.updateMarket(vaultAddress, {
-                    matchedTokens: nt2.toString(),
-                    unmatchedYesTokens: nyt2.toString(),
-                    unmatchedNoTokens: nnt2.toString(),
-                    tvl: nt2.toString(),
+                    matchedTokens: calculatedAmounts.matchedTokens.toString(),
+                    unmatchedYesTokens: calculatedAmounts.unmatchedYesTokens.toString(),
+                    unmatchedNoTokens: calculatedAmounts.unmatchedNoTokens.toString(),
+                    tvl: calculatedAmounts.matchedTokens.toString(),
                 });
                 await this.dbService.adjustUserPosition(withdrawnData.user, market.conditionId, vaultAddress, {
                     yesDelta: -withdrawnData.yesAmount,
@@ -175,16 +167,12 @@ export class EventService {
                     yesDelta = redeemedWinningForUSDData.winningAmount / 2n;
                     noDelta = redeemedWinningForUSDData.winningAmount / 2n;
                 }
-                const {
-                    matchedTokens: nt3,
-                    unmatchedYesTokens: nyt3,
-                    unmatchedNoTokens: nnt3,
-                } = this.calculateTokenAmounts(yesDelta, noDelta, market);
+                calculatedAmounts = this.calculateTokenAmounts(yesDelta, noDelta, market);
                 await this.dbService.updateMarket(vaultAddress, {
-                    matchedTokens: nt3.toString(),
-                    unmatchedYesTokens: nyt3.toString(),
-                    unmatchedNoTokens: nnt3.toString(),
-                    tvl: nt3.toString(),
+                    matchedTokens: calculatedAmounts.matchedTokens.toString(),
+                    unmatchedYesTokens: calculatedAmounts.unmatchedYesTokens.toString(),
+                    unmatchedNoTokens: calculatedAmounts.unmatchedNoTokens.toString(),
+                    tvl: calculatedAmounts.matchedTokens.toString(),
                 });
                 // Adjust user side: remove winning tokens and record USD redeemed
                 await this.dbService.adjustUserPosition(redeemedWinningForUSDData.user, market.conditionId, vaultAddress, {
@@ -214,7 +202,7 @@ export class EventService {
         let overallYesTokens = currentUnmatchedYesTokens + currentMatchedTokens + yesDelta;
         let overallNoTokens = currentUnmatchedNoTokens + currentMatchedTokens + noDelta;
 
-        const newMatchedTokens = overallYesTokens > overallNoTokens ? overallYesTokens : overallNoTokens;
+        const newMatchedTokens = overallYesTokens > overallNoTokens ? overallNoTokens : overallYesTokens;
         const newUnmatchedYesTokens = overallYesTokens - newMatchedTokens;
         const newUnmatchedNoTokens = overallNoTokens - newMatchedTokens;
 
