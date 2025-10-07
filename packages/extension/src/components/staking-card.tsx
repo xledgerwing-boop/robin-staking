@@ -24,7 +24,7 @@ import {
     useWriteRobinVaultManagerCreateVault,
 } from '@robin-pm-staking/common/types/contracts';
 import { USED_CONTRACTS } from '@robin-pm-staking/common/constants';
-import { ArrowDownToLine, ArrowUpFromLine, Coins, Sprout, Loader, Link, ExternalLink } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, Coins, Sprout, Loader, Link, ExternalLink, ChevronDown } from 'lucide-react';
 import { parseUnits, zeroAddress } from 'viem';
 import useInvalidateQueries from '@robin-pm-staking/common/hooks/use-invalidate-queries';
 import { Separator } from './ui/separator';
@@ -40,6 +40,7 @@ import { useVaultUserInfo } from '../../../common/src/hooks/use-vault-user-info'
 import { formatUnits, getErrorMessage } from '@robin-pm-staking/common/lib/utils';
 import ValueState from './value-state';
 import { DateTime } from 'luxon';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 
 export function StakingCard() {
     const [market, setMarket] = useState<ParsedPolymarketMarket | null>(null);
@@ -47,6 +48,8 @@ export function StakingCard() {
     const { address, chainId, isConnected } = useAccount();
     const eventData = useRef<PolymarketEventWithMarkets | null>(null);
     const [pageMarketTitle, setPageMarketTitle] = useState('');
+
+    const [side, setSide] = useState<Outcome>(Outcome.Yes);
 
     const {
         data: vaultAddress,
@@ -154,16 +157,19 @@ export function StakingCard() {
                     </CardTitle>
                     <CardDescription>{market?.groupItemTitle}</CardDescription>
                 </CardHeader>
-                <CardContent className="p-3">
+                <CardContent className="px-3 pb-3">
                     {vaultLoading || marketLoading ? (
                         <Loader className="w-4 h-4 animate-spin" />
                     ) : market ? (
                         <div className="space-y-4">
                             {vaultExists ? (
                                 <>
-                                    <HoldingsSummaryRow market={market} vaultAddress={vaultAddress} />
+                                    <HoldingsSummaryRow market={market} vaultAddress={vaultAddress} side={side} />
+
                                     <Separator />
-                                    {!market.closed && <StakeWithdrawTabs vaultAddress={vaultAddress} market={market} />}
+                                    {!market.closed && (
+                                        <StakeWithdrawTabs vaultAddress={vaultAddress} market={market} side={side} setSide={setSide} />
+                                    )}
                                     {market.closed && !isVaultFinalized && (
                                         <EndedMarketActions
                                             vaultAddress={vaultAddress}
@@ -204,8 +210,10 @@ export function StakingCard() {
     );
 }
 
-function HoldingsSummaryRow({ market, vaultAddress }: { market: ParsedPolymarketMarket; vaultAddress: string }) {
+function HoldingsSummaryRow({ market, vaultAddress, side }: { market: ParsedPolymarketMarket; vaultAddress: string; side: Outcome }) {
     const { proxyAddress } = useProxyAccount();
+    const [open, setOpen] = useState(false);
+    const [justifyEnd, setJustifyEnd] = useState(false);
 
     const {
         vaultCurrentApyLoading,
@@ -235,68 +243,113 @@ function HoldingsSummaryRow({ market, vaultAddress }: { market: ParsedPolymarket
     const userNoProgress = vaultUserNo === 0n && tokenUserNo === 0n ? 0 : (Number(vaultUserNo) / Number(tokenUserNo + vaultUserNo)) * 100;
     const earningsPerDayString = formatUnits(earningsPerDay, UNDERYLING_DECIMALS);
 
+    useEffect(() => {
+        if (open) setTimeout(() => setJustifyEnd(true), 300);
+        else setJustifyEnd(false);
+    }, [open]);
+
     return (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className="p-1 space-y-2">
-                <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{market.outcomes[0]}</span>
-                    <span className="text-xs text-primary">
-                        ~<ValueState value={(Number(currentYesApyBps) / 100).toFixed(1)} loading={loading} error={!!vaultCurrentApyError} />%
-                    </span>
+        <Collapsible open={open} onOpenChange={setOpen} className="mt-2">
+            <CollapsibleTrigger className={`cursor-pointer w-full flex items-center ${!justifyEnd ? 'justify-between' : 'justify-end'} text-sm mb-1`}>
+                <div className={`transition-all duration-300 ease-in-out overflow-hidden ${open ? 'opacity-0' : 'opacity-100'}`}>
+                    <OutcomeToken outcome={side} symbolHolder={market} />
                 </div>
-                <Separator />
+                <div
+                    className={`flex items-center gap-1 text-primary font-bold transition-all duration-300 ease-in-out overflow-hidden ${
+                        open ? 'opacity-0' : 'opacity-100'
+                    }`}
+                >
+                    <ValueState
+                        value={(Number(side === Outcome.Yes ? currentYesApyBps : currentNoApyBps) / 100).toFixed(1)}
+                        loading={loading}
+                        error={!!vaultCurrentApyError}
+                    />
+                    % APY
+                </div>
+                <div className="flex items-center font-bold">
+                    Details <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
+                </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent className={`overflow-hidden ${open ? 'animate-collapsible-down' : 'animate-collapsible-up'}`}>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="p-1 space-y-2">
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">{market.outcomes[0]}</span>
+                            <span className="text-xs text-primary">
+                                ~<ValueState value={(Number(currentYesApyBps) / 100).toFixed(1)} loading={loading} error={!!vaultCurrentApyError} />%
+                            </span>
+                        </div>
+                        <Separator />
 
-                <div className="h-8 flex flex-col items-center justify-center">
-                    <span className="text-xs text-muted-foreground">
-                        <ValueState value={userYes} loading={loading} error={!!vaultUserBalancesError || !!tokenUserBalancesError} />
-                    </span>
-                    <Progress value={userYesProgress} />
-                </div>
-            </div>
+                        <div className="h-8 flex flex-col items-center justify-center">
+                            <span className="text-xs text-muted-foreground">
+                                <ValueState value={userYes} loading={loading} error={!!vaultUserBalancesError || !!tokenUserBalancesError} />
+                            </span>
+                            <Progress value={userYesProgress} />
+                        </div>
+                    </div>
 
-            <div className="border-l border-muted p-1 space-y-2">
-                <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{market.outcomes[1]}</span>
-                    <span className="text-xs text-primary">
-                        ~<ValueState value={(Number(currentNoApyBps) / 100).toFixed(1)} loading={loading} error={!!vaultCurrentApyError} />%
-                    </span>
-                </div>
-                <Separator />
-                <div className="h-8 flex flex-col items-center justify-center">
-                    <span className="text-xs text-muted-foreground">
-                        <ValueState value={userNo} loading={loading} error={!!vaultUserBalancesError || !!tokenUserBalancesError} />
-                    </span>
-                    <Progress value={userNoProgress} />
-                </div>
-            </div>
+                    <div className="border-l border-muted p-1 space-y-2">
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">{market.outcomes[1]}</span>
+                            <span className="text-xs text-primary">
+                                ~<ValueState value={(Number(currentNoApyBps) / 100).toFixed(1)} loading={loading} error={!!vaultCurrentApyError} />%
+                            </span>
+                        </div>
+                        <Separator />
+                        <div className="h-8 flex flex-col items-center justify-center">
+                            <span className="text-xs text-muted-foreground">
+                                <ValueState value={userNo} loading={loading} error={!!vaultUserBalancesError || !!tokenUserBalancesError} />
+                            </span>
+                            <Progress value={userNoProgress} />
+                        </div>
+                    </div>
 
-            <div className="border-l border-muted p-1 space-y-2">
-                <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium">Earn</span>
-                    <span className="text-xs text-primary">
-                        ~<ValueState value={(Number(userResultingApyBps) / 100).toFixed(1)} loading={loading} error={!!vaultCurrentApyError} />%
-                    </span>
+                    <div className="border-l border-muted p-1 space-y-2">
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs font-medium">Earn</span>
+                            <span className="text-xs text-primary">
+                                ~
+                                <ValueState value={(Number(userResultingApyBps) / 100).toFixed(1)} loading={loading} error={!!vaultCurrentApyError} />
+                                %
+                            </span>
+                        </div>
+                        <Separator />
+                        <div className="h-8 flex flex-col items-center justify-center">
+                            <span className="text-base text-primary">
+                                <ValueState
+                                    value={formatUnits(currentYield ?? 0n, UNDERYLING_DECIMALS)}
+                                    loading={loading}
+                                    error={!!currentYieldError}
+                                />
+                                $
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                                <ValueState value={earningsPerDayString} loading={loading} error={!!currentYieldError} />$ / day
+                            </span>
+                        </div>
+                    </div>
                 </div>
-                <Separator />
-                <div className="h-8 flex flex-col items-center justify-center">
-                    <span className="text-base text-primary">
-                        <ValueState value={formatUnits(currentYield ?? 0n, UNDERYLING_DECIMALS)} loading={loading} error={!!currentYieldError} />$
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                        <ValueState value={earningsPerDayString} loading={loading} error={!!currentYieldError} />$ / day
-                    </span>
-                </div>
-            </div>
-        </div>
+            </CollapsibleContent>
+        </Collapsible>
     );
 }
 
-function StakeWithdrawTabs({ vaultAddress, market }: { vaultAddress: string; market: ParsedPolymarketMarket }) {
+function StakeWithdrawTabs({
+    vaultAddress,
+    market,
+    side,
+    setSide,
+}: {
+    vaultAddress: string;
+    market: ParsedPolymarketMarket;
+    side: Outcome;
+    setSide: (side: Outcome) => void;
+}) {
     const [tab, setTab] = useState<'stake' | 'withdraw'>('stake');
 
     const [stakeAmount, setStakeAmount] = useState<string>('');
     const [withdrawAmount, setWithdrawAmount] = useState<string>('');
-    const [side, setSide] = useState<Outcome>(Outcome.Yes);
 
     const { proxyAddress } = useProxyAccount();
     const invalidateQueries = useInvalidateQueries();
