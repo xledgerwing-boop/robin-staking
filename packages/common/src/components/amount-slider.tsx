@@ -2,6 +2,7 @@ import * as React from 'react';
 import * as SliderPrimitive from '@radix-ui/react-slider';
 
 import { cn, formatUnits } from '../lib/utils';
+import { formatUnits as viemFormatUnits } from 'viem';
 
 export type AmountSliderProps = {
     amount: string;
@@ -68,9 +69,9 @@ export function AmountSlider({
         // Update amount continuously while dragging for responsive UI
 
         const amountUnits = (max * BigInt(Math.round(next))) / 100n; // integer percent of max
-        const amountStr = formatUnits(amountUnits, decimals);
-        const roundedStr = toOneDecimalIfNecessary(amountStr);
-        onAmountChange(roundedStr);
+        const amountStr = viemFormatUnits(amountUnits, decimals);
+        const finalStr = next === 100 ? amountStr : toOneDecimalIfNecessary(amountStr);
+        onAmountChange(finalStr);
     };
 
     const handleValueCommit = (values: number[]) => {
@@ -82,9 +83,9 @@ export function AmountSlider({
             setInternalPercent(sticky);
         }
         const amountUnits = (max * BigInt(Math.round(next))) / 100n;
-        const amountStr = formatUnits(amountUnits, decimals);
-        const roundedStr = toOneDecimalIfNecessary(amountStr);
-        onAmountChange(roundedStr);
+        const amountStr = viemFormatUnits(amountUnits, decimals);
+        const finalStr = next === 100 ? amountStr : toOneDecimalIfNecessary(amountStr);
+        onAmountChange(finalStr);
     };
 
     const formattedBalance = React.useMemo(() => toCompactNumberString(formatUnits(max, decimals)), [max, decimals]);
