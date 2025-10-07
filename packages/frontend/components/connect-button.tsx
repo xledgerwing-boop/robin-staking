@@ -2,7 +2,7 @@
 
 import { ConnectButton as RainbowKitConnectButton } from '@rainbow-me/rainbowkit';
 import { Button } from './ui/button';
-import { cn } from '@/lib/utils';
+import { cn, shortenAddress } from '@/lib/utils';
 import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
 
 export function ConnectButton({ className, connectTitle = 'Connect Wallet' }: { className?: string; connectTitle?: string }) {
@@ -42,10 +42,13 @@ export function ConnectButton({ className, connectTitle = 'Connect Wallet' }: { 
                             }
 
                             return (
-                                <Button variant="outline" onClick={openAccountModal} className={cn('transition-colors', className)}>
-                                    {account.displayName}
-                                    {/* <br />
-                                    {shortenAddress(proxyAddress, 4)} */}
+                                <Button
+                                    variant="outline"
+                                    onClick={openAccountModal}
+                                    className={cn('transition-colors flex flex-col gap-0', className)}
+                                >
+                                    <span className="text-sm font-bold">{account.displayName}</span>
+                                    <span className="text-xs text-muted-foreground">{shortenAddress(proxyAddress, 4)}</span>
                                 </Button>
                             );
                         })()}
