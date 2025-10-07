@@ -84,11 +84,13 @@ export class EventService {
                 const depositedData = logData as DepositedEvent;
                 activity.userAddress = depositedData.user;
                 activity.position = depositedData.isYes ? ActivityPosition.Yes : ActivityPosition.No;
+                let yesDelta = depositedData.isYes ? depositedData.amount : 0n;
+                let noDelta = depositedData.isYes ? 0n : depositedData.amount;
                 const {
                     matchedTokens: nt1,
                     unmatchedYesTokens: nyt1,
                     unmatchedNoTokens: nnt1,
-                } = this.calculateTokenAmounts(depositedData.amount, 0n, market);
+                } = this.calculateTokenAmounts(yesDelta, noDelta, market);
                 await this.dbService.updateMarket(vaultAddress, {
                     matchedTokens: nt1.toString(),
                     unmatchedYesTokens: nyt1.toString(),
@@ -96,8 +98,8 @@ export class EventService {
                     tvl: nt1.toString(),
                 });
                 await this.dbService.adjustUserPosition(depositedData.user, market.conditionId, vaultAddress, {
-                    yesDelta: depositedData.isYes ? depositedData.amount : 0n,
-                    noDelta: depositedData.isYes ? 0n : depositedData.amount,
+                    yesDelta: yesDelta,
+                    noDelta: noDelta,
                 });
                 break;
             case VaultEvent.Withdrawn:
@@ -167,8 +169,8 @@ export class EventService {
                         ? ActivityPosition.No
                         : ActivityPosition.Both;
                 activity.userAddress = redeemedWinningForUSDData.user;
-                let yesDelta = market.winningPosition === Outcome.Yes ? redeemedWinningForUSDData.winningAmount : 0n;
-                let noDelta = market.winningPosition === Outcome.No ? redeemedWinningForUSDData.winningAmount : 0n;
+                yesDelta = market.winningPosition === Outcome.Yes ? redeemedWinningForUSDData.winningAmount : 0n;
+                noDelta = market.winningPosition === Outcome.No ? redeemedWinningForUSDData.winningAmount : 0n;
                 if (market.winningPosition === Outcome.Both) {
                     yesDelta = redeemedWinningForUSDData.winningAmount / 2n;
                     noDelta = redeemedWinningForUSDData.winningAmount / 2n;
