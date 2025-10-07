@@ -1,12 +1,13 @@
 'use client';
 
 import { AmountSlider as CommonAmountSlider, AmountSliderProps } from '@robin-pm-staking/common/components/amount-slider';
+import { UNDERYLING_DECIMALS } from '@robin-pm-staking/common/constants';
 
 export function AmountSlider({
     amount,
     max,
     onAmountChange,
-    decimals = 6,
+    decimals = UNDERYLING_DECIMALS,
     disabled,
     className,
     stickyPercents = [25, 50, 75],

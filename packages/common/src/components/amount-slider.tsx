@@ -3,6 +3,7 @@ import * as SliderPrimitive from '@radix-ui/react-slider';
 
 import { cn, formatUnits } from '../lib/utils';
 import { formatUnits as viemFormatUnits } from 'viem';
+import { UNDERYLING_DECIMALS } from '../constants';
 
 export type AmountSliderProps = {
     amount: string;
@@ -20,7 +21,7 @@ function clamp(value: number, min: number, max: number) {
     return Math.min(max, Math.max(min, value));
 }
 
-function toCompactNumberString(value: string, maxFractionDigits = 6) {
+function toCompactNumberString(value: string, maxFractionDigits = UNDERYLING_DECIMALS) {
     const n = Number(value);
     if (!isFinite(n)) return value;
     return n.toLocaleString(undefined, { maximumFractionDigits: maxFractionDigits });
@@ -37,7 +38,7 @@ export function AmountSlider({
     amount,
     max,
     onAmountChange,
-    decimals = 6,
+    decimals = UNDERYLING_DECIMALS,
     disabled,
     className,
     stickyPercents = [25, 50, 75],
