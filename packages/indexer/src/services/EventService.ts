@@ -87,7 +87,7 @@ export class EventService {
                 let yesDelta = depositedData.isYes ? depositedData.amount : 0n;
                 let noDelta = depositedData.isYes ? 0n : depositedData.amount;
                 let calculatedAmounts = this.calculateTokenAmounts(yesDelta, noDelta, market);
-                await this.dbService.updateMarket(vaultAddress, {
+                await this.dbService.updateMarket(market.conditionId, {
                     matchedTokens: calculatedAmounts.matchedTokens.toString(),
                     unmatchedYesTokens: calculatedAmounts.unmatchedYesTokens.toString(),
                     unmatchedNoTokens: calculatedAmounts.unmatchedNoTokens.toString(),
@@ -103,7 +103,7 @@ export class EventService {
                 activity.userAddress = withdrawnData.user;
                 activity.position = ActivityPosition.Both;
                 calculatedAmounts = this.calculateTokenAmounts(-withdrawnData.yesAmount, -withdrawnData.noAmount, market);
-                await this.dbService.updateMarket(vaultAddress, {
+                await this.dbService.updateMarket(market.conditionId, {
                     matchedTokens: calculatedAmounts.matchedTokens.toString(),
                     unmatchedYesTokens: calculatedAmounts.unmatchedYesTokens.toString(),
                     unmatchedNoTokens: calculatedAmounts.unmatchedNoTokens.toString(),
@@ -122,7 +122,7 @@ export class EventService {
                         : finalizedData.winningPosition === WinningPosition.No
                         ? ActivityPosition.No
                         : ActivityPosition.Both;
-                await this.dbService.updateMarket(vaultAddress, {
+                await this.dbService.updateMarket(market.conditionId, {
                     winningPosition:
                         finalizedData.winningPosition === WinningPosition.Yes
                             ? Outcome.Yes
@@ -140,7 +140,7 @@ export class EventService {
                 break;
             case VaultEvent.YieldUnlocked:
                 activity.position = null;
-                await this.dbService.updateMarket(vaultAddress, {
+                await this.dbService.updateMarket(market.conditionId, {
                     status: MarketStatus.Unlocked,
                 });
                 break;
@@ -168,7 +168,7 @@ export class EventService {
                     noDelta = redeemedWinningForUSDData.winningAmount / 2n;
                 }
                 calculatedAmounts = this.calculateTokenAmounts(yesDelta, noDelta, market);
-                await this.dbService.updateMarket(vaultAddress, {
+                await this.dbService.updateMarket(market.conditionId, {
                     matchedTokens: calculatedAmounts.matchedTokens.toString(),
                     unmatchedYesTokens: calculatedAmounts.unmatchedYesTokens.toString(),
                     unmatchedNoTokens: calculatedAmounts.unmatchedNoTokens.toString(),
