@@ -13,7 +13,8 @@ export function middleware(req: NextRequest) {
         pathname === '/favicon.ico' ||
         pathname === '/robots.txt' ||
         pathname === '/sitemap.xml' ||
-        pathname === '/manifest.json';
+        pathname === '/manifest.json' ||
+        pathname === '/extension-privacy';
     if (isNextInternal || isPublicAsset) return NextResponse.next();
 
     if (!AUTH_USER || !AUTH_PASS) return NextResponse.next();
