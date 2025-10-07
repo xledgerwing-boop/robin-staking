@@ -474,7 +474,7 @@ function StakingPageContent() {
                                                     <span className="text-sm text-muted-foreground">TVL</span>
                                                     <span className="font-medium">
                                                         {market.status !== MarketStatus.Uninitialized
-                                                            ? `$${market.tvl.toLocaleString()}`
+                                                            ? `$${formatUnits(market.tvl, UNDERYLING_DECIMALS)}`
                                                             : 'Uninitialized'}
                                                     </span>
                                                 </div>
