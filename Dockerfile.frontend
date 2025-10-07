@@ -1,8 +1,8 @@
-# Multi-stage build for Next.js frontend with optimized memory usage
+# Multi-stage build for Next.js frontend with optimized caching and standalone runtime
 FROM node:24-alpine AS base
 
-# Install pnpm
-RUN npm install -g pnpm
+# Enable corepack for pnpm (faster than global npm install)
+RUN corepack enable
 
 # Set working directory
 WORKDIR /app
@@ -14,7 +14,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/frontend/package.json ./packages/frontend/
 COPY packages/common/package.json ./packages/common/
 
-# Install dependencies with cache mount
+# Install workspace dependencies with cache mount
 RUN --mount=type=cache,target=/root/.pnpm-store \
     pnpm install --frozen-lockfile
 
@@ -27,33 +27,19 @@ COPY tsconfig.json ./
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Build the application with increased heap size and optimizations
-RUN pnpm -F frontend build
+# Build the application using Next standalone output and cache mounts
+RUN --mount=type=cache,target=/app/packages/frontend/.next/cache \
+    pnpm -F @robin-pm-staking/frontend build
 
 # Production stage
 FROM node:24-alpine AS production
 
-# Install pnpm and curl for healthcheck
-RUN npm install -g pnpm
-RUN apk add curl
-
 WORKDIR /app
 
-# Copy root package files
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-
-# Copy workspace packages
-COPY packages/frontend/package.json ./packages/frontend/
-COPY packages/common/package.json ./packages/common/
-
-# Install only production dependencies with cache mount
-RUN --mount=type=cache,target=/root/.pnpm-store \
-    pnpm install --frozen-lockfile --prod
-
-# Copy built application from build stage
-COPY --from=base /app/packages/frontend/.next ./packages/frontend/.next
+# Copy standalone build output (no runtime install needed)
+COPY --from=base /app/packages/frontend/.next/standalone ./
+COPY --from=base /app/packages/frontend/.next/static ./packages/frontend/.next/static
 COPY --from=base /app/packages/frontend/public ./packages/frontend/public
-COPY --from=base /app/packages/frontend/next.config.ts ./packages/frontend/
 
 # Set environment variables
 ENV NODE_ENV=production
@@ -62,5 +48,5 @@ ENV PORT=3000
 # Expose port
 EXPOSE 3000
 
-# Start the application
-CMD ["pnpm", "-F", "frontend", "start"]
+# Start the standalone Next.js server
+CMD ["node", "packages/frontend/server.js"]
