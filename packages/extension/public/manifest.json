@@ -1,8 +1,8 @@
 {
     "manifest_version": 3,
-    "name": "Polymarket Staking Helper",
+    "name": "Robin Staking BETA",
     "version": "0.1.0",
-    "description": "Adds a staking UI under Polymarket's trading interface and interacts with a custom vault contract.",
+    "description": "THIS EXTENSION IS FOR BETA TESTING. Adds a staking UI under Polymarket's trading interface to interact with Robin's Staking Vaults.",
     "content_scripts": [
         {
             "matches": ["https://polymarket.com/*", "https://*.polymarket.com/*"],

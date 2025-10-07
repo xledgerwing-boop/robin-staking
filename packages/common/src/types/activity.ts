@@ -9,7 +9,7 @@ export interface ActivityRow {
     userAddress: string | null;
     position: ActivityPosition | null;
     blockNumber: string;
-    info: string;
+    info: Record<string, string | bigint | boolean>;
 }
 
 export interface Activity {
@@ -21,7 +21,7 @@ export interface Activity {
     userAddress: string | null;
     position: ActivityPosition | null;
     blockNumber: number;
-    info: string;
+    info: Record<string, string | bigint | boolean>;
 }
 
 export function ActivityRowToActivity(row: ActivityRow): Activity {

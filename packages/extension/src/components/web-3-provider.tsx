@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createConfig, http, injected, WagmiProvider } from 'wagmi';
 import { polygon } from 'wagmi/chains';
 
-const localTransport = true;
+const localTransport = false;
 const wagmiConfig = createConfig({
     chains: [polygon],
     // Used for public reads; wallet actions go through injected connector

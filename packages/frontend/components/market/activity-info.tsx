@@ -45,7 +45,7 @@ export function ActivityInfo({ activity, market }: { activity: Activity; market:
 function DepositedInfo({ activity, market }: { activity: Activity; market: Market }) {
     const info = eventInfoFromDb(activity.info) as DepositedEvent;
     return (
-        <div>
+        <div className="text-xs">
             Deposited {formatUnits(info.amount, UNDERYLING_DECIMALS)} {info.isYes ? market.outcomes[0] : market.outcomes[1]}
         </div>
     );
@@ -54,7 +54,7 @@ function DepositedInfo({ activity, market }: { activity: Activity; market: Marke
 function WithdrawnInfo({ activity, market }: { activity: Activity; market: Market }) {
     const info = eventInfoFromDb(activity.info) as WithdrawnEvent;
     return (
-        <div>
+        <div className="text-xs">
             Withdrew {formatUnits(info.yesAmount, UNDERYLING_DECIMALS)} {market.outcomes[0]} and {formatUnits(info.noAmount, UNDERYLING_DECIMALS)}{' '}
             {market.outcomes[1]}
         </div>
@@ -63,17 +63,17 @@ function WithdrawnInfo({ activity, market }: { activity: Activity; market: Marke
 
 function MarketFinalizedInfo({ activity, market }: { activity: Activity; market: Market }) {
     const info = eventInfoFromDb(activity.info) as MarketFinalizedEvent;
-    return <div>Market Finalized to {winningPositionToString(info.winningPosition).toUpperCase()}</div>;
+    return <div className="text-xs">Market Finalized to {winningPositionToString(info.winningPosition).toUpperCase()}</div>;
 }
 
 function YieldUnlockStartedInfo({ activity, market }: { activity: Activity; market: Market }) {
-    return <div>Yield Unlock Started</div>;
+    return <div className="text-xs">Yield Unlock Started</div>;
 }
 
 function YieldUnlockProgressInfo({ activity, market }: { activity: Activity; market: Market }) {
     const info = eventInfoFromDb(activity.info) as YieldUnlockProgressEvent;
     return (
-        <div>
+        <div className="text-xs">
             Yield Unlock Progress: ${formatUnits(info.cumulativeWithdrawn, UNDERYLING_DECIMALS)} of $
             {formatUnits(info.remainingInStrategy, UNDERYLING_DECIMALS)} withdrawn
         </div>
@@ -83,7 +83,7 @@ function YieldUnlockProgressInfo({ activity, market }: { activity: Activity; mar
 function YieldUnlockedInfo({ activity, market }: { activity: Activity; market: Market }) {
     const info = eventInfoFromDb(activity.info) as YieldUnlockedEvent;
     return (
-        <div>
+        <div className="text-xs">
             Yield Unlocked: ${formatUnits(info.totalWithdrawnUsd, UNDERYLING_DECIMALS)} principal and $
             {formatUnits(info.totalYield, UNDERYLING_DECIMALS)} yield
         </div>
@@ -92,15 +92,15 @@ function YieldUnlockedInfo({ activity, market }: { activity: Activity; market: M
 
 function HarvestedYieldInfo({ activity, market }: { activity: Activity; market: Market }) {
     const info = eventInfoFromDb(activity.info) as HarvestedYieldEvent;
-    return <div>Harvested ${formatUnits(info.amount, UNDERYLING_DECIMALS)} yield</div>;
+    return <div className="text-xs">Harvested ${formatUnits(info.amount, UNDERYLING_DECIMALS)} yield</div>;
 }
 
 function RedeemedWinningForUSDInfo({ activity, market }: { activity: Activity; market: Market }) {
     const info = eventInfoFromDb(activity.info) as RedeemedWinningForUSDEvent;
-    return <div>Redeemed ${formatUnits(info.usdPaid, UNDERYLING_DECIMALS)}</div>;
+    return <div className="text-xs">Redeemed ${formatUnits(info.usdPaid, UNDERYLING_DECIMALS)}</div>;
 }
 
 function HarvestedProtocolYieldInfo({ activity, market }: { activity: Activity; market: Market }) {
     const info = eventInfoFromDb(activity.info) as HarvestedProtocolYieldEvent;
-    return <div>Harvested ${formatUnits(info.amount, UNDERYLING_DECIMALS)} protocol yield</div>;
+    return <div className="text-xs">Harvested ${formatUnits(info.amount, UNDERYLING_DECIMALS)} protocol yield</div>;
 }
