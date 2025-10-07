@@ -9,7 +9,7 @@ export interface ActivityRow {
     userAddress: string | null;
     position: ActivityPosition | null;
     blockNumber: string;
-    info: Record<string, string | bigint | boolean>;
+    info: string;
 }
 
 export interface Activity {
@@ -29,6 +29,7 @@ export function ActivityRowToActivity(row: ActivityRow): Activity {
         ...row,
         timestamp: Number.parseInt(row.timestamp),
         blockNumber: Number.parseInt(row.blockNumber),
+        info: row.info as unknown as Record<string, string | bigint | boolean>, //already comes parsed out of the DB
     };
 }
 
