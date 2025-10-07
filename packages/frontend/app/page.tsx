@@ -241,7 +241,7 @@ function StakingPageContent() {
 
     const handleWalletOnlyChange = (checked: boolean) => {
         setShowWalletOnly(checked);
-        updateQueryParams({ walletOnly: checked ? '1' : null });
+        updateQueryParams({ walletOnly: !checked ? '0' : null });
         setPage(1);
     };
 
