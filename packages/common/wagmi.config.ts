@@ -33,7 +33,7 @@ export default {
                 clean: false,
             },
             project: '../contracts/',
-            exclude: ['**Errors**', '**IERC20**'],
+            include: ['**/PolymarketAaveStakingVault.json', '**/RobinVaultManager.json', '**/RobinStakingVault.json'],
         }),
         react({
             getHookName({ contractName, type, itemName }) {

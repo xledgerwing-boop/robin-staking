@@ -28,7 +28,7 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build the application with increased heap size and optimizations
-RUN NODE_OPTIONS="--max-old-space-size=4096" pnpm -F frontend build
+RUN pnpm -F frontend build
 
 # Production stage
 FROM node:24-alpine AS production
@@ -58,7 +58,6 @@ COPY --from=base /app/packages/frontend/next.config.ts ./packages/frontend/
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3000
-ENV NODE_OPTIONS="--max-old-space-size=2048"
 
 # Expose port
 EXPOSE 3000

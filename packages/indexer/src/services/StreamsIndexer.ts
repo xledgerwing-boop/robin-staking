@@ -1,8 +1,6 @@
 import { ethers } from 'ethers';
 import { logger } from '../utils/logger';
-import { robinVaultManagerAbi } from '@robin-pm-staking/common/types/abis/RobinVaultManager';
-import { polymarketAaveStakingVaultAbi } from '@robin-pm-staking/common/types/abis/PolymarketAaveStakingVault';
-
+import { robinVaultManagerAbi, polymarketAaveStakingVaultAbi } from '@robin-pm-staking/common/types/contracts';
 import { EventService, LogInfo } from './EventService';
 import {
     DepositedEvent,

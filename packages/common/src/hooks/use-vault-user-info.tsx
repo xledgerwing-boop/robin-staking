@@ -2,7 +2,7 @@ import { DEFAULT_QUERY_STALE_TIME, UNDERYLING_DECIMALS, UNDERYLING_PRECISION, UN
 import {
     useReadRobinStakingVaultGetCurrentApy,
     useReadRobinStakingVaultGetUserBalances,
-    useReadIConditionalTokensBalanceOfBatch,
+    useReadConditionalTokensBalanceOfBatch,
     useReadRobinStakingVaultGetCurrentUserYield,
 } from '../types/contracts';
 import { Market, Outcome, ParsedPolymarketMarket } from '../types/market';
@@ -43,7 +43,7 @@ export function useVaultUserInfo(vaultAddress: `0x${string}`, userAddress: `0x${
         isLoading: tokenUserBalancesLoading,
         error: tokenUserBalancesError,
         queryKey: tokenUserBalancesQueryKey,
-    } = useReadIConditionalTokensBalanceOfBatch({
+    } = useReadConditionalTokensBalanceOfBatch({
         address: USED_CONTRACTS.CONDITIONAL_TOKENS,
         args: [
             [userAddress, userAddress],
