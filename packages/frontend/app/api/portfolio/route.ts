@@ -68,7 +68,8 @@ export async function GET(req: NextRequest) {
                 `${MARKETS_TABLE}.image`,
                 `${MARKETS_TABLE}.endDate`,
                 `${MARKETS_TABLE}.status`,
-                `${MARKETS_TABLE}.slug`
+                `${MARKETS_TABLE}.slug`,
+                `${MARKETS_TABLE}.outcomes`
             )
             .orderBy(`${USER_POSITIONS_TABLE}.updatedAt`, 'desc')
             .limit(pageSize)

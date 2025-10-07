@@ -17,6 +17,7 @@ export interface UserPositionInfoRow extends UserPositionRow {
     endDate: string;
     status: string;
     slug: string;
+    outcomes: string[];
 }
 
 export interface UserPositionInfo {
@@ -34,6 +35,7 @@ export interface UserPositionInfo {
     endDate: number;
     status: string;
     slug: string;
+    outcomes: string[];
 
     createdAt: number;
     updatedAt: number;

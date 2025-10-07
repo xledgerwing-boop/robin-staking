@@ -184,13 +184,13 @@ export default function PortfolioPage() {
 
                                             <div className="grid w-full grid-cols-2 gap-4 md:w-auto md:flex md:items-center md:space-x-6">
                                                 <div className="text-center">
-                                                    <p className="text-xs text-muted-foreground md:text-sm">YES Tokens</p>
+                                                    <p className="text-xs text-muted-foreground md:text-sm">{deposit.outcomes[0]} Tokens</p>
                                                     <p className="font-medium">
                                                         {formatUnits(BigInt(deposit.yesTokens ?? '0'), UNDERYLING_DECIMALS)}
                                                     </p>
                                                 </div>
                                                 <div className="text-center">
-                                                    <p className="text-xs text-muted-foreground md:text-sm">NO Tokens</p>
+                                                    <p className="text-xs text-muted-foreground md:text-sm">{deposit.outcomes[1]} Tokens</p>
                                                     <p className="font-medium">{formatUnits(BigInt(deposit.noTokens ?? '0'), UNDERYLING_DECIMALS)}</p>
                                                 </div>
                                                 {/* <div className="text-center">
