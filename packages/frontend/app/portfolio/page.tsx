@@ -49,18 +49,18 @@ export default function PortfolioPage() {
                 const res = await fetch(`/api/portfolio?${params.toString()}`);
                 if (!res.ok) throw new Error('Failed to fetch portfolio');
                 const data: {
-                    totalYes: string;
-                    totalNo: string;
-                    totalHarvested: string;
+                    yesSum: string;
+                    noSum: string;
+                    harvestedSum: string;
                     page: number;
                     pageSize: number;
                     totalCount: number;
                     filter: PortfolioFilter;
                     deposits: UserPositionInfoRow[];
                 } = await res.json();
-                setTotalYes(BigInt(data.totalYes ?? '0'));
-                setTotalNo(BigInt(data.totalNo ?? '0'));
-                setTotalHarvested(BigInt(data.totalHarvested ?? '0'));
+                setTotalYes(BigInt(data.yesSum ?? '0'));
+                setTotalNo(BigInt(data.noSum ?? '0'));
+                setTotalHarvested(BigInt(data.harvestedSum ?? '0'));
                 setUserDeposits(data.deposits.map(userPositionRowToUserPosition));
                 setTotalCount(data.totalCount ?? 0);
             } catch (e) {

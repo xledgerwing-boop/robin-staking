@@ -12,7 +12,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
 import { shortenAddress } from '@/lib/utils';
 import { ActivityInfo } from './activity-info';
-import { Activity } from '@robin-pm-staking/common/types/activity';
+import { Activity, ActivityRow, ActivityRowToActivity } from '@robin-pm-staking/common/types/activity';
 import { USED_CONTRACTS } from '@robin-pm-staking/common/constants';
 import { VaultEvent } from '@robin-pm-staking/common/types/conract-events';
 import { Skeleton } from '../ui/skeleton';
@@ -103,7 +103,7 @@ export default function ActivityTable({ market }: { market: Market }) {
 
             const res = await fetch(`/api/activities?${urlParams}`);
             if (!res.ok) throw new Error('Failed to fetch new activities');
-            const newActivities: Activity[] = await res.json();
+            const newActivities: Activity[] = ((await res.json()) as ActivityRow[]).map(ActivityRowToActivity);
 
             if (newActivities.length > 0) {
                 setActivities(prev => [...newActivities, ...prev]);
@@ -127,7 +127,7 @@ export default function ActivityTable({ market }: { market: Market }) {
 
             const res = await fetch(`/api/activities?${urlParams}`);
             if (!res.ok) throw new Error('Failed to fetch historical activities');
-            const newActivities: Activity[] = await res.json();
+            const newActivities: Activity[] = ((await res.json()) as ActivityRow[]).map(ActivityRowToActivity);
 
             if (newActivities.length > 0) {
                 newActivities.forEach(activity => {
