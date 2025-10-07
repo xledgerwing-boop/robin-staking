@@ -63,7 +63,7 @@ function WithdrawnInfo({ activity, market }: { activity: Activity; market: Marke
 
 function MarketFinalizedInfo({ activity, market }: { activity: Activity; market: Market }) {
     const info = eventInfoFromDb(activity.info) as MarketFinalizedEvent;
-    return <div className="text-xs">Market Finalized to {winningPositionToString(info.winningPosition).toUpperCase()}</div>;
+    return <div className="text-xs">Market Finalized to {winningPositionToString(info.winningPosition, market).toUpperCase()}</div>;
 }
 
 function YieldUnlockStartedInfo({ activity, market }: { activity: Activity; market: Market }) {

@@ -1,3 +1,5 @@
+import { Market } from './market';
+
 export enum VaultManagerEvent {
     VaultCreated = 'VaultCreated',
     ConfigUpdated = 'ConfigUpdated',
@@ -99,11 +101,11 @@ export enum WinningPosition {
     Both = 3,
 }
 
-export const winningPositionToString = (winningPosition: WinningPosition) => {
+export const winningPositionToString = (winningPosition: WinningPosition, market: Market): string => {
     if (winningPosition === WinningPosition.Unresolved) return 'Unresolved';
-    if (winningPosition === WinningPosition.Yes) return 'Yes';
-    if (winningPosition === WinningPosition.No) return 'No';
-    return 'Both';
+    if (winningPosition === WinningPosition.Yes) return market.outcomes[0];
+    if (winningPosition === WinningPosition.No) return market.outcomes[1];
+    return market.outcomes[0] + ' / ' + market.outcomes[1];
 };
 
 export type VaultEventInfo =

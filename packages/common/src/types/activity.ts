@@ -52,9 +52,3 @@ export enum ActivityPosition {
     No = 'no',
     Both = 'both',
 }
-
-export const activityPositionMapping: Record<string, string> = {
-    [ActivityPosition.Yes]: 'Yes',
-    [ActivityPosition.No]: 'No',
-    [ActivityPosition.Both]: 'Yes/No',
-};
