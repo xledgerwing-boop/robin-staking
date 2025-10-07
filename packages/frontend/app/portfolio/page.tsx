@@ -13,7 +13,7 @@ import { formatUnits } from '@robin-pm-staking/common/lib/utils';
 import { UNDERYLING_DECIMALS } from '@robin-pm-staking/common/constants';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { UserPositionInfo, UserPositionInfoRow, userPositionRowToUserPosition } from '@robin-pm-staking/common/types/position';
+import { PortfolioFilter, UserPositionInfo, UserPositionInfoRow, userPositionRowToUserPosition } from '@robin-pm-staking/common/types/position';
 import { toast } from 'sonner';
 
 export default function PortfolioPage() {
@@ -22,7 +22,7 @@ export default function PortfolioPage() {
     const [totalNo, setTotalNo] = useState<bigint>(0n);
     const [totalHarvested, setTotalHarvested] = useState<bigint>(0n);
     const [userDeposits, setUserDeposits] = useState<UserPositionInfo[]>([]);
-    const [filter, setFilter] = useState<'all' | 'active' | 'ended'>('active');
+    const [filter, setFilter] = useState<PortfolioFilter>(PortfolioFilter.Active);
     const [page, setPage] = useState(1);
     const [pageSize] = useState(10);
     const [totalCount, setTotalCount] = useState(0);
@@ -55,7 +55,7 @@ export default function PortfolioPage() {
                     page: number;
                     pageSize: number;
                     totalCount: number;
-                    filter: 'all' | 'active' | 'ended';
+                    filter: PortfolioFilter;
                     deposits: UserPositionInfoRow[];
                 } = await res.json();
                 setTotalYes(BigInt(data.totalYes ?? '0'));
@@ -108,7 +108,7 @@ export default function PortfolioPage() {
                                     value={filter}
                                     onValueChange={v => {
                                         setPage(1);
-                                        setFilter(v as any);
+                                        setFilter(v as PortfolioFilter);
                                     }}
                                 >
                                     <SelectTrigger size="sm" className="min-w-32">

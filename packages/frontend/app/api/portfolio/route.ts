@@ -3,6 +3,7 @@ import { getDb } from '@/lib/db';
 import { MARKETS_TABLE, USER_POSITIONS_TABLE } from '@robin-pm-staking/common/src/lib/repos';
 import { rateLimit } from '@/lib/rate-limit';
 import { MarketStatus } from '@robin-pm-staking/common/types/market';
+import { PortfolioFilter } from '@robin-pm-staking/common/types/position';
 
 export async function GET(req: NextRequest) {
     const ip = req.headers.get('x-forwarded-for') || 'unknown';
@@ -14,7 +15,7 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const address = searchParams.get('address');
-    const filterParam = (searchParams.get('filter') as 'all' | 'active' | 'ended') || 'active';
+    const filterParam = (searchParams.get('filter') as PortfolioFilter) || PortfolioFilter.Active;
     const pageParam = parseInt(searchParams.get('page') || '1', 10);
     if (!address) return NextResponse.json({ error: 'Missing address' }, { status: 400 });
 
@@ -40,11 +41,11 @@ export async function GET(req: NextRequest) {
             .leftJoin(MARKETS_TABLE, `${MARKETS_TABLE}.conditionId`, `${USER_POSITIONS_TABLE}.conditionId`)
             .where(`${USER_POSITIONS_TABLE}.userAddress`, addressLc);
 
-        if (filterParam === 'ended') {
+        if (filterParam === PortfolioFilter.Ended) {
             base.andWhere(`${MARKETS_TABLE}.status`, MarketStatus.Unlocked)
                 .andWhere(`${USER_POSITIONS_TABLE}.yieldHarvested`, '>', 0)
                 .andWhere(`${USER_POSITIONS_TABLE}.usdRedeemed`, '>', 0);
-        } else if (filterParam === 'active') {
+        } else if (filterParam === PortfolioFilter.Active) {
             base.andWhere(q => {
                 q.where(`${USER_POSITIONS_TABLE}.yieldHarvested`, '=', 0).orWhere(`${USER_POSITIONS_TABLE}.usdRedeemed`, '=', 0);
             });

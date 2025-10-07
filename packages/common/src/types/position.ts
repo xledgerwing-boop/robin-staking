@@ -51,3 +51,9 @@ export function userPositionRowToUserPosition(row: UserPositionInfoRow): UserPos
         endDate: Number.parseInt(row.endDate),
     };
 }
+
+export enum PortfolioFilter {
+    All = 'all',
+    Active = 'active',
+    Ended = 'ended',
+}
