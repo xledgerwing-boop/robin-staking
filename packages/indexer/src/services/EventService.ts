@@ -79,116 +79,106 @@ export class EventService {
         };
 
         // Adjust based on event
-        switch (activity.type) {
-            case VaultEvent.Deposited:
-                const depositedData = logData as DepositedEvent;
-                activity.userAddress = depositedData.user;
-                activity.position = depositedData.isYes ? ActivityPosition.Yes : ActivityPosition.No;
-                let yesDelta = depositedData.isYes ? depositedData.amount : 0n;
-                let noDelta = depositedData.isYes ? 0n : depositedData.amount;
-                let calculatedAmounts = this.calculateTokenAmounts(yesDelta, noDelta, market);
-                await this.dbService.updateMarket(market.conditionId, {
-                    matchedTokens: calculatedAmounts.matchedTokens.toString(),
-                    unmatchedYesTokens: calculatedAmounts.unmatchedYesTokens.toString(),
-                    unmatchedNoTokens: calculatedAmounts.unmatchedNoTokens.toString(),
-                    tvl: calculatedAmounts.matchedTokens.toString(),
-                });
-                await this.dbService.adjustUserPosition(depositedData.user, market.conditionId, vaultAddress, {
-                    yesDelta: yesDelta,
-                    noDelta: noDelta,
-                });
-                break;
-            case VaultEvent.Withdrawn:
-                const withdrawnData = logData as WithdrawnEvent;
-                activity.userAddress = withdrawnData.user;
-                activity.position = ActivityPosition.Both;
-                calculatedAmounts = this.calculateTokenAmounts(-withdrawnData.yesAmount, -withdrawnData.noAmount, market);
-                await this.dbService.updateMarket(market.conditionId, {
-                    matchedTokens: calculatedAmounts.matchedTokens.toString(),
-                    unmatchedYesTokens: calculatedAmounts.unmatchedYesTokens.toString(),
-                    unmatchedNoTokens: calculatedAmounts.unmatchedNoTokens.toString(),
-                    tvl: calculatedAmounts.matchedTokens.toString(),
-                });
-                await this.dbService.adjustUserPosition(withdrawnData.user, market.conditionId, vaultAddress, {
-                    yesDelta: -withdrawnData.yesAmount,
-                    noDelta: -withdrawnData.noAmount,
-                });
-                break;
-            case VaultEvent.MarketFinalized:
-                const finalizedData = logData as MarketFinalizedEvent;
-                activity.position =
+        if (activity.type === VaultEvent.Deposited) {
+            const depositedData = logData as DepositedEvent;
+            activity.userAddress = depositedData.user;
+            activity.position = depositedData.isYes ? ActivityPosition.Yes : ActivityPosition.No;
+            const yesDelta = depositedData.isYes ? depositedData.amount : 0n;
+            const noDelta = depositedData.isYes ? 0n : depositedData.amount;
+            const calculatedAmounts = this.calculateTokenAmounts(yesDelta, noDelta, market);
+            await this.dbService.updateMarket(market.conditionId, {
+                matchedTokens: calculatedAmounts.matchedTokens.toString(),
+                unmatchedYesTokens: calculatedAmounts.unmatchedYesTokens.toString(),
+                unmatchedNoTokens: calculatedAmounts.unmatchedNoTokens.toString(),
+                tvl: calculatedAmounts.matchedTokens.toString(),
+            });
+            await this.dbService.adjustUserPosition(depositedData.user, market.conditionId, vaultAddress, {
+                yesDelta: yesDelta,
+                noDelta: noDelta,
+            });
+        } else if (activity.type === VaultEvent.Withdrawn) {
+            const withdrawnData = logData as WithdrawnEvent;
+            activity.userAddress = withdrawnData.user;
+            activity.position = ActivityPosition.Both;
+            const calculatedAmounts = this.calculateTokenAmounts(-withdrawnData.yesAmount, -withdrawnData.noAmount, market);
+            await this.dbService.updateMarket(market.conditionId, {
+                matchedTokens: calculatedAmounts.matchedTokens.toString(),
+                unmatchedYesTokens: calculatedAmounts.unmatchedYesTokens.toString(),
+                unmatchedNoTokens: calculatedAmounts.unmatchedNoTokens.toString(),
+                tvl: calculatedAmounts.matchedTokens.toString(),
+            });
+            await this.dbService.adjustUserPosition(withdrawnData.user, market.conditionId, vaultAddress, {
+                yesDelta: -withdrawnData.yesAmount,
+                noDelta: -withdrawnData.noAmount,
+            });
+        } else if (activity.type === VaultEvent.MarketFinalized) {
+            const finalizedData = logData as MarketFinalizedEvent;
+            activity.position =
+                finalizedData.winningPosition === WinningPosition.Yes
+                    ? ActivityPosition.Yes
+                    : finalizedData.winningPosition === WinningPosition.No
+                    ? ActivityPosition.No
+                    : ActivityPosition.Both;
+            await this.dbService.updateMarket(market.conditionId, {
+                winningPosition:
                     finalizedData.winningPosition === WinningPosition.Yes
-                        ? ActivityPosition.Yes
+                        ? Outcome.Yes
                         : finalizedData.winningPosition === WinningPosition.No
-                        ? ActivityPosition.No
-                        : ActivityPosition.Both;
-                await this.dbService.updateMarket(market.conditionId, {
-                    winningPosition:
-                        finalizedData.winningPosition === WinningPosition.Yes
-                            ? Outcome.Yes
-                            : finalizedData.winningPosition === WinningPosition.No
-                            ? Outcome.No
-                            : Outcome.Both,
-                    status: MarketStatus.Finalized,
-                });
-                break;
-            case VaultEvent.YieldUnlockStarted:
-                activity.position = null;
-                break;
-            case VaultEvent.YieldUnlockProgress:
-                activity.position = null;
-                break;
-            case VaultEvent.YieldUnlocked:
-                activity.position = null;
-                await this.dbService.updateMarket(market.conditionId, {
-                    status: MarketStatus.Unlocked,
-                });
-                break;
-            case VaultEvent.HarvestedYield:
-                const harvestedYieldData = logData as HarvestedYieldEvent;
-                activity.position = null;
-                activity.userAddress = harvestedYieldData.user;
-                await this.dbService.adjustUserPosition(harvestedYieldData.user, market.conditionId, vaultAddress, {
-                    yieldDelta: harvestedYieldData.amount,
-                });
-                break;
-            case VaultEvent.RedeemedWinningForUSD:
-                const redeemedWinningForUSDData = logData as RedeemedWinningForUSDEvent;
-                activity.position =
-                    market.winningPosition === Outcome.Yes
-                        ? ActivityPosition.Yes
-                        : market.winningPosition === Outcome.No
-                        ? ActivityPosition.No
-                        : ActivityPosition.Both;
-                activity.userAddress = redeemedWinningForUSDData.user;
-                yesDelta = market.winningPosition === Outcome.Yes ? redeemedWinningForUSDData.winningAmount : 0n;
-                noDelta = market.winningPosition === Outcome.No ? redeemedWinningForUSDData.winningAmount : 0n;
-                if (market.winningPosition === Outcome.Both) {
-                    yesDelta = redeemedWinningForUSDData.winningAmount / 2n;
-                    noDelta = redeemedWinningForUSDData.winningAmount / 2n;
-                }
-                calculatedAmounts = this.calculateTokenAmounts(yesDelta, noDelta, market);
-                await this.dbService.updateMarket(market.conditionId, {
-                    matchedTokens: calculatedAmounts.matchedTokens.toString(),
-                    unmatchedYesTokens: calculatedAmounts.unmatchedYesTokens.toString(),
-                    unmatchedNoTokens: calculatedAmounts.unmatchedNoTokens.toString(),
-                    tvl: calculatedAmounts.matchedTokens.toString(),
-                });
-                // Adjust user side: remove winning tokens and record USD redeemed
-                await this.dbService.adjustUserPosition(redeemedWinningForUSDData.user, market.conditionId, vaultAddress, {
-                    yesDelta: market.winningPosition === Outcome.Yes || market.winningPosition === Outcome.Both ? -yesDelta : 0n,
-                    noDelta: market.winningPosition === Outcome.No || market.winningPosition === Outcome.Both ? -noDelta : 0n,
-                    usdRedeemedDelta: redeemedWinningForUSDData.usdPaid,
-                });
-                break;
-            case VaultEvent.HarvestedProtocolYield:
-                const harvestedProtocolYieldData = logData as HarvestedProtocolYieldEvent;
-                activity.position = null;
-                activity.userAddress = harvestedProtocolYieldData.receiver;
-                break;
-            default:
-                logger.warn(`Unknown market event: ${activity.type}`);
-                return;
+                        ? Outcome.No
+                        : Outcome.Both,
+                status: MarketStatus.Finalized,
+            });
+        } else if (activity.type === VaultEvent.YieldUnlockStarted) {
+            activity.position = null;
+        } else if (activity.type === VaultEvent.YieldUnlockProgress) {
+            activity.position = null;
+        } else if (activity.type === VaultEvent.YieldUnlocked) {
+            activity.position = null;
+            await this.dbService.updateMarket(market.conditionId, {
+                status: MarketStatus.Unlocked,
+            });
+        } else if (activity.type === VaultEvent.HarvestedYield) {
+            const harvestedYieldData = logData as HarvestedYieldEvent;
+            activity.position = null;
+            activity.userAddress = harvestedYieldData.user;
+            await this.dbService.adjustUserPosition(harvestedYieldData.user, market.conditionId, vaultAddress, {
+                yieldDelta: harvestedYieldData.amount,
+            });
+        } else if (activity.type === VaultEvent.RedeemedWinningForUSD) {
+            const redeemedWinningForUSDData = logData as RedeemedWinningForUSDEvent;
+            activity.position =
+                market.winningPosition === Outcome.Yes
+                    ? ActivityPosition.Yes
+                    : market.winningPosition === Outcome.No
+                    ? ActivityPosition.No
+                    : ActivityPosition.Both;
+            activity.userAddress = redeemedWinningForUSDData.user;
+            let yesDelta = market.winningPosition === Outcome.Yes ? redeemedWinningForUSDData.winningAmount : 0n;
+            let noDelta = market.winningPosition === Outcome.No ? redeemedWinningForUSDData.winningAmount : 0n;
+            if (market.winningPosition === Outcome.Both) {
+                yesDelta = redeemedWinningForUSDData.winningAmount / 2n;
+                noDelta = redeemedWinningForUSDData.winningAmount / 2n;
+            }
+            const calculatedAmounts = this.calculateTokenAmounts(yesDelta, noDelta, market);
+            await this.dbService.updateMarket(market.conditionId, {
+                matchedTokens: calculatedAmounts.matchedTokens.toString(),
+                unmatchedYesTokens: calculatedAmounts.unmatchedYesTokens.toString(),
+                unmatchedNoTokens: calculatedAmounts.unmatchedNoTokens.toString(),
+                tvl: calculatedAmounts.matchedTokens.toString(),
+            });
+            // Adjust user side: remove winning tokens and record USD redeemed
+            await this.dbService.adjustUserPosition(redeemedWinningForUSDData.user, market.conditionId, vaultAddress, {
+                yesDelta: market.winningPosition === Outcome.Yes || market.winningPosition === Outcome.Both ? -yesDelta : 0n,
+                noDelta: market.winningPosition === Outcome.No || market.winningPosition === Outcome.Both ? -noDelta : 0n,
+                usdRedeemedDelta: redeemedWinningForUSDData.usdPaid,
+            });
+        } else if (activity.type === VaultEvent.HarvestedProtocolYield) {
+            const harvestedProtocolYieldData = logData as HarvestedProtocolYieldEvent;
+            activity.position = null;
+            activity.userAddress = harvestedProtocolYieldData.receiver;
+        } else {
+            logger.warn(`Unknown market event: ${activity.type}`);
+            return;
         }
 
         await this.dbService.insertActivity(activity);
