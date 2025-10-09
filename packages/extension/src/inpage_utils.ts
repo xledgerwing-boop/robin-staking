@@ -17,6 +17,20 @@ export function getSelectedTitleElement(closed: boolean): HTMLElement | null {
     }
 }
 
+// Mobile: find selected title element inside the Vaul bottom dialog
+// Path: dialog > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) >
+//       div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > p
+export function getMobileSelectedTitleElement(dialogEl: HTMLElement | null): HTMLElement | null {
+    if (!dialogEl) return null;
+    const selector =
+        ':scope > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(2) > div:nth-of-type(1) > p';
+    try {
+        return dialogEl.querySelector(selector) as HTMLElement | null;
+    } catch (_e) {
+        return null;
+    }
+}
+
 export const ROOT_ID = 'pmx-staking-root';
 export const SCRIPT_ID = 'pmx-inpage-script';
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAccount } from 'wagmi';
-import { formatAddress, getEventData, getSelectedTitleElement, rootPath } from '../inpage_utils';
+import { formatAddress, getEventData, getSelectedTitleElement, getMobileSelectedTitleElement, rootPath } from '../inpage_utils';
 import { ParsedPolymarketMarket, parsePolymarketMarket, Outcome } from '@robin-pm-staking/common/types/market';
 import { PolymarketEventWithMarkets } from '@robin-pm-staking/common/types/event';
 import { TARGET_CHAIN_ID, UNDERYLING_DECIMALS, UNDERYLING_PRECISION_BIG_INT } from '@robin-pm-staking/common/constants';
@@ -41,7 +41,12 @@ import ValueState from './value-state';
 import { DateTime } from 'luxon';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 
-export function StakingCard() {
+type StakingCardProps = {
+    isMobile?: boolean;
+    mobileDialog?: HTMLElement | null;
+};
+
+export function StakingCard({ isMobile = false, mobileDialog = null }: StakingCardProps) {
     const [market, setMarket] = useState<ParsedPolymarketMarket | null>(null);
     const [marketLoading, setMarketLoading] = useState(false);
     const { address, chainId, isConnected } = useAccount();
@@ -80,7 +85,9 @@ export function StakingCard() {
 
         const init = async () => {
             eventData.current = await getEventData();
-            const title = getSelectedTitleElement(eventData.current?.closed || false);
+            const title = isMobile
+                ? getMobileSelectedTitleElement(mobileDialog as HTMLElement | null)
+                : getSelectedTitleElement(eventData.current?.closed || false);
             if (!title) {
                 console.log('Robin_', 'Title element not found');
                 handleMarketChange();
@@ -102,7 +109,7 @@ export function StakingCard() {
         init();
 
         return () => observer?.disconnect();
-    }, []);
+    }, [isMobile, mobileDialog]);
 
     //check for changes in selected outcome buttons
     useEffect(() => {
@@ -196,8 +203,8 @@ export function StakingCard() {
     const isVaultYieldUnlocked = vaultYieldUnlocked && !vaultYieldUnlockedLoading && !vaultYieldUnlockedError;
 
     return (
-        <Card className="pmx-gradient-border">
-            <div className="pmx-gradient-inner">
+        <Card className={`${!isMobile ? 'pmx-gradient-border' : 'border-none pb-4'}`}>
+            <div className={`${!isMobile ? 'pmx-gradient-inner' : ''}`}>
                 <CardHeader className="p-3">
                     <CardTitle>
                         <div className="flex justify-between items-center">
