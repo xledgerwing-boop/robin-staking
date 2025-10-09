@@ -89,6 +89,11 @@ export function AmountSlider({
         onAmountChange(finalStr);
     };
 
+    const handleMaxClick = () => {
+        if (disabled) return;
+        onAmountChange(viemFormatUnits(max, decimals));
+    };
+
     const formattedBalance = React.useMemo(() => toCompactNumberString(formatUnits(max, decimals)), [max, decimals]);
 
     return (
@@ -119,7 +124,17 @@ export function AmountSlider({
                     </div>
                 </SliderPrimitive.Thumb>
             </SliderPrimitive.Root>
-            {showMax && <div className="text-xs text-muted-foreground whitespace-nowrap">Max: {formattedBalance}</div>}
+            {showMax && (
+                <div
+                    role="button"
+                    onClick={handleMaxClick}
+                    className={`cursor-pointer inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+                        disabled ? 'opacity-50 pointer-events-none' : ''
+                    } [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-5 px-2 py-2`}
+                >
+                    Max: {formattedBalance}
+                </div>
+            )}
         </div>
     );
 }
