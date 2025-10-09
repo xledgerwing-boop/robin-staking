@@ -1,6 +1,6 @@
 import './tailwind.css';
 import { createRoot, type Root } from 'react-dom/client';
-import { rootPath, getOrCreateMountPoint } from './inpage_utils';
+import { ROOT_ID, rootPath } from './inpage_utils';
 import { StakingCard } from './components/staking-card';
 import { Toaster } from '@/components/ui/sonner';
 import { Web3Provider } from './components/web-3-provider';
@@ -60,6 +60,36 @@ function ensureShadow(host: HTMLElement): { shadow: ShadowRoot; container: HTMLE
         shadow.appendChild(container);
     }
     return { shadow, container, newlyCreated };
+}
+
+function getOrCreateMountPoint(): HTMLElement | null {
+    let root = document.getElementById(ROOT_ID) as HTMLElement | null;
+    if (root) return root;
+
+    if (window.location.pathname.includes('/sports/live')) return null; // TODO: add support for live sports page
+
+    if (!window.location.pathname.includes('/event/') && !window.location.pathname.includes('/sports/')) return null;
+
+    // Select the Polymarket trade widget by its id.
+    const host = document.getElementById('trade-widget') as HTMLElement | null;
+    if (!host) return null;
+
+    root = document.createElement('div');
+    root.id = ROOT_ID;
+    // Insert as the third child of the first child div of the host (if present)
+    const firstChildDiv = host.querySelector(':scope > div') as HTMLElement | null;
+    if (firstChildDiv) {
+        const thirdChild = firstChildDiv.children.item(2);
+        if (thirdChild && thirdChild.parentNode === firstChildDiv) {
+            firstChildDiv.insertBefore(root, thirdChild);
+        } else {
+            firstChildDiv.appendChild(root);
+        }
+    } else {
+        host.appendChild(root);
+    }
+
+    return root;
 }
 
 function isDarkTheme(): boolean {
