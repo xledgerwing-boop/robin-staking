@@ -85,7 +85,7 @@ export interface PolymarketMarket {
     clobTokenIds: string;
     negRisk?: boolean;
     eventId: string;
-    groupItemTitle: string;
+    groupItemTitle?: string;
     closed?: boolean;
 }
 

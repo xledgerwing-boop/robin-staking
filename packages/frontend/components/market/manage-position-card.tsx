@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { ArrowDownToLine, ArrowUpToLine, Loader } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -131,10 +130,10 @@ export default function ManagePositionCard({ market, polymarketMarket }: ManageP
         updateQueryParams({ tab });
     };
 
-    const handleSideChange = (value: string) => {
-        const side = value === Outcome.No ? Outcome.No : Outcome.Yes;
-        setSide(side);
-        updateQueryParams({ side });
+    const handleSideChange = () => {
+        const newSide = side === Outcome.No ? Outcome.Yes : Outcome.No;
+        setSide(newSide);
+        updateQueryParams({ side: newSide });
     };
 
     const handleStake = async () => {
@@ -207,8 +206,12 @@ export default function ManagePositionCard({ market, polymarketMarket }: ManageP
             <CardContent>
                 <Tabs value={tab} onValueChange={handleTabChange}>
                     <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="stake">Stake</TabsTrigger>
-                        <TabsTrigger value="withdraw">Withdraw</TabsTrigger>
+                        <TabsTrigger value="stake" disabled={stakeLoading || withdrawLoading}>
+                            Stake
+                        </TabsTrigger>
+                        <TabsTrigger value="withdraw" disabled={stakeLoading || withdrawLoading}>
+                            Withdraw
+                        </TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="stake" className="space-y-4">
@@ -223,20 +226,11 @@ export default function ManagePositionCard({ market, polymarketMarket }: ManageP
                                     value={stakeAmount}
                                     onChange={e => setStakeAmount(e.target.value)}
                                     className="flex-1 border-0 rounded-none bg-transparent shadow-none focus-visible:ring-0 h-auto px-0 py-0 text-4xl sm:text-4xl md:text-4xl appearance-none font-semibold tracking-tight"
+                                    disabled={stakeLoading}
                                 />
-                                <Select value={side} onValueChange={handleSideChange}>
-                                    <SelectTrigger className="px-4 py-2 rounded-full border text-sm font-medium">
-                                        <OutcomeToken outcome={side} symbolHolder={market} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value={Outcome.Yes}>
-                                            <OutcomeToken outcome={Outcome.Yes} symbolHolder={market} />
-                                        </SelectItem>
-                                        <SelectItem value={Outcome.No}>
-                                            <OutcomeToken outcome={Outcome.No} symbolHolder={market} />
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <Button variant="outline" onClick={handleSideChange} disabled={stakeLoading}>
+                                    <OutcomeToken outcome={side} symbolHolder={market} />
+                                </Button>
                             </div>
                             <AmountSlider
                                 className="py-2"
@@ -244,12 +238,13 @@ export default function ManagePositionCard({ market, polymarketMarket }: ManageP
                                 max={side === Outcome.Yes ? tokenUserYes : tokenUserNo}
                                 onAmountChange={setStakeAmount}
                                 showMax={false}
+                                disabled={stakeLoading}
                             />
                             <div className="flex space-x-2 justify-between">
                                 <p className="text-sm text-muted-foreground">
                                     Balance: {formatUnits(side === Outcome.Yes ? tokenUserYes : tokenUserNo, UNDERYLING_DECIMALS)}
                                 </p>
-                                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleMaxStake}>
+                                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleMaxStake} disabled={stakeLoading}>
                                     Max
                                 </Button>
                             </div>
@@ -298,20 +293,11 @@ export default function ManagePositionCard({ market, polymarketMarket }: ManageP
                                     value={withdrawAmount}
                                     onChange={e => setWithdrawAmount(e.target.value)}
                                     className="flex-1 border-0 rounded-none bg-transparent shadow-none focus-visible:ring-0 h-auto px-0 py-0 text-4xl sm:text-4xl md:text-4xl appearance-none font-semibold tracking-tight"
+                                    disabled={withdrawLoading}
                                 />
-                                <Select value={side} onValueChange={handleSideChange}>
-                                    <SelectTrigger className="px-4 py-2 rounded-full border text-sm font-medium">
-                                        <OutcomeToken outcome={side} symbolHolder={market} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value={Outcome.Yes}>
-                                            <OutcomeToken outcome={Outcome.Yes} symbolHolder={market} />
-                                        </SelectItem>
-                                        <SelectItem value={Outcome.No}>
-                                            <OutcomeToken outcome={Outcome.No} symbolHolder={market} />
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <Button variant="outline" onClick={handleSideChange} disabled={withdrawLoading}>
+                                    <OutcomeToken outcome={side} symbolHolder={market} />
+                                </Button>
                             </div>
                             <AmountSlider
                                 className="py-2"
@@ -319,12 +305,13 @@ export default function ManagePositionCard({ market, polymarketMarket }: ManageP
                                 max={side === Outcome.Yes ? vaultUserYes : vaultUserNo}
                                 onAmountChange={setWithdrawAmount}
                                 showMax={false}
+                                disabled={withdrawLoading}
                             />
                             <div className="flex space-x-2 justify-between">
                                 <p className="text-sm text-muted-foreground">
                                     Balance: {formatUnits(side === Outcome.Yes ? vaultUserYes : vaultUserNo, UNDERYLING_DECIMALS)}
                                 </p>
-                                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleMaxWithdraw}>
+                                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleMaxWithdraw} disabled={withdrawLoading}>
                                     Max
                                 </Button>
                             </div>

@@ -1,6 +1,6 @@
 import './tailwind.css';
 import { createRoot, type Root } from 'react-dom/client';
-import { ROOT_ID, rootPath } from './inpage_utils';
+import { rootPath, getOrCreateMountPoint } from './inpage_utils';
 import { StakingCard } from './components/staking-card';
 import { Toaster } from '@/components/ui/sonner';
 import { Web3Provider } from './components/web-3-provider';
@@ -18,7 +18,7 @@ function App() {
 
 let reactRoot: Root | null = null;
 
-function ensureShadow(host: HTMLElement): { shadow: ShadowRoot; container: HTMLElement } {
+function ensureShadow(host: HTMLElement): { shadow: ShadowRoot; container: HTMLElement; newlyCreated: boolean } {
     const shadow = host.shadowRoot ?? host.attachShadow({ mode: 'open' });
     // Ensure a stylesheet is present inside the shadow. Prefer <link>, fall back to inline <style>.
     const LINK_ID = 'pmx-shadow-style-link';
@@ -51,13 +51,15 @@ function ensureShadow(host: HTMLElement): { shadow: ShadowRoot; container: HTMLE
     // Ensure a single container for React inside the shadow
     const CONTAINER_ID = 'pmx-shadow-app';
     let container = shadow.getElementById(CONTAINER_ID) as HTMLElement | null;
+    let newlyCreated = false;
     if (!container) {
+        newlyCreated = true;
         container = document.createElement('div');
         container.id = CONTAINER_ID;
         container.className = 'pmx-root';
         shadow.appendChild(container);
     }
-    return { shadow, container };
+    return { shadow, container, newlyCreated };
 }
 
 function isDarkTheme(): boolean {
@@ -78,28 +80,74 @@ function syncThemeAttr(target: HTMLElement) {
 
 // Mount under the node created by the content script, inside a Shadow DOM
 function mount() {
-    const host = document.getElementById(ROOT_ID);
-    if (host) {
-        const { container } = ensureShadow(host);
-        syncThemeAttr(container);
-        // Observe theme changes on the page and mirror them
-        const observer = new MutationObserver(() => syncThemeAttr(container));
-        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
-        if (!reactRoot) {
-            reactRoot = createRoot(container);
+    const host = getOrCreateMountPoint();
+    if (!host) return;
+    const { container, newlyCreated } = ensureShadow(host);
+    syncThemeAttr(container);
+    // Observe theme changes on the page and mirror them
+    const observer = new MutationObserver(() => syncThemeAttr(container));
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
+    if (!reactRoot || newlyCreated) {
+        reactRoot = createRoot(container);
+    }
+    reactRoot.render(<App />);
+}
+
+let __pmx_progressObserver: MutationObserver | null = null;
+
+function isProgressVisible(): boolean {
+    return !!document.querySelector('div.bprogress');
+}
+
+function mountWhenReady() {
+    // If progress isn't visible, mount immediately
+    if (!isProgressVisible()) {
+        mount();
+        return;
+    }
+
+    // Avoid duplicating observers
+    if (__pmx_progressObserver) return;
+
+    const attemptMount = () => {
+        if (!isProgressVisible()) {
+            if (__pmx_progressObserver) {
+                __pmx_progressObserver.disconnect();
+                __pmx_progressObserver = null;
+            }
+            mount();
         }
-        reactRoot.render(<App />);
+    };
+
+    // Observe DOM changes to detect when the progress element disappears
+    __pmx_progressObserver = new MutationObserver(() => {
+        attemptMount();
+    });
+    const target = document.body || document.documentElement;
+    try {
+        __pmx_progressObserver.observe(target, { childList: true, subtree: true });
+    } catch (_e) {
+        // Fallback: poll if observer setup fails (e.g., early in document lifecycle)
+        const poll = setInterval(() => {
+            if (!isProgressVisible()) {
+                clearInterval(poll);
+                if (__pmx_progressObserver) {
+                    __pmx_progressObserver.disconnect();
+                    __pmx_progressObserver = null;
+                }
+                mount();
+            }
+        }, 200);
     }
 }
-mount();
+
+mountWhenReady();
 
 // Re-run on SPA URL changes
 let __pmx_lastPathname = window.location.pathname;
 setInterval(async () => {
     const current = window.location.pathname;
-    if (current !== __pmx_lastPathname) {
-        __pmx_lastPathname = current;
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        mount();
-    }
+    if (current === __pmx_lastPathname) return;
+    __pmx_lastPathname = current;
+    mountWhenReady();
 }, 1000);

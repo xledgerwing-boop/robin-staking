@@ -24,12 +24,11 @@ import {
     useWriteRobinVaultManagerCreateVault,
 } from '@robin-pm-staking/common/types/contracts';
 import { USED_CONTRACTS } from '@robin-pm-staking/common/constants';
-import { ArrowDownToLine, ArrowUpFromLine, Coins, Sprout, Loader, Link, ExternalLink, ChevronDown } from 'lucide-react';
+import { ArrowDownToLine, ArrowUpFromLine, Coins, Sprout, Loader, ExternalLink, ChevronDown } from 'lucide-react';
 import { parseUnits, zeroAddress } from 'viem';
 import useInvalidateQueries from '@robin-pm-staking/common/hooks/use-invalidate-queries';
 import { Separator } from './ui/separator';
 import OutcomeToken from '@robin-pm-staking/common/components/outcome-token';
-import { Select, SelectContent, SelectItem, SelectTrigger } from './ui/select';
 import { QueryKey } from '@tanstack/react-query';
 import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
 import useProxyContractInteraction from '@robin-pm-staking/common/hooks/use-proxy-contract-interaction';
@@ -83,6 +82,7 @@ export function StakingCard() {
             eventData.current = await getEventData();
             const title = getSelectedTitleElement(eventData.current?.closed || false);
             if (!title) {
+                console.log('Robin_', 'Title element not found');
                 handleMarketChange();
                 return;
             }
@@ -113,8 +113,12 @@ export function StakingCard() {
                 return;
             }
             if (!pageMarketTitle) return;
-            const market = eventData.current.markets.find(m => m.groupItemTitle.trim().toLowerCase() === pageMarketTitle.trim().toLowerCase());
-            if (!market) return;
+            const prepGroupTitle = (title?: string) => title?.trim().toLowerCase().replace('.', '') || ''; //"vs." for example becomes "vs"
+            let market = eventData.current.markets.find(m => prepGroupTitle(m.groupItemTitle) === prepGroupTitle(pageMarketTitle));
+            if (!market) {
+                console.log('Robin_', 'Market not found', pageMarketTitle);
+                return;
+            }
             setMarket(parsePolymarketMarket(market));
         } catch (error) {
             console.error(error);
@@ -152,7 +156,7 @@ export function StakingCard() {
                                 </a>
                             </div>
 
-                            <span className="text-sm">{isConnected ? `Using ${formatAddress(address)}` : 'Wallet not connected'}</span>
+                            <span className="text-sm">{isConnected ? `${formatAddress(address)}` : 'Wallet not connected'}</span>
                         </div>
                     </CardTitle>
                     <CardDescription>{market?.groupItemTitle}</CardDescription>
@@ -420,6 +424,8 @@ function StakeWithdrawTabs({
         }
     };
 
+    const toggleSide = () => setSide(side === Outcome.Yes ? Outcome.No : Outcome.Yes);
+
     const { tokenUserYes, tokenUserNo, vaultUserYes, vaultUserNo } = getUserBalances();
 
     const expectedYield = calculateExpectedYield(stakeAmount, side, Number(market.outcomePrices[0]), Number(market.outcomePrices[1]));
@@ -439,10 +445,10 @@ function StakeWithdrawTabs({
         <div className="space-y-3">
             <Tabs value={tab} onValueChange={v => setTab(v as 'stake' | 'withdraw')}>
                 <TabsList className="w-full">
-                    <TabsTrigger value="stake" className="data-[state=active]:bg-card">
+                    <TabsTrigger value="stake" className="data-[state=active]:bg-card" disabled={stakeLoading || withdrawLoading}>
                         Stake
                     </TabsTrigger>
-                    <TabsTrigger value="withdraw" className="data-[state=active]:bg-card">
+                    <TabsTrigger value="withdraw" className="data-[state=active]:bg-card" disabled={stakeLoading || withdrawLoading}>
                         Withdraw
                     </TabsTrigger>
                 </TabsList>
@@ -458,22 +464,19 @@ function StakeWithdrawTabs({
                                 value={stakeAmount}
                                 onChange={e => setStakeAmount(e.target.value)}
                                 className="border-0 rounded-none bg-transparent shadow-none focus-visible:ring-0 h-auto px-0 py-0 text-4xl sm:text-4xl md:text-4xl appearance-none font-semibold tracking-tight"
+                                disabled={stakeLoading}
                             />
-                            <Select value={side} onValueChange={setSide as (value: string) => void}>
-                                <SelectTrigger className="px-4 py-2 rounded-full border text-sm font-medium flex-1">
-                                    <OutcomeToken outcome={side} symbolHolder={market} />
-                                </SelectTrigger>
-                                <SelectContent className="bg-background">
-                                    <SelectItem value={Outcome.Yes}>
-                                        <OutcomeToken outcome={Outcome.Yes} symbolHolder={market} />
-                                    </SelectItem>
-                                    <SelectItem value={Outcome.No}>
-                                        <OutcomeToken outcome={Outcome.No} symbolHolder={market} />
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <Button variant="outline" onClick={toggleSide} disabled={stakeLoading}>
+                                <OutcomeToken outcome={side} symbolHolder={market} />
+                                {/* <RefreshCcw className="scale-85" /> */}
+                            </Button>
                         </div>
-                        <AmountSlider amount={stakeAmount} max={side === Outcome.Yes ? tokenUserYes : tokenUserNo} onAmountChange={setStakeAmount} />
+                        <AmountSlider
+                            amount={stakeAmount}
+                            max={side === Outcome.Yes ? tokenUserYes : tokenUserNo}
+                            onAmountChange={setStakeAmount}
+                            disabled={stakeLoading}
+                        />
                         {stakeAmountParsed > 0 && (
                             <div className="flex justify-between text-xs mt-4">
                                 <span>
@@ -506,25 +509,17 @@ function StakeWithdrawTabs({
                                 value={withdrawAmount}
                                 onChange={e => setWithdrawAmount(e.target.value)}
                                 className="border-0 rounded-none bg-transparent shadow-none focus-visible:ring-0 h-auto px-0 py-0 text-4xl sm:text-4xl md:text-4xl appearance-none font-semibold tracking-tight"
+                                disabled={withdrawLoading}
                             />
-                            <Select value={side} onValueChange={setSide as (value: string) => void}>
-                                <SelectTrigger className="px-4 py-2 rounded-full border text-sm font-medium flex-1">
-                                    <OutcomeToken outcome={side} symbolHolder={market} />
-                                </SelectTrigger>
-                                <SelectContent className="bg-background">
-                                    <SelectItem value={Outcome.Yes}>
-                                        <OutcomeToken outcome={Outcome.Yes} symbolHolder={market} />
-                                    </SelectItem>
-                                    <SelectItem value={Outcome.No}>
-                                        <OutcomeToken outcome={Outcome.No} symbolHolder={market} />
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <Button variant="outline" onClick={toggleSide} disabled={withdrawLoading}>
+                                <OutcomeToken outcome={side} symbolHolder={market} />
+                            </Button>
                         </div>
                         <AmountSlider
                             amount={withdrawAmount}
                             max={side === Outcome.Yes ? vaultUserYes : vaultUserNo}
                             onAmountChange={setWithdrawAmount}
+                            disabled={withdrawLoading}
                         />
                         {withdrawAmountInvalid && withdrawAmount != '' && <span className="text-xs text-destructive mt-2">Invalid amount</span>}
                         <Button

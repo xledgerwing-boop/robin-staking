@@ -79,3 +79,26 @@ export async function fetchWalletPositionsPage(
     const hasMore = (data || []).length === limit; // best-effort indicator
     return { conditionIds, hasMore };
 }
+
+export function extractEventSlugFromUrl(input: string): string | null {
+    //https://polymarket.com/sports/mlb/games/week/29/mlb-lad-phi-2025-10-06
+    //https://polymarket.com/event/what-will-taylor-swift-say-during-tonight-show-on-october-6?tid=1759781450018
+    try {
+        const u = new URL(input);
+        const parts = u.pathname.split('/').filter(Boolean);
+        if (u.pathname.includes('/event/')) {
+            // Expect path like /event/<event-slug> or similar; take first meaningful slug after 'event'
+            const eventIndex = parts.findIndex(p => p.toLowerCase() === 'event' || p.toLowerCase() === 'events');
+            if (eventIndex >= 0 && parts[eventIndex + 1]) return parts[eventIndex + 1];
+            // Fallback: use first segment
+        }
+        if (u.pathname.includes('/sports/')) {
+            // Expect path like /sports/<sport-slug>/games/week/<week-slug>/<event-slug> or similar; take first meaningful slug after 'sports'
+            return parts[parts.length - 1];
+            // Fallback: use first segment
+        }
+        return parts[0] || null;
+    } catch {
+        return null;
+    }
+}
