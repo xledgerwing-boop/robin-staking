@@ -104,6 +104,66 @@ export function StakingCard() {
         return () => observer?.disconnect();
     }, []);
 
+    //check for changes in selected outcome buttons
+    useEffect(() => {
+        let attrObserver: MutationObserver | null = null;
+        let mountObserver: MutationObserver | null = null;
+
+        const updateSideFromOutcomeButtons = () => {
+            const container = document.getElementById('outcome-buttons');
+            if (!container) return;
+
+            const yesButton = container.querySelector('button[value="0"]') as HTMLElement | null;
+            const noButton = container.querySelector('button[value="1"]') as HTMLElement | null;
+
+            const yesChecked = yesButton?.getAttribute('data-state') === 'checked';
+            const noChecked = noButton?.getAttribute('data-state') === 'checked';
+
+            if (yesChecked) setSide(Outcome.Yes);
+            else if (noChecked) setSide(Outcome.No);
+        };
+
+        const attachAttributeObserver = () => {
+            const container = document.getElementById('outcome-buttons');
+            if (!container) return false;
+
+            attrObserver = new MutationObserver(() => updateSideFromOutcomeButtons());
+            try {
+                attrObserver.observe(container, {
+                    attributes: true,
+                    attributeFilter: ['data-state'],
+                    subtree: true,
+                    childList: true,
+                });
+            } catch (_e) {
+                // swallow
+            }
+            updateSideFromOutcomeButtons();
+            return true;
+        };
+
+        if (!attachAttributeObserver()) {
+            // If the container isn't in the DOM yet, watch for it to appear
+            const target = document.body || document.documentElement;
+            mountObserver = new MutationObserver(() => {
+                if (attachAttributeObserver() && mountObserver) {
+                    mountObserver.disconnect();
+                    mountObserver = null;
+                }
+            });
+            try {
+                mountObserver.observe(target, { childList: true, subtree: true });
+            } catch (_e) {
+                // swallow
+            }
+        }
+
+        return () => {
+            attrObserver?.disconnect();
+            mountObserver?.disconnect();
+        };
+    }, []);
+
     const handleMarketChange = () => {
         if (!eventData.current) return;
         try {
