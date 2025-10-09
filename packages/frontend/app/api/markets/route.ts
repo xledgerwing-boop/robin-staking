@@ -1,18 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { queryMarkets } from '@/lib/repos';
-import { fetchMarketByConditionId, extractEventSlugFromUrl } from '@robin-pm-staking/common/lib/polymarket';
+import { fetchMarketByConditionId, extractEventSlugFromUrl, isPolymarketUrl } from '@robin-pm-staking/common/lib/polymarket';
 import { getAndSaveEventAndMarkets } from '@robin-pm-staking/common/lib/repos';
 import { rateLimit } from '@/lib/rate-limit';
-
-function isPolymarketUrl(input: string): boolean {
-    try {
-        const u = new URL(input);
-        return u.hostname.includes('polymarket');
-    } catch {
-        return false;
-    }
-}
 
 function isConditionId(input: string): boolean {
     // Strict 32-byte hex string with 0x prefix

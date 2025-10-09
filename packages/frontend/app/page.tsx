@@ -8,11 +8,11 @@ import { Label } from '@/components/ui/label';
 import { TrendingUp, DollarSign, BarChart3, Clock, ArrowUpRight, Search, ArrowUpDown, ArrowUp, ArrowDown, User, Loader, X } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Navbar from '@/components/navbar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
-import { fetchWalletPositionsPage } from '@robin-pm-staking/common/lib/polymarket';
+import { fetchWalletPositionsPage, isPolymarketUrl } from '@robin-pm-staking/common/lib/polymarket';
 import { DateTime } from 'luxon';
 import type { Market, MarketRow } from '@robin-pm-staking/common/types/market';
 import { MarketRowToMarket, MarketStatus } from '@robin-pm-staking/common/types/market';
@@ -58,6 +58,8 @@ function StakingPageContent() {
     const [queryParamsLoaded, setQueryParamsLoaded] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const [hasMoreWalletPositions, setHasMoreWalletPositions] = useState(false);
+
+    const isPolymarketUrlEff = useMemo(() => isPolymarketUrl(searchQuery), [searchQuery]);
 
     // Sorting state
     type SortField = 'tvl' | 'endDate' | 'title';
@@ -142,7 +144,8 @@ function StakingPageContent() {
         if (!queryParamsLoaded) return;
         const controller = new AbortController();
         const fetchMarkets = async () => {
-            if (showWalletOnly && walletConditionIds.length === 0) {
+            const showWalletOnlyEff = !isPolymarketUrl(searchQuery) && showWalletOnly;
+            if (showWalletOnlyEff && walletConditionIds.length === 0) {
                 setAvailableMarkets([]);
                 setTotalCount(0);
                 return;
@@ -150,13 +153,13 @@ function StakingPageContent() {
             setMarketsLoading(true);
             try {
                 const params = new URLSearchParams();
-                if (!showWalletOnly && searchQuery.trim()) params.set('search', searchQuery.trim());
-                if (showWalletOnly) {
+                if (!showWalletOnlyEff && searchQuery.trim()) params.set('search', searchQuery.trim());
+                if (showWalletOnlyEff) {
                     params.set('walletOnly', 'true');
                     if (walletConditionIds.length > 0) params.set('conditionIds', walletConditionIds.join(','));
                 }
                 // pass sorting to server
-                if (!showWalletOnly) {
+                if (!showWalletOnlyEff) {
                     params.set('sortField', sortField);
                     params.set('sortDirection', sortDirection);
                 }
@@ -166,7 +169,7 @@ function StakingPageContent() {
                 if (!res.ok) throw new Error('Failed to load markets');
                 const data = (await res.json()) as { markets: MarketRow[]; page: number; pageSize: number; totalCount: number };
                 setAvailableMarkets((data.markets ?? []).map(MarketRowToMarket));
-                if (!showWalletOnly) setTotalCount(data.totalCount ?? 0);
+                if (!showWalletOnlyEff) setTotalCount(data.totalCount ?? 0);
             } catch (e) {
                 console.error(e);
                 toast.error('Failed to fetch markets');
@@ -179,6 +182,7 @@ function StakingPageContent() {
     }, [searchQuery, showWalletOnly, isConnected, address, walletConditionIds, sortField, sortDirection, queryParamsLoaded, page, pageSize]);
 
     useEffect(() => {
+        if (isPolymarketUrl(searchQuery)) return; //Do the normal flow when the search query is a Polymarket URL
         const controller = new AbortController();
         const run = async () => {
             if (showWalletOnly && isConnected && address) {
@@ -383,7 +387,12 @@ function StakingPageContent() {
                             <div className="flex items-center">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="outline" size="sm" className="min-w-36 justify-between" disabled={showWalletOnly}>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="min-w-36 justify-between"
+                                            disabled={showWalletOnly && !isPolymarketUrlEff}
+                                        >
                                             <span className="flex items-center gap-2">{sortLabels[sortField]}</span>
                                             {sortDirection === 'asc' ? (
                                                 <ArrowUp className="w-4 h-4 text-primary" />
@@ -393,7 +402,7 @@ function StakingPageContent() {
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" className="w-48">
-                                        <DropdownMenuItem onClick={() => handleSortSelect('tvl')} disabled={showWalletOnly}>
+                                        <DropdownMenuItem onClick={() => handleSortSelect('tvl')} disabled={showWalletOnly && !isPolymarketUrlEff}>
                                             <span className="flex-1">TVL</span>
                                             {sortField === 'tvl' ? (
                                                 sortDirection === 'asc' ? (
@@ -405,7 +414,10 @@ function StakingPageContent() {
                                                 <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
                                             )}
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleSortSelect('endDate')} disabled={showWalletOnly}>
+                                        <DropdownMenuItem
+                                            onClick={() => handleSortSelect('endDate')}
+                                            disabled={showWalletOnly && !isPolymarketUrlEff}
+                                        >
                                             <span className="flex-1">End Date</span>
                                             {sortField === 'endDate' ? (
                                                 sortDirection === 'asc' ? (
@@ -417,7 +429,7 @@ function StakingPageContent() {
                                                 <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
                                             )}
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleSortSelect('title')} disabled={showWalletOnly}>
+                                        <DropdownMenuItem onClick={() => handleSortSelect('title')} disabled={showWalletOnly && !isPolymarketUrlEff}>
                                             <span className="flex-1">Name</span>
                                             {sortField === 'title' ? (
                                                 sortDirection === 'asc' ? (

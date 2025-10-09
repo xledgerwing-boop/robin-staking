@@ -102,3 +102,12 @@ export function extractEventSlugFromUrl(input: string): string | null {
         return null;
     }
 }
+
+export function isPolymarketUrl(input: string): boolean {
+    try {
+        const u = new URL(input);
+        return u.hostname.includes('polymarket');
+    } catch {
+        return false;
+    }
+}
