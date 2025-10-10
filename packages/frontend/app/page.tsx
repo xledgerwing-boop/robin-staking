@@ -48,9 +48,9 @@ function StakingPageContent() {
     });
 
     // State for filtering controls
-    const [showWalletOnly, setShowWalletOnly] = useState(true);
+    const [showWalletOnly, setShowWalletOnly] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [walletConditionIds, setWalletConditionIds] = useState<string[]>([]);
+    const [walletConditionIds, setWalletConditionIds] = useState<string[] | null>(null);
     const [marketsLoading, setMarketsLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [pageSize] = useState(12);
@@ -91,7 +91,7 @@ function StakingPageContent() {
         const spSearch = searchParams.get('search') ?? '';
         if (spSearch !== searchQuery) setSearchQuery(spSearch);
 
-        const walletOnlyParam = isConnected ? searchParams.get('walletOnly') || 'true' : 'false';
+        const walletOnlyParam = isConnected ? searchParams.get('walletOnly') : 'false';
         const spWalletOnly = walletOnlyParam === '1' || walletOnlyParam === 'true';
         if (spWalletOnly !== showWalletOnly) setShowWalletOnly(spWalletOnly);
 
@@ -145,7 +145,7 @@ function StakingPageContent() {
         const controller = new AbortController();
         const fetchMarkets = async () => {
             const showWalletOnlyEff = !isPolymarketUrl(searchQuery) && showWalletOnly;
-            if (showWalletOnlyEff && walletConditionIds.length === 0) {
+            if (showWalletOnlyEff && !walletConditionIds) {
                 setAvailableMarkets([]);
                 setTotalCount(0);
                 return;
@@ -156,7 +156,7 @@ function StakingPageContent() {
                 if (!showWalletOnlyEff && searchQuery.trim()) params.set('search', searchQuery.trim());
                 if (showWalletOnlyEff) {
                     params.set('walletOnly', 'true');
-                    if (walletConditionIds.length > 0) params.set('conditionIds', walletConditionIds.join(','));
+                    if (walletConditionIds && walletConditionIds.length > 0) params.set('conditionIds', walletConditionIds.join(','));
                 }
                 // pass sorting to server
                 if (!showWalletOnlyEff) {
@@ -198,12 +198,12 @@ function StakingPageContent() {
                     const estTotal = hasMore ? page * pageSize + 1 : offset + conditionIds.length;
                     setTotalCount(estTotal);
                 } catch {
-                    setWalletConditionIds([]);
+                    setWalletConditionIds(null);
                     setHasMoreWalletPositions(false);
                     setTotalCount(0);
                 }
             } else {
-                setWalletConditionIds([]);
+                setWalletConditionIds(null);
                 setHasMoreWalletPositions(false);
             }
         };
@@ -251,7 +251,7 @@ function StakingPageContent() {
 
     const handleWalletOnlyChange = (checked: boolean) => {
         setShowWalletOnly(checked);
-        updateQueryParams({ walletOnly: !checked ? '0' : null });
+        updateQueryParams({ walletOnly: checked ? '1' : null });
         setPage(1);
     };
 
@@ -278,7 +278,7 @@ function StakingPageContent() {
                                     <TrendingUp className="w-6 h-6 text-primary" />
                                 </div>
                                 <div>
-                                    <p className="text-sm text-muted-foreground">Average APY</p>
+                                    <p className="text-sm text-muted-foreground">Current APY</p>
                                     <span className="text-2xl font-bold">
                                         {vaultAddress ? (
                                             <ValueState
@@ -381,7 +381,7 @@ function StakingPageContent() {
                                     disabled={!isConnected || !address}
                                 />
                                 <Label htmlFor="wallet-only" className="text-sm font-medium">
-                                    Show wallet only
+                                    In My Wallet
                                 </Label>
                             </div>
                             <div className="flex items-center">
