@@ -15,6 +15,7 @@ import AmountSlider from '@robin-pm-staking/common/components/amount-slider';
 import { parseUnits } from 'viem';
 import { UNDERYLING_DECIMALS, USED_CONTRACTS } from '@robin-pm-staking/common/constants';
 import { formatUnits, getErrorMessage } from '@robin-pm-staking/common/lib/utils';
+import { formatUnits as formatUnitsViem } from 'viem';
 import { toast } from 'sonner';
 import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
 import useInvalidateQueries from '@robin-pm-staking/common/hooks/use-invalidate-queries';
@@ -117,11 +118,11 @@ export default function ManagePositionCard({ market, polymarketMarket }: ManageP
     }, [searchParams]);
 
     const handleMaxStake = () => {
-        setStakeAmount(formatUnits(side === Outcome.Yes ? tokenUserYes : tokenUserNo, UNDERYLING_DECIMALS));
+        setStakeAmount(formatUnitsViem(side === Outcome.Yes ? tokenUserYes : tokenUserNo, UNDERYLING_DECIMALS));
     };
 
     const handleMaxWithdraw = () => {
-        setWithdrawAmount(formatUnits(side === Outcome.Yes ? vaultUserYes : vaultUserNo, UNDERYLING_DECIMALS));
+        setWithdrawAmount(formatUnitsViem(side === Outcome.Yes ? vaultUserYes : vaultUserNo, UNDERYLING_DECIMALS));
     };
 
     const handleTabChange = (value: string) => {
