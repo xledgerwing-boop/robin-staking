@@ -56,6 +56,7 @@ export async function fetchWalletPositionsPage(
     params.set('offset', String(offset));
     params.set('sortBy', 'TOKENS');
     params.set('sortDirection', 'DESC');
+    params.set('sizeThreshold', '1000');
     if ((opts.title ?? '').trim()) params.set('title', (opts.title ?? '').trim());
 
     const url = `${DATA_API_URL}/positions?${params.toString()}`;
