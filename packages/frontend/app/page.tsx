@@ -59,7 +59,6 @@ function StakingPageContent() {
     const [totalCount, setTotalCount] = useState(0);
     const [queryParamsLoaded, setQueryParamsLoaded] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
-    const [hasMoreWalletPositions, setHasMoreWalletPositions] = useState(false);
 
     const isPolymarketUrlEff = useMemo(() => isPolymarketUrl(searchQuery), [searchQuery]);
 
@@ -161,6 +160,7 @@ function StakingPageContent() {
                 if (!showWalletOnlyEff && searchQuery.trim()) params.set('search', searchQuery.trim());
                 if (showWalletOnlyEff) {
                     params.set('walletOnly', 'true');
+                    params.set('address', address ?? '');
                     if (walletConditionIds && walletConditionIds.length > 0) params.set('conditionIds', walletConditionIds.join(','));
                 }
                 // pass sorting to server
@@ -174,7 +174,7 @@ function StakingPageContent() {
                 if (!res.ok) throw new Error('Failed to load markets');
                 const data = (await res.json()) as { markets: MarketRow[]; page: number; pageSize: number; totalCount: number };
                 setAvailableMarkets((data.markets ?? []).map(MarketRowToMarket));
-                if (!showWalletOnlyEff) setTotalCount(data.totalCount ?? 0);
+                setTotalCount(data.totalCount ?? 0);
             } catch (e) {
                 console.error(e);
                 toast.error('Failed to fetch markets');
@@ -192,24 +192,21 @@ function StakingPageContent() {
         const run = async () => {
             if (showWalletOnly && isConnected && address) {
                 try {
+                    //This loads up to 100 positions for the wallet
+                    //the user can then paginate through these 100. Assumption is that a user would use the search anyways is they have a lot of positions
                     const { conditionIds, hasMore } = await fetchWalletPositionsPage(address, {
-                        page,
-                        pageSize,
                         title: searchQuery.trim() || undefined,
                     });
                     setWalletConditionIds(conditionIds);
-                    setHasMoreWalletPositions(hasMore);
-                    const offset = (page - 1) * pageSize;
-                    const estTotal = hasMore ? page * pageSize + 1 : offset + conditionIds.length;
-                    setTotalCount(estTotal);
+                    // const offset = (page - 1) * pageSize;
+                    // const estTotal = hasMore ? page * pageSize + 1 : offset + conditionIds.length;
+                    // setTotalCount(estTotal);
                 } catch {
                     setWalletConditionIds(null);
-                    setHasMoreWalletPositions(false);
-                    setTotalCount(0);
+                    // setTotalCount(0);
                 }
             } else {
                 setWalletConditionIds(null);
-                setHasMoreWalletPositions(false);
             }
         };
         run();

@@ -23,6 +23,8 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     let search = searchParams.get('search') || undefined;
     const walletOnly = searchParams.get('walletOnly') === 'true';
+    const addressParam = searchParams.get('address') || undefined;
+    const userAddressForWalletOnly = addressParam ? addressParam.toLowerCase() : undefined;
     const sortFieldParam = (searchParams.get('sortField') as 'tvl' | 'endDate' | 'title') || undefined;
     const sortDirectionParam = (searchParams.get('sortDirection') as 'asc' | 'desc') || undefined;
     // Frontend supplies conditionIds when walletOnly is true
@@ -45,20 +47,19 @@ export async function GET(req: NextRequest) {
     if (walletOnly) {
         conditionIds = conditionIdsFromClient;
         includeUninitialized = true; // include newly created/uninitialized markets as well
-        // If client provided walletOnly but no ids, short-circuit to empty list
-        if (conditionIds.length === 0) {
-            return NextResponse.json({ markets: [], page, pageSize, totalCount: 0 });
-        }
 
         try {
             // For each conditionId, ensure corresponding market exists by fetching from Polymarket if missing
             // We batch-check existence using one DB query
-            const existing = await queryMarkets(db, {
-                conditionIds,
-                includeUninitialized: true,
-                page: 1,
-                pageSize: conditionIds.length,
-            });
+            const existing =
+                conditionIds.length > 0
+                    ? await queryMarkets(db, {
+                          conditionIds,
+                          includeUninitialized: true,
+                          page: 1,
+                          pageSize: conditionIds.length,
+                      })
+                    : { rows: [], count: 0 };
             const existingIds = new Set(existing.rows.map(m => m.conditionId));
             const missingIds = conditionIds.filter(id => !existingIds.has(id));
 
@@ -132,6 +133,7 @@ export async function GET(req: NextRequest) {
             search: walletOnly ? null : search || null,
             conditionIds: conditionIds.length ? conditionIds : null,
             includeUninitialized,
+            userAddressForWalletOnly: walletOnly ? userAddressForWalletOnly || null : null,
             sortField: walletOnly ? undefined : sortFieldParam,
             sortDirection: walletOnly ? undefined : sortDirectionParam,
             page: walletOnly ? 1 : page,
@@ -143,7 +145,9 @@ export async function GET(req: NextRequest) {
             ? [...rows].sort((a, b) => {
                   const ia = conditionIds.indexOf(a.conditionId);
                   const ib = conditionIds.indexOf(b.conditionId);
-                  return ia - ib;
+                  const ai = ia === -1 ? Number.MAX_SAFE_INTEGER : ia;
+                  const bi = ib === -1 ? Number.MAX_SAFE_INTEGER : ib;
+                  return ai - bi;
               })
             : rows;
 

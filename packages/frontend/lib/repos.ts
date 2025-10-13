@@ -1,7 +1,7 @@
 import { Knex } from 'knex';
 import type { EventRow } from '@robin-pm-staking/common/types/event';
 import { MarketStatus, MarketRow } from '@robin-pm-staking/common/types/market';
-import { EVENTS_TABLE, MARKETS_TABLE } from '@robin-pm-staking/common/src/lib/repos';
+import { EVENTS_TABLE, MARKETS_TABLE, USER_POSITIONS_TABLE } from '@robin-pm-staking/common/src/lib/repos';
 
 export interface MarketsQuery {
     search?: string | null;
@@ -12,6 +12,8 @@ export interface MarketsQuery {
     sortDirection?: 'asc' | 'desc';
     page?: number | null;
     pageSize?: number | null;
+    // When provided, include markets that the user has had positions in (even if not in conditionIds)
+    userAddressForWalletOnly?: string | null;
 }
 
 export async function queryEvent(db: Knex, eventSlug: string): Promise<EventRow | null> {
@@ -29,12 +31,33 @@ export async function queryMarketBySlug(db: Knex, slug: string): Promise<MarketR
 export async function queryMarkets(db: Knex, q: MarketsQuery): Promise<{ rows: MarketRow[]; count: number }> {
     const builder = db(MARKETS_TABLE).leftJoin(EVENTS_TABLE, `${EVENTS_TABLE}.id`, `${MARKETS_TABLE}.eventId`);
 
+    const userAddressLc = q.userAddressForWalletOnly?.toLowerCase() ?? null;
+    if (userAddressLc) {
+        // Join user positions to include markets where the user has or had positions
+        builder.leftJoin(USER_POSITIONS_TABLE, `${USER_POSITIONS_TABLE}.conditionId`, `${MARKETS_TABLE}.conditionId`);
+    }
+
     if (!q.includeUninitialized) {
         builder.whereNot(`${MARKETS_TABLE}.status`, MarketStatus.Uninitialized);
     }
 
+    const addUserPositionWhere = (b: Knex.QueryBuilder) => {
+        b.where(`${USER_POSITIONS_TABLE}.userAddress`, userAddressLc)
+            .andWhereRaw(`${USER_POSITIONS_TABLE}.yes_tokens + ${USER_POSITIONS_TABLE}.no_tokens > 0`)
+            .andWhereNot(`${MARKETS_TABLE}.status`, MarketStatus.Unlocked);
+    };
+
     if (q.conditionIds && q.conditionIds.length > 0) {
-        builder.whereIn(`${MARKETS_TABLE}.conditionId`, q.conditionIds);
+        if (userAddressLc) {
+            // Include markets either explicitly listed by conditionIds OR where the user has positions
+            builder.andWhere(b => {
+                b.whereIn(`${MARKETS_TABLE}.conditionId`, q.conditionIds as string[]).orWhere(addUserPositionWhere);
+            });
+        } else {
+            builder.whereIn(`${MARKETS_TABLE}.conditionId`, q.conditionIds);
+        }
+    } else if (userAddressLc) {
+        builder.andWhere(addUserPositionWhere);
     }
 
     if (q.search) {

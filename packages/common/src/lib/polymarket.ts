@@ -5,16 +5,6 @@ import { PolymarketMarketWithEvent } from '../types/market';
 const BASE_URL = 'https://gamma-api.polymarket.com';
 const DATA_API_URL = 'https://data-api.polymarket.com';
 
-export async function fetchWalletPositions(address: string): Promise<string[]> {
-    const url = `${DATA_API_URL}/positions?sizeThreshold=1&limit=100&sortBy=TOKENS&sortDirection=DESC&user=${address}`;
-    const options = { method: 'GET', body: undefined };
-
-    const response = await fetch(url, options);
-    if (!response.ok) throw new Error('Failed to fetch wallet positions');
-    const data = (await response.json()) as { conditionId: string }[];
-    return data.map((p: { conditionId: string }) => p.conditionId);
-}
-
 export async function fetchMarketByConditionId(conditionId: string): Promise<PolymarketMarketWithEvent> {
     const url = `${BASE_URL}/markets?limit=1&condition_ids=${conditionId}`;
     const options = { method: 'GET', body: undefined };
@@ -55,9 +45,9 @@ export async function fetchWalletPositionsPage(
     address: string,
     opts: WalletPositionsPageOptions = {}
 ): Promise<{ conditionIds: string[]; hasMore: boolean }> {
-    const page = Math.max(1, opts.page ?? 1);
-    const limit = Math.max(1, Math.min(opts.pageSize ?? 12, 100));
-    const offset = (page - 1) * limit;
+    const page = opts.page ? Math.max(1, opts.page) : undefined;
+    const limit = opts.pageSize ? Math.max(1, Math.min(opts.pageSize, 100)) : undefined;
+    const offset = page && limit ? (page - 1) * limit : undefined;
 
     const params = new URLSearchParams();
     params.set('user', address);
