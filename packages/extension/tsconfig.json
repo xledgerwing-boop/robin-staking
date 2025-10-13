@@ -8,7 +8,7 @@
         "strict": true,
         "skipLibCheck": true,
         "noEmit": true,
-        "types": ["vite/client", "chrome-types"],
+        "types": ["vite/client", "chrome", "firefox-webext-browser"],
         "baseUrl": ".",
         "paths": {
             "@/*": ["./src/*"],

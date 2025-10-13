@@ -15,5 +15,9 @@
             "resources": ["assets/inpage.js", "assets/inpage.css", "assets/ccip.js", "assets/p256.js", "logo.png"],
             "matches": ["https://polymarket.com/*", "https://*.polymarket.com/*"]
         }
-    ]
+    ],
+    "icons": {
+        "48": "logo48.png",
+        "128": "logo128.png"
+    }
 }

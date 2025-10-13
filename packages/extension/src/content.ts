@@ -4,12 +4,19 @@ function injectInpage() {
     if (!document.getElementById(SCRIPT_ID)) {
         const s = document.createElement('script');
         s.id = SCRIPT_ID;
-        s.src = chrome.runtime.getURL('assets/inpage.js');
+        s.src = getExtURL('assets/inpage.js');
         s.type = 'module';
-        const rootPath = typeof chrome !== 'undefined' && chrome.runtime?.getURL ? chrome.runtime.getURL('') : undefined;
-        if (rootPath) s.dataset.rootPath = rootPath;
+        s.dataset.rootPath = getExtURL();
         (document.head || document.documentElement).appendChild(s);
     }
+}
+
+function getExtURL(path?: string) {
+    if (typeof browser !== 'undefined' && browser.runtime && browser.runtime.getURL) {
+        return browser.runtime.getURL(path || '');
+    }
+    // fall back to chrome namespace
+    return chrome.runtime?.getURL(path || '');
 }
 
 injectInpage();
