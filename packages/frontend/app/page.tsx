@@ -157,7 +157,7 @@ function StakingPageContent() {
             setMarketsLoading(true);
             try {
                 const params = new URLSearchParams();
-                if (!showWalletOnlyEff && searchQuery.trim()) params.set('search', searchQuery.trim());
+                if (searchQuery.trim()) params.set('search', searchQuery.trim());
                 if (showWalletOnlyEff) {
                     params.set('walletOnly', 'true');
                     params.set('address', address ?? '');
