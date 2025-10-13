@@ -24,6 +24,7 @@ import { useReadRobinStakingVaultGetCurrentApy } from '@robin-pm-staking/common/
 import { zeroAddress } from 'viem';
 import { ValueState } from '@/components/value-state';
 import { toast } from 'sonner';
+import { debounce } from 'throttle-debounce';
 
 function StakingPageContent() {
     const { proxyAddress: address, isConnected, isConnecting } = useProxyAccount();
@@ -49,6 +50,7 @@ function StakingPageContent() {
 
     // State for filtering controls
     const [showWalletOnly, setShowWalletOnly] = useState(false);
+    const [searchContent, setSearchContent] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [walletConditionIds, setWalletConditionIds] = useState<string[] | null>(null);
     const [marketsLoading, setMarketsLoading] = useState(true);
@@ -89,7 +91,10 @@ function StakingPageContent() {
 
     const loadQueryParams = () => {
         const spSearch = searchParams.get('search') ?? '';
-        if (spSearch !== searchQuery) setSearchQuery(spSearch);
+        if (spSearch !== searchQuery) {
+            setSearchQuery(spSearch);
+            setSearchContent(spSearch);
+        }
 
         const walletOnlyParam = isConnected ? searchParams.get('walletOnly') : 'false';
         const spWalletOnly = walletOnlyParam === '1' || walletOnlyParam === 'true';
@@ -236,15 +241,25 @@ function StakingPageContent() {
         }
     };
 
-    const handleSearchInputChange = (value: string) => {
-        setSearchQuery(value);
-        const trimmed = value.trim();
-        updateQueryParams({ search: trimmed || null });
-        if (showWalletOnly) setPage(1);
+    const handleSearchContentChange = (value: string) => {
+        setSearchContent(value);
+        handleSearchInputChange(value);
     };
+
+    const handleSearchInputChange = useMemo(
+        () =>
+            debounce(400, (v: string) => {
+                setSearchQuery(v);
+                const trimmed = v.trim();
+                updateQueryParams({ search: trimmed || null });
+                if (showWalletOnly) setPage(1);
+            }),
+        []
+    );
 
     const handleClearSearch = () => {
         setSearchQuery('');
+        setSearchContent('');
         updateQueryParams({ search: null });
         inputRef.current?.focus();
     };
@@ -355,12 +370,12 @@ function StakingPageContent() {
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                                 <Input
                                     placeholder="Search by condition ID, name or Polymarket url..."
-                                    value={searchQuery}
-                                    onChange={e => handleSearchInputChange(e.target.value)}
+                                    value={searchContent}
+                                    onChange={e => handleSearchContentChange(e.target.value)}
                                     ref={inputRef}
                                     className="pl-10 pr-10"
                                 />
-                                {searchQuery && (
+                                {searchContent && (
                                     <Button
                                         type="button"
                                         variant="ghost"
