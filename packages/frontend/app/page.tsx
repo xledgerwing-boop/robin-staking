@@ -194,7 +194,7 @@ function StakingPageContent() {
                 try {
                     //This loads up to 100 positions for the wallet
                     //the user can then paginate through these 100. Assumption is that a user would use the search anyways is they have a lot of positions
-                    const { conditionIds, hasMore } = await fetchWalletPositionsPage(address, {
+                    const { conditionIds } = await fetchWalletPositionsPage(address, {
                         title: searchQuery.trim() || undefined,
                     });
                     setWalletConditionIds(conditionIds);
@@ -544,7 +544,7 @@ function StakingPageContent() {
                                     {`Showing ${Math.min((page - 1) * pageSize + 1, totalCount)}-${Math.min(
                                         page * pageSize,
                                         totalCount
-                                    )} of ${totalCount}`}
+                                    )} of ${totalCount}${showWalletOnly && walletConditionIds?.length === 100 ? '+' : ''}`}
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <Button
