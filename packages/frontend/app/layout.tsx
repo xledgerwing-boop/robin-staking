@@ -4,6 +4,7 @@ import PlausibleProvider from 'next-plausible';
 import localFont from 'next/font/local';
 import { ThemeProvider } from 'next-themes';
 import { Web3Provider } from '@/components/providers/web3-provider';
+import Footer from '@/components/footer';
 import { Toaster } from '@/components/ui/sonner';
 
 const myFont = localFont({
@@ -82,6 +83,7 @@ export default function RootLayout({
                 <Web3Provider>
                     <ThemeProvider defaultTheme="light">
                         {children}
+                        <Footer />
                         <Toaster />
                     </ThemeProvider>
                 </Web3Provider>
