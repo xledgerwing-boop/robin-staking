@@ -10,15 +10,15 @@ services:
         image: timescale/timescaledb:latest-pg17
         container_name: robin-pm-staking-timescaledb
         environment:
-            POSTGRES_DB: stake_robin
-            POSTGRES_USER: stake_robin_user
-            POSTGRES_PASSWORD: stake_robin_password
+            POSTGRES_DB: ${POSTGRES_DB}
+            POSTGRES_USER: ${POSTGRES_USER}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
         ports:
             - '5433:5432'
         volumes:
             - timescaledb_data:/var/lib/postgresql/data
         healthcheck:
-            test: ['CMD-SHELL', 'pg_isready -U stake_robin_user -d stake_robin']
+            test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
             interval: 10s
             timeout: 5s
             retries: 5
@@ -32,7 +32,7 @@ services:
                 <<: *build-args
         container_name: robin-pm-staking-indexer
         environment:
-            POSTGRES_URI: postgresql://stake_robin_user:stake_robin_password@timescaledb:5432/stake_robin
+            POSTGRES_URI: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB}
             TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
             TELEGRAM_GROUP_CHAT_ID: ${TELEGRAM_GROUP_CHAT_ID}
             RPC_URL: ${RPC_URL}
@@ -62,7 +62,7 @@ services:
                 <<: *build-args
         container_name: robin-pm-staking-frontend
         environment:
-            POSTGRES_URI: postgresql://stake_robin_user:stake_robin_password@timescaledb:5432/stake_robin
+            POSTGRES_URI: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB}
             NODE_ENV: production
             NODE_OPTIONS: '--max-old-space-size=2048'
             ANALYTICS: ${ANALYTICS}
