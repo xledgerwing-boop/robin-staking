@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
         if (!vaultAddress) return NextResponse.json({ error: 'Missing vaultAddress' }, { status: 400 });
 
-        let query = pg('activities').where('vaultAddress', vaultAddress).orderBy('timestamp', 'desc').limit(limit);
+        let query = pg('activities').where('vaultAddress', vaultAddress).orderBy('timestamp', 'desc').orderBy('id', 'desc').limit(limit);
 
         if (since) {
             query = query.where('timestamp', '>', parseInt(since, 10));
