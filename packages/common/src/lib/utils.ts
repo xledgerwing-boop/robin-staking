@@ -32,7 +32,7 @@ export function eventInfoToDb(info: VaultEventInfo): string {
     return JSON.stringify(dbInfo);
 }
 
-export function eventInfoFromDb(dbInfo: Record<string, string | bigint | boolean>): VaultEventInfo {
+export function eventInfoFromDb(dbInfo: Record<string, string | bigint | boolean | number>): VaultEventInfo {
     for (const key in dbInfo) {
         if (dbInfo[key] && typeof dbInfo[key] === 'string' && dbInfo[key].startsWith('bigint:')) {
             dbInfo[key] = BigInt(dbInfo[key].substring(7));

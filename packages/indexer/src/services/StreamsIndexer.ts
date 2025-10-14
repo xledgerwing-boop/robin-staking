@@ -124,7 +124,7 @@ export class StreamsIndexer {
                 break;
             case VaultEvent.MarketFinalized:
                 info = {
-                    winningPosition: args[0],
+                    winningPosition: Number(args[0]), //important to parse as number to avoid wrong comparison between bigint and number
                 } as MarketFinalizedEvent;
                 break;
             case VaultEvent.YieldUnlockStarted:
