@@ -88,7 +88,7 @@ export function StakingCard({ isMobile = false, mobileDialog = null }: StakingCa
             const title = isMobile
                 ? getMobileSelectedTitleElement(mobileDialog as HTMLElement | null)
                 : getSelectedTitleElement(eventData.current?.closed || false);
-            if (!title) {
+            if (!title || !title.innerText) {
                 console.log('Robin_', 'Title element not found');
                 handleMarketChange();
                 return;
@@ -323,20 +323,22 @@ function HoldingsSummaryRow({ market, vaultAddress, side }: { market: ParsedPoly
         <Collapsible open={open} onOpenChange={setOpen} className="mt-2">
             <CollapsibleTrigger className={`cursor-pointer w-full flex items-center ${!justifyEnd ? 'justify-between' : 'justify-end'} text-sm mb-1`}>
                 <div className={`transition-all duration-300 ease-in-out overflow-hidden ${open ? 'opacity-0' : 'opacity-100'}`}>
-                    <OutcomeToken outcome={side} symbolHolder={market} />
+                    {!market.closed && <OutcomeToken outcome={side} symbolHolder={market} />}
                 </div>
-                <div
-                    className={`flex items-center gap-1 text-primary font-bold transition-all duration-300 ease-in-out overflow-hidden ${
-                        open ? 'opacity-0' : 'opacity-100'
-                    }`}
-                >
-                    <ValueState
-                        value={(Number(side === Outcome.Yes ? currentYesApyBps : currentNoApyBps) / 100).toFixed(1)}
-                        loading={loading}
-                        error={!!vaultCurrentApyError}
-                    />
-                    % APY
-                </div>
+                {!market.closed && (
+                    <div
+                        className={`flex items-center gap-1 text-primary font-bold transition-all duration-300 ease-in-out overflow-hidden ${
+                            open ? 'opacity-0' : 'opacity-100'
+                        }`}
+                    >
+                        <ValueState
+                            value={(Number(side === Outcome.Yes ? currentYesApyBps : currentNoApyBps) / 100).toFixed(1)}
+                            loading={loading}
+                            error={!!vaultCurrentApyError}
+                        />
+                        % APY
+                    </div>
+                )}
                 <div className="flex items-center font-bold">
                     Details <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${open ? 'rotate-180' : ''}`} />
                 </div>
@@ -346,9 +348,17 @@ function HoldingsSummaryRow({ market, vaultAddress, side }: { market: ParsedPoly
                     <div className="p-1 space-y-2">
                         <div className="flex items-center justify-between">
                             <span className="text-sm font-medium">{market.outcomes[0]}</span>
-                            <span className="text-xs text-primary">
-                                ~<ValueState value={(Number(currentYesApyBps) / 100).toFixed(1)} loading={loading} error={!!vaultCurrentApyError} />%
-                            </span>
+                            {!market.closed && (
+                                <span className="text-xs text-primary">
+                                    ~
+                                    <ValueState
+                                        value={(Number(currentYesApyBps) / 100).toFixed(1)}
+                                        loading={loading}
+                                        error={!!vaultCurrentApyError}
+                                    />
+                                    %
+                                </span>
+                            )}
                         </div>
                         <Separator />
 
@@ -363,9 +373,13 @@ function HoldingsSummaryRow({ market, vaultAddress, side }: { market: ParsedPoly
                     <div className="border-l border-muted p-1 space-y-2">
                         <div className="flex items-center justify-between">
                             <span className="text-sm font-medium">{market.outcomes[1]}</span>
-                            <span className="text-xs text-primary">
-                                ~<ValueState value={(Number(currentNoApyBps) / 100).toFixed(1)} loading={loading} error={!!vaultCurrentApyError} />%
-                            </span>
+                            {!market.closed && (
+                                <span className="text-xs text-primary">
+                                    ~
+                                    <ValueState value={(Number(currentNoApyBps) / 100).toFixed(1)} loading={loading} error={!!vaultCurrentApyError} />
+                                    %
+                                </span>
+                            )}
                         </div>
                         <Separator />
                         <div className="h-8 flex flex-col items-center justify-center">
@@ -378,12 +392,18 @@ function HoldingsSummaryRow({ market, vaultAddress, side }: { market: ParsedPoly
 
                     <div className="border-l border-muted p-1 space-y-2">
                         <div className="flex items-center justify-between">
-                            <span className="text-xs font-medium">Earn</span>
-                            <span className="text-xs text-primary">
-                                ~
-                                <ValueState value={(Number(userResultingApyBps) / 100).toFixed(1)} loading={loading} error={!!vaultCurrentApyError} />
-                                %
-                            </span>
+                            <span className="text-xs font-medium">{market.closed ? 'Earned' : 'Earn'}</span>
+                            {!market.closed && (
+                                <span className="text-xs text-primary">
+                                    ~
+                                    <ValueState
+                                        value={(Number(userResultingApyBps) / 100).toFixed(1)}
+                                        loading={loading}
+                                        error={!!vaultCurrentApyError}
+                                    />
+                                    %
+                                </span>
+                            )}
                         </div>
                         <Separator />
                         <div className="h-8 flex flex-col items-center justify-center">
@@ -395,9 +415,11 @@ function HoldingsSummaryRow({ market, vaultAddress, side }: { market: ParsedPoly
                                 />
                                 $
                             </span>
-                            <span className="text-xs text-muted-foreground">
-                                <ValueState value={earningsPerDayString} loading={loading} error={!!currentYieldError} />$ / day
-                            </span>
+                            {!market.closed && (
+                                <span className="text-xs text-muted-foreground">
+                                    <ValueState value={earningsPerDayString} loading={loading} error={!!currentYieldError} />$ / day
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -779,7 +801,12 @@ function PartialUnlockActions({
                         </div>
                     </div>
                 )}
-                <Button variant="default" className="w-full" onClick={handleRedeemWinningTokens} disabled={redeemWinningTokensLoading}>
+                <Button
+                    variant="default"
+                    className="w-full"
+                    onClick={handleRedeemWinningTokens}
+                    disabled={!winner || userWinningTokens <= 0n || redeemWinningTokensLoading}
+                >
                     {redeemWinningTokensLoading ? <Loader className="w-4 h-4 animate-spin" /> : <Coins className="w-4 h-4" />}
                     Redeem winning tokens
                 </Button>
@@ -803,6 +830,9 @@ function VaultUnlockedActions({ vaultAddress, market }: { vaultAddress: string; 
         vaultUserBalances,
         vaultUserBalancesLoading,
         vaultUserBalancesError,
+        currentYield,
+        currentYieldLoading,
+        currentYieldError,
     } = useVaultUserInfo(vaultAddress as `0x${string}`, userAddress as `0x${string}`, market);
 
     const {
@@ -880,13 +910,29 @@ function VaultUnlockedActions({ vaultAddress, market }: { vaultAddress: string; 
                             />
                         </div>
                     </div>
+                    <div className="mt-3 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">Earned Yield</div>
+                        <div className="text-xs font-semibold text-primary">
+                            $
+                            <ValueState
+                                value={formatUnits(currentYield ?? 0n, UNDERYLING_DECIMALS)}
+                                loading={currentYieldLoading}
+                                error={!!currentYieldError}
+                            />
+                        </div>
+                    </div>
                 </div>
             )}
-            <Button variant="default" className="w-full" onClick={handleRedeemWinningTokens} disabled={redeemWinningTokensLoading}>
+            <Button
+                variant="default"
+                className="w-full"
+                onClick={handleRedeemWinningTokens}
+                disabled={!winner || userWinningTokens <= 0n || redeemWinningTokensLoading}
+            >
                 {redeemWinningTokensLoading ? <Loader className="w-4 h-4 animate-spin" /> : <Coins className="w-4 h-4" />}
                 Redeem winning tokens
             </Button>
-            <Button variant="default" className="w-full" onClick={handleHarvestYield} disabled={harvestYieldLoading}>
+            <Button variant="default" className="w-full" onClick={handleHarvestYield} disabled={(currentYield ?? 0n) <= 0n || harvestYieldLoading}>
                 {harvestYieldLoading ? <Loader className="w-4 h-4 animate-spin" /> : <Sprout className="w-4 h-4" />}
                 Harvest yield
             </Button>
