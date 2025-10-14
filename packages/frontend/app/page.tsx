@@ -9,7 +9,6 @@ import { TrendingUp, DollarSign, BarChart3, Clock, ArrowUpRight, Search, ArrowUp
 import Image from 'next/image';
 import Link from 'next/link';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import Navbar from '@/components/navbar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
 import { fetchWalletPositionsPage, isPolymarketUrl } from '@robin-pm-staking/common/lib/polymarket';
@@ -269,9 +268,6 @@ function StakingPageContent() {
 
     return (
         <div className="min-h-screen bg-background">
-            {/* Header */}
-            <Navbar />
-
             <div className="h-full container mx-auto px-4 py-8">
                 {/* Page Header */}
                 <div className="mb-8">
@@ -282,16 +278,16 @@ function StakingPageContent() {
                 </div>
 
                 {/* Key Metrics */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                     <Card>
-                        <CardContent className="p-6">
-                            <div className="flex items-start justify-between space-x-2">
-                                <div className="text-center p-4 bg-muted/50 rounded-lg">
+                        <CardContent className="p-3 sm:p-6 md:p-6">
+                            <div className="flex items-center w-full h-full justify-between space-x-2">
+                                <div className="text-center p-2 md:p-4 bg-muted/50 rounded-lg">
                                     <TrendingUp className="w-6 h-6 text-primary" />
                                 </div>
                                 <div>
                                     <p className="text-sm text-muted-foreground">Current APY</p>
-                                    <span className="text-2xl font-bold">
+                                    <div className="text-2xl font-bold text-right">
                                         {vaultAddress ? (
                                             <ValueState
                                                 value={`${((Number(averageApy) / 10_000) * 100).toFixed(2)}%`}
@@ -301,55 +297,55 @@ function StakingPageContent() {
                                         ) : (
                                             '—'
                                         )}
-                                    </span>
+                                    </div>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
 
                     <Card>
-                        <CardContent className="p-6">
-                            <div className="flex items-start justify-between space-x-2">
-                                <div className="text-center p-4 bg-muted/50 rounded-lg">
+                        <CardContent className="p-3 sm:p-6 md:p-6">
+                            <div className="flex items-center w-full h-full justify-between space-x-2">
+                                <div className="text-center p-2 md:p-4 bg-muted/50 rounded-lg">
                                     <BarChart3 className="w-6 h-6 text-primary" />
                                 </div>
                                 <div>
                                     <p className="text-sm text-muted-foreground">Markets</p>
-                                    <span className="text-2xl font-bold">
+                                    <div className="text-2xl font-bold text-right">
                                         <ValueState value={numberOfMarkets.toLocaleString()} loading={metricsLoading} error={false} />
-                                    </span>
+                                    </div>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
 
                     <Card>
-                        <CardContent className="p-6">
-                            <div className="flex items-start justify-between space-x-2">
-                                <div className="text-center p-4 bg-muted/50 rounded-lg">
+                        <CardContent className="p-3 sm:p-6 md:p-6">
+                            <div className="flex items-center w-full h-full justify-between space-x-2">
+                                <div className="text-center p-2 md:p-4 bg-muted/50 rounded-lg">
                                     <DollarSign className="w-6 h-6 text-primary" />
                                 </div>
                                 <div>
                                     <p className="text-sm text-muted-foreground">Total TVL</p>
-                                    <span className="text-2xl font-bold">
+                                    <div className="text-2xl font-bold text-right">
                                         <ValueState value={`$${formatUnits(totalTVL, UNDERYLING_DECIMALS)}`} loading={metricsLoading} error={false} />
-                                    </span>
+                                    </div>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
 
                     <Card>
-                        <CardContent className="p-6">
-                            <div className="flex items-start justify-between space-x-2">
-                                <div className="text-center p-4 bg-muted/50 rounded-lg">
+                        <CardContent className="p-3 sm:p-6 md:p-6">
+                            <div className="flex items-center w-full h-full justify-between space-x-2">
+                                <div className="text-center p-2 md:p-4 bg-muted/50 rounded-lg">
                                     <User className="w-6 h-6 text-primary" />
                                 </div>
                                 <div>
                                     <p className="text-sm text-muted-foreground">Active Users</p>
-                                    <span className="text-2xl font-bold">
+                                    <div className="text-2xl font-bold text-right">
                                         <ValueState value={totalUsers.toLocaleString()} loading={metricsLoading} error={false} />
-                                    </span>
+                                    </div>
                                 </div>
                             </div>
                         </CardContent>
@@ -481,7 +477,7 @@ function StakingPageContent() {
                                                 <div className="flex flex-col items-start justify-center h-18">
                                                     <h3 className="font-semibold line-clamp-2">{market.question}</h3>
                                                     <div className="flex items-center space-x-1 text-sm text-muted-foreground mt-1">
-                                                        <Clock className="w-3 h-3" />
+                                                        <Clock className="w-3 h-3 hidden sm:block" />
                                                         <span>
                                                             {market.endDate
                                                                 ? DateTime.fromMillis(market.endDate).toLocaleString(DateTime.DATE_MED)

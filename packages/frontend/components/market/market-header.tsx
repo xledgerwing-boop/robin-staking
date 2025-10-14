@@ -44,15 +44,13 @@ export default function MarketHeader({ market, polymarketMarket }: { market: Mar
                             />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-bold">{market.question}</h1>
-                            <div className="flex items-center space-x-2 mt-1">
+                            <h1 className="text-xl sm:text-2xl font-bold">{market.question}</h1>
+                            <div className="flex items-center space-x-1 sm:space-x-2 mt-1">
                                 <div className="flex items-center space-x-1 text-sm text-muted-foreground">
-                                    <Clock className="w-4 h-4" />
+                                    <Clock className="w-4 h-4 hidden sm:block" />
                                     <span>{market.endDate ? DateTime.fromMillis(market.endDate).toLocaleString(DateTime.DATE_MED) : '—'}</span>
                                 </div>
-                                <div className="flex items-center">
-                                    <MarketStatusBadge status={market.status} />
-                                </div>
+                                <MarketStatusBadge status={market.status} />
                                 <Link href={`https://polymarket.com/event/${market.eventSlug}/${market.slug}`} target="_blank" className="lg:hidden">
                                     <Badge variant="outline">
                                         <ExternalLink className="w-2 h-2" /> View
@@ -73,26 +71,32 @@ export default function MarketHeader({ market, polymarketMarket }: { market: Mar
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
                         <div className="text-center p-4 bg-muted/50 rounded-lg">
                             <p className="text-sm text-muted-foreground">Current APY</p>
-                            <div className="flex items-center justify-center gap-4 lg:gap-8 text-md lg:text-xl">
-                                <div className="font-bold text-primary flex items-center gap-1">
-                                    <OutcomeToken outcome={Outcome.Yes} symbolHolder={market} noText />{' '}
-                                    <ValueState
-                                        value={((Number(currentYesApyBps) / 10_000) * 100).toFixed(2)}
-                                        loading={vaultCurrentApyLoading}
-                                        error={!!vaultCurrentApyError}
-                                    />
-                                    %
+                            {!polymarketMarket.closed ? (
+                                <div className="flex items-center justify-center gap-4 lg:gap-8 text-md lg:text-xl">
+                                    <div className="font-bold text-primary flex items-center gap-1">
+                                        <OutcomeToken outcome={Outcome.Yes} symbolHolder={market} noText />{' '}
+                                        <ValueState
+                                            value={((Number(currentYesApyBps) / 10_000) * 100).toFixed(2)}
+                                            loading={vaultCurrentApyLoading}
+                                            error={!!vaultCurrentApyError}
+                                        />
+                                        %
+                                    </div>
+                                    <div className="font-bold text-primary flex items-center gap-1">
+                                        <OutcomeToken outcome={Outcome.No} symbolHolder={market} noText />{' '}
+                                        <ValueState
+                                            value={((Number(currentNoApyBps) / 10_000) * 100).toFixed(2)}
+                                            loading={vaultCurrentApyLoading}
+                                            error={!!vaultCurrentApyError}
+                                        />
+                                        %
+                                    </div>
                                 </div>
-                                <div className="font-bold text-primary flex items-center gap-1">
-                                    <OutcomeToken outcome={Outcome.No} symbolHolder={market} noText />{' '}
-                                    <ValueState
-                                        value={((Number(currentNoApyBps) / 10_000) * 100).toFixed(2)}
-                                        loading={vaultCurrentApyLoading}
-                                        error={!!vaultCurrentApyError}
-                                    />
-                                    %
+                            ) : (
+                                <div className="flex items-center justify-center gap-4 lg:gap-8 text-md lg:text-xl">
+                                    <span className="text-lg font-bold">—</span>
                                 </div>
-                            </div>
+                            )}
                         </div>
                         <div className="text-center p-4 bg-muted/50 rounded-lg">
                             <p className="text-sm text-muted-foreground">Yield Sources</p>
@@ -118,7 +122,7 @@ export default function MarketHeader({ market, polymarketMarket }: { market: Mar
                                     ? `${formatUnits(market.unmatchedNoTokens, UNDERYLING_DECIMALS)} ${market.outcomes[1]}`
                                     : ''}
                                 {market.unmatchedYesTokens === 0n && market.unmatchedNoTokens === 0n
-                                    ? `0 ${market.outcomes[0]}/${market.outcomes[1]}`
+                                    ? `0 ${market.outcomes[0]} / ${market.outcomes[1]}`
                                     : ''}
                             </p>
                         </div>

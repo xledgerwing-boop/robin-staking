@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import Navbar from '@/components/navbar';
 import {
     Market,
     MarketRow,
@@ -62,7 +61,6 @@ export default function MarketDetailPage() {
     if (marketLoading)
         return (
             <div className="min-h-screen bg-background">
-                <Navbar />
                 <div className="h-auto w-full">
                     <div className="container h-full mx-auto flex items-center justify-center mt-24">
                         <Loader className="w-8 h-8 animate-spin" />
@@ -74,7 +72,6 @@ export default function MarketDetailPage() {
     if (!market || !polymarketMarket)
         return (
             <div className="min-h-screen bg-background">
-                <Navbar />
                 <div className="h-auto w-full">
                     <div className="container h-full mx-auto flex items-center justify-center mt-24">
                         <p className="text-sm text-muted-foreground">Market not found</p>
@@ -85,8 +82,6 @@ export default function MarketDetailPage() {
 
     return (
         <div className="min-h-screen bg-background">
-            <Navbar />
-
             <div className="container mx-auto px-4 py-8">
                 <MarketHeader market={market} polymarketMarket={polymarketMarket} />
 

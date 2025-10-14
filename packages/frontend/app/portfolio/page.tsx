@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Clock, RefreshCcw, HandCoins, Trophy, Loader } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import Navbar from '@/components/navbar';
 import { MarketStatusBadge } from '@/components/market/market-status-badge';
 import { MarketStatus } from '@robin-pm-staking/common/types/market';
 import { useEffect, useState } from 'react';
@@ -75,9 +74,6 @@ export default function PortfolioPage() {
 
     return (
         <div className="min-h-screen bg-background">
-            {/* Header */}
-            <Navbar />
-
             <div className="container mx-auto px-4 py-8">
                 {/* Page Header */}
                 <div className="mb-8">
@@ -89,7 +85,7 @@ export default function PortfolioPage() {
                 <Card className="mb-8">
                     <CardHeader>
                         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                            <div className="flex items-center gap-2 justify-between w-full">
+                            <div className="flex gap-2 justify-between w-full flex-col sm:flex-row">
                                 <div className="flex items-center gap-2">
                                     <CardTitle className="text-xl">Your Deposits</CardTitle>
                                     <Button
@@ -123,7 +119,7 @@ export default function PortfolioPage() {
                             </div>
 
                             <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-center shrink-0">
-                                <div className="flex w-full justify-between text-sm md:w-auto md:justify-start md:space-x-6">
+                                <div className="flex w-full justify-between text-sm md:w-auto md:justify-start md:space-x-6 flex-col sm:flex-row">
                                     <div>
                                         <span className="text-muted-foreground">Total Supplied: </span>
                                         <span className="font-bold">
@@ -144,7 +140,7 @@ export default function PortfolioPage() {
                                 userDeposits.map(deposit => (
                                     <Link key={deposit.slug} href={`/market/${encodeURIComponent(deposit.slug)}`}>
                                         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between p-3 md:p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer mt-2">
-                                            <div className="flex w-full items-center space-x-4 md:w-auto justify-between">
+                                            <div className="flex w-full items-center space-x-4 md:w-auto justify-between flex-col sm:flex-row">
                                                 <div className="flex items-center space-x-4">
                                                     <div className="relative w-12 h-12 shrink-0">
                                                         <Image
@@ -163,7 +159,7 @@ export default function PortfolioPage() {
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div className="col-span-2 flex items-center justify-end space-x-3 md:hidden">
+                                                <div className="col-span-2 flex items-center justify-end space-x-3 md:hidden py-4 sm:py-0">
                                                     <span title="Redeemed">
                                                         <Trophy
                                                             className={`w-5 h-5 ${

@@ -5,7 +5,7 @@ import Link from 'next/link';
 export default function Footer() {
     return (
         <footer className="border-t border-border bg-card/50 backdrop-blur-sm sticky bottom-0 z-50">
-            <div className="container mx-auto px-4 py-6 flex items-center justify-between gap-3">
+            <div className="container mx-auto px-4 py-3 flex items-center justify-between gap-3">
                 <p className="text-xs text-muted-foreground">This product is in BETA, use at own risk.</p>
                 <nav className="flex items-center gap-4">
                     <Link href="https://discord.gg/jskXXYUNU3" target="_blank" rel="noopener noreferrer" aria-label="Discord">
