@@ -41,7 +41,7 @@ export default function ManagePositionCard({ market, polymarketMarket, onAction 
     const [withdrawAmount, setWithdrawAmount] = useState<string>('');
     const [side, setSide] = useState<Outcome>(Outcome.Yes);
 
-    const { proxyAddress } = useProxyAccount();
+    const { proxyAddress, isConnected } = useProxyAccount();
     const invalidateQueries = useInvalidateQueries();
     const vaultAddress = market.contractAddress as `0x${string}`;
 
@@ -124,6 +124,11 @@ export default function ManagePositionCard({ market, polymarketMarket, onAction 
 
     const handleStake = async () => {
         try {
+            if (!isConnected) throw new Error('Wallet not connected');
+            if (!market.contractAddress) throw new Error('Vault address not found');
+            if (!proxyAddress) throw new Error('Proxy address not found');
+            if (stakeAmountInvalid) throw new Error('Invalid stake amount');
+
             await stake([
                 // @ts-expect-error fix typing
                 ...(approvedForAll
@@ -154,6 +159,11 @@ export default function ManagePositionCard({ market, polymarketMarket, onAction 
 
     const handleWithdraw = async () => {
         try {
+            if (!isConnected) throw new Error('Wallet not connected');
+            if (!market.contractAddress) throw new Error('Vault address not found');
+            if (!proxyAddress) throw new Error('Proxy address not found');
+            if (withdrawAmountInvalid) throw new Error('Invalid withdraw amount');
+
             await withdraw({
                 address: vaultAddress as `0x${string}`,
                 args: [

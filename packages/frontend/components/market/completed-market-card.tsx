@@ -22,7 +22,7 @@ type CompletedMarketCardProps = {
 };
 
 export default function CompletedMarketCard({ market, onAction }: CompletedMarketCardProps) {
-    const { proxyAddress } = useProxyAccount();
+    const { proxyAddress, isConnected } = useProxyAccount();
     const invalidateQueries = useInvalidateQueries();
 
     const {
@@ -51,6 +51,10 @@ export default function CompletedMarketCard({ market, onAction }: CompletedMarke
 
     const handleRedeemWinningTokens = async () => {
         try {
+            if (!isConnected) throw new Error('Wallet not connected');
+            if (!market.contractAddress) throw new Error('Vault address not found');
+            if (!proxyAddress) throw new Error('Proxy address not found');
+
             await redeemWinningTokens({
                 address: market.contractAddress as `0x${string}`,
                 args: [],
@@ -67,6 +71,10 @@ export default function CompletedMarketCard({ market, onAction }: CompletedMarke
 
     const handleHarvestYield = async () => {
         try {
+            if (!isConnected) throw new Error('Wallet not connected');
+            if (!market.contractAddress) throw new Error('Vault address not found');
+            if (!proxyAddress) throw new Error('Proxy address not found');
+
             await harvestYield({
                 address: market.contractAddress as `0x${string}`,
                 args: [],

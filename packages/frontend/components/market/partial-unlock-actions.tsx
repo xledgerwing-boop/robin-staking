@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import MarketResult from './market-result';
 
 export default function PartialUnlockActions({ market, onUnlocked }: { market: Market; onUnlocked: () => void }) {
-    const { proxyAddress } = useProxyAccount();
+    const { proxyAddress, isConnected } = useProxyAccount();
     const invalidateQueries = useInvalidateQueries();
 
     const { tokenUserBalancesQueryKey, vaultUserBalancesQueryKey, vaultUserBalances } = useVaultUserInfo(
@@ -60,13 +60,17 @@ export default function PartialUnlockActions({ market, onUnlocked }: { market: M
 
     const handleUnlockYield = async () => {
         try {
+            if (!isConnected) throw new Error('Wallet not connected');
+            if (!market.contractAddress) throw new Error('Vault address not found');
+            if (!proxyAddress) throw new Error('Proxy address not found');
+
             await unlockYield({
                 address: market.contractAddress as `0x${string}`,
                 args: [],
                 hookIndex: 0,
             });
             await unlockYieldPromise.current;
-            //await invalidateQueries([tvlUsdQueryKey, vaultUsdBalanceQueryKey]);
+            await invalidateQueries([tvlUsdQueryKey, vaultUsdBalanceQueryKey]);
             onUnlocked();
         } catch (error) {
             toast.error('Failed to unlock yield' + getErrorMessage(error));
@@ -76,6 +80,10 @@ export default function PartialUnlockActions({ market, onUnlocked }: { market: M
 
     const handleRedeemWinningTokens = async () => {
         try {
+            if (!isConnected) throw new Error('Wallet not connected');
+            if (!market.contractAddress) throw new Error('Vault address not found');
+            if (!proxyAddress) throw new Error('Proxy address not found');
+
             await redeemWinningTokens({
                 address: market.contractAddress as `0x${string}`,
                 args: [],

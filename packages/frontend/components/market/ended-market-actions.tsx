@@ -32,6 +32,8 @@ export default function EndedMarketActions({
     const handleFinalizeVault = async () => {
         try {
             if (!isConnected) throw new Error('Wallet not connected');
+            if (!market.contractAddress) throw new Error('Vault address not found');
+            if (!proxyAddress) throw new Error('Proxy address not found');
 
             await finalizeVault({
                 address: market.contractAddress as `0x${string}`,

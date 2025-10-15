@@ -444,7 +444,7 @@ function StakeWithdrawTabs({
     const [stakeAmount, setStakeAmount] = useState<string>('');
     const [withdrawAmount, setWithdrawAmount] = useState<string>('');
 
-    const { proxyAddress } = useProxyAccount();
+    const { proxyAddress, isConnected, chainId } = useProxyAccount();
     const invalidateQueries = useInvalidateQueries();
 
     const { vaultUserBalancesQueryKey, tokenUserBalancesQueryKey, vaultCurrentApyQueryKey, getUserBalances, calculateExpectedYield } =
@@ -469,6 +469,12 @@ function StakeWithdrawTabs({
 
     const handleStake = async () => {
         try {
+            if (!isConnected) throw new Error('Wallet not connected');
+            if (chainId !== TARGET_CHAIN_ID) throw new Error('Wrong chain');
+            if (!vaultAddress) throw new Error('Vault address not found');
+            if (!proxyAddress) throw new Error('Proxy address not found');
+            if (stakeAmountInvalid) throw new Error('Invalid stake amount');
+
             await stake([
                 ...((approvedForAll
                     ? []
@@ -496,6 +502,12 @@ function StakeWithdrawTabs({
 
     const handleWithdraw = async () => {
         try {
+            if (!isConnected) throw new Error('Wallet not connected');
+            if (chainId !== TARGET_CHAIN_ID) throw new Error('Wrong chain');
+            if (!vaultAddress) throw new Error('Vault address not found');
+            if (!proxyAddress) throw new Error('Proxy address not found');
+            if (withdrawAmountInvalid) throw new Error('Invalid withdraw amount');
+
             await withdraw({
                 address: vaultAddress as `0x${string}`,
                 args: [
@@ -641,6 +653,7 @@ function EndedMarketActions({ vaultAddress, reloadQueryKeys }: { vaultAddress: s
         try {
             if (!isConnected) throw new Error('Wallet not connected');
             if (chainId !== TARGET_CHAIN_ID) throw new Error('Wrong chain');
+            if (!vaultAddress) throw new Error('Vault address not found');
 
             await finalizeVault({
                 address: vaultAddress as `0x${string}`,
@@ -717,6 +730,11 @@ function PartialUnlockActions({
 
     const handleUnlockYield = async () => {
         try {
+            if (!isConnected) throw new Error('Wallet not connected');
+            if (chainId !== TARGET_CHAIN_ID) throw new Error('Wrong chain');
+            if (!vaultAddress) throw new Error('Vault address not found');
+            if (!proxyAddress) throw new Error('Proxy address not found');
+
             await unlockYield({
                 address: vaultAddress as `0x${string}`,
                 args: [],
@@ -732,6 +750,11 @@ function PartialUnlockActions({
 
     const handleRedeemWinningTokens = async () => {
         try {
+            if (!isConnected) throw new Error('Wallet not connected');
+            if (chainId !== TARGET_CHAIN_ID) throw new Error('Wrong chain');
+            if (!vaultAddress) throw new Error('Vault address not found');
+            if (!proxyAddress) throw new Error('Proxy address not found');
+
             await redeemWinningTokens({
                 address: vaultAddress as `0x${string}`,
                 args: [],
@@ -821,7 +844,7 @@ function PartialUnlockActions({
 
 function VaultUnlockedActions({ vaultAddress, market }: { vaultAddress: string; market: ParsedPolymarketMarket }) {
     const invalidateQueries = useInvalidateQueries();
-    const { proxyAddress: userAddress } = useProxyAccount();
+    const { proxyAddress, isConnected, chainId } = useProxyAccount();
 
     const {
         tokenUserBalancesQueryKey,
@@ -833,7 +856,7 @@ function VaultUnlockedActions({ vaultAddress, market }: { vaultAddress: string; 
         currentYield,
         currentYieldLoading,
         currentYieldError,
-    } = useVaultUserInfo(vaultAddress as `0x${string}`, userAddress as `0x${string}`, market);
+    } = useVaultUserInfo(vaultAddress as `0x${string}`, proxyAddress as `0x${string}`, market);
 
     const {
         write: redeemWinningTokens,
@@ -849,6 +872,11 @@ function VaultUnlockedActions({ vaultAddress, market }: { vaultAddress: string; 
 
     const handleRedeemWinningTokens = async () => {
         try {
+            if (!isConnected) throw new Error('Wallet not connected');
+            if (chainId !== TARGET_CHAIN_ID) throw new Error('Wrong chain');
+            if (!vaultAddress) throw new Error('Vault address not found');
+            if (!proxyAddress) throw new Error('Proxy address not found');
+
             await redeemWinningTokens({
                 address: vaultAddress as `0x${string}`,
                 args: [],
@@ -864,6 +892,11 @@ function VaultUnlockedActions({ vaultAddress, market }: { vaultAddress: string; 
 
     const handleHarvestYield = async () => {
         try {
+            if (!isConnected) throw new Error('Wallet not connected');
+            if (chainId !== TARGET_CHAIN_ID) throw new Error('Wrong chain');
+            if (!vaultAddress) throw new Error('Vault address not found');
+            if (!proxyAddress) throw new Error('Proxy address not found');
+
             await harvestYield({
                 address: vaultAddress as `0x${string}`,
                 args: [],

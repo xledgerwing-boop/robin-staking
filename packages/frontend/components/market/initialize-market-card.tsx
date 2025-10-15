@@ -19,6 +19,8 @@ export default function InitializeMarketCard({ market, onInitialized }: { market
 
     const handleInitialize = async () => {
         try {
+            if (!market.conditionId) throw new Error('Market conditionId not found');
+
             await initializeMarket({
                 address: USED_CONTRACTS.VAULT_MANAGER,
                 args: [market.conditionId as `0x${string}`],
