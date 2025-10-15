@@ -8,7 +8,7 @@ import { Activity as ActivityIcon } from 'lucide-react';
 import { Switch } from '../ui/switch';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
 import { shortenAddress } from '@/lib/utils';
 import { ActivityInfo } from './activity-info';
@@ -18,6 +18,7 @@ import { VaultEvent } from '@robin-pm-staking/common/types/conract-events';
 import { Skeleton } from '../ui/skeleton';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
+import useUpdateQueryParams from '@/lib/useUpdateQueryParams';
 
 const typesMapping: Record<string, { title: string; types: VaultEvent[] }> = {
     deposits_withdrawals: {
@@ -55,26 +56,9 @@ export default function ActivityTable({ market }: { market: Market }) {
     const observerRef = useRef<HTMLDivElement>(null);
     const tableRef = useRef<HTMLDivElement>(null);
 
-    const router = useRouter();
-    const pathname = usePathname();
+    const { updateQueryParams } = useUpdateQueryParams();
     const searchParams = useSearchParams();
     const { proxyAddress } = useProxyAccount();
-
-    const updateQueryParams = (updates: Record<string, string | null | undefined>) => {
-        const params = new URLSearchParams(searchParams.toString());
-        Object.entries(updates).forEach(([key, value]) => {
-            if (value === undefined || value === null || value === '') {
-                params.delete(key);
-            } else {
-                params.set(key, value);
-            }
-        });
-        const prev = searchParams.toString();
-        const next = params.toString();
-        if (prev !== next) {
-            router.replace(`${pathname}${next ? `?${next}` : ''}`, { scroll: false });
-        }
-    };
 
     const loadQueryParams = () => {
         const userOnlyParam = searchParams.get('userOnly');

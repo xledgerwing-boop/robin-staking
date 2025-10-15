@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowDownToLine, ArrowUpToLine, Loader } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { DateTime } from 'luxon';
 import { Market, ParsedPolymarketMarket } from '@robin-pm-staking/common/types/market';
 import { Outcome } from '@robin-pm-staking/common/types/market';
@@ -27,6 +27,7 @@ import {
     useWriteRobinStakingVaultWithdraw,
 } from '@robin-pm-staking/common/types/contracts';
 import useProxyContractInteraction from '@robin-pm-staking/common/hooks/use-proxy-contract-interaction';
+import useUpdateQueryParams from '@/lib/useUpdateQueryParams';
 
 type ManagePositionCardProps = {
     market: Market;
@@ -70,9 +71,8 @@ export default function ManagePositionCard({ market, polymarketMarket, onAction 
         promise: withdrawPromise,
     } = useProxyContractInteraction([useWriteRobinStakingVaultWithdraw]);
 
-    const router = useRouter();
-    const pathname = usePathname();
     const searchParams = useSearchParams();
+    const { updateQueryParams } = useUpdateQueryParams();
 
     const { currentNoApyBps, currentYesApyBps } = calculateUserInfo(
         Number(polymarketMarket.outcomePrices[0]),
@@ -85,22 +85,6 @@ export default function ManagePositionCard({ market, polymarketMarket, onAction 
         Number(polymarketMarket.outcomePrices[0]),
         Number(polymarketMarket.outcomePrices[1])
     );
-
-    const updateQueryParams = (updates: Record<string, string | null | undefined>) => {
-        const params = new URLSearchParams(searchParams.toString());
-        Object.entries(updates).forEach(([key, value]) => {
-            if (value === undefined || value === null || value === '') {
-                params.delete(key);
-            } else {
-                params.set(key, value);
-            }
-        });
-        const prev = searchParams.toString();
-        const next = params.toString();
-        if (prev !== next) {
-            router.replace(`${pathname}${next ? `?${next}` : ''}`, { scroll: false });
-        }
-    };
 
     const loadQueryParams = () => {
         const tabParam = searchParams.get('tab');

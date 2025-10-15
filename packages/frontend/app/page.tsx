@@ -15,7 +15,7 @@ import { fetchWalletPositionsPage, isPolymarketUrl } from '@robin-pm-staking/com
 import { DateTime } from 'luxon';
 import type { Market, MarketRow } from '@robin-pm-staking/common/types/market';
 import { MarketRowToMarket, MarketStatus } from '@robin-pm-staking/common/types/market';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { MarketStatusBadge } from '@/components/market/market-status-badge';
 import { formatUnits } from '@robin-pm-staking/common/lib/utils';
 import { UNDERYLING_DECIMALS } from '@robin-pm-staking/common/constants';
@@ -24,6 +24,7 @@ import { zeroAddress } from 'viem';
 import { ValueState } from '@/components/value-state';
 import { toast } from 'sonner';
 import { debounce } from 'throttle-debounce';
+import useUpdateQueryParams from '@/lib/useUpdateQueryParams';
 
 function StakingPageContent() {
     const { proxyAddress: address, isConnected, isConnecting } = useProxyAccount();
@@ -67,25 +68,8 @@ function StakingPageContent() {
     const [sortField, setSortField] = useState<SortField>('tvl');
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
-    const router = useRouter();
-    const pathname = usePathname();
+    const { updateQueryParams } = useUpdateQueryParams();
     const searchParams = useSearchParams();
-
-    const updateQueryParams = (updates: Record<string, string | null | undefined>) => {
-        const params = new URLSearchParams(searchParams.toString());
-        Object.entries(updates).forEach(([key, value]) => {
-            if (value === undefined || value === null || value === '') {
-                params.delete(key);
-            } else {
-                params.set(key, value);
-            }
-        });
-        const prev = searchParams.toString();
-        const next = params.toString();
-        if (prev !== next) {
-            router.replace(`${pathname}${next ? `?${next}` : ''}`, { scroll: false });
-        }
-    };
 
     const loadQueryParams = () => {
         const spSearch = searchParams.get('search') ?? '';
@@ -106,6 +90,11 @@ function StakingPageContent() {
         }
         if (spSortDirection && (spSortDirection === 'asc' || spSortDirection === 'desc') && spSortDirection !== sortDirection) {
             setSortDirection(spSortDirection);
+        }
+        // Page index
+        const spPage = parseInt(searchParams.get('page') || '1', 10);
+        if (!Number.isNaN(spPage) && spPage > 0 && spPage !== page) {
+            setPage(spPage);
         }
         setQueryParamsLoaded(true);
     };
@@ -247,8 +236,9 @@ function StakingPageContent() {
             debounce(400, (v: string) => {
                 setSearchQuery(v);
                 const trimmed = v.trim();
-                updateQueryParams({ search: trimmed || null });
-                if (showWalletOnly) setPage(1);
+                // Reset to first page on new search
+                setPage(1);
+                updateQueryParams({ search: trimmed || null, page: '1' });
             }),
         []
     );
@@ -262,8 +252,8 @@ function StakingPageContent() {
 
     const handleWalletOnlyChange = (checked: boolean) => {
         setShowWalletOnly(checked);
-        updateQueryParams({ walletOnly: checked ? '1' : null });
         setPage(1);
+        updateQueryParams({ walletOnly: checked ? '1' : null, page: '1' });
     };
 
     return (
@@ -550,7 +540,13 @@ function StakingPageContent() {
                                     <Button
                                         size="sm"
                                         variant="outline"
-                                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                                        onClick={() => {
+                                            if (page > 1 && !marketsLoading) {
+                                                const nextPage = Math.max(1, page - 1);
+                                                setPage(nextPage);
+                                                updateQueryParams({ page: String(nextPage) });
+                                            }
+                                        }}
                                         disabled={page <= 1 || marketsLoading}
                                     >
                                         Prev
@@ -559,7 +555,13 @@ function StakingPageContent() {
                                     <Button
                                         size="sm"
                                         variant="outline"
-                                        onClick={() => setPage(p => (p * pageSize < totalCount ? p + 1 : p))}
+                                        onClick={() => {
+                                            if (page * pageSize < totalCount && !marketsLoading) {
+                                                const nextPage = page + 1;
+                                                setPage(nextPage);
+                                                updateQueryParams({ page: String(nextPage) });
+                                            }
+                                        }}
                                         disabled={page * pageSize >= totalCount || marketsLoading}
                                     >
                                         Next
