@@ -98,13 +98,13 @@ export default function MarketDetailPage() {
                             ) : market.status === MarketStatus.Uninitialized && polymarketMarket?.closed ? (
                                 <NoVaultEndedNotice polymarketMarket={polymarketMarket} />
                             ) : market.status === MarketStatus.Active && !polymarketMarket?.closed ? (
-                                <ManagePositionCard market={market} polymarketMarket={polymarketMarket} />
+                                <ManagePositionCard market={market} polymarketMarket={polymarketMarket} onAction={reloadMarket} />
                             ) : market.status === MarketStatus.Active && polymarketMarket?.closed ? (
                                 <EndedMarketActions market={market} polymarketMarket={polymarketMarket} onFinalized={reloadMarket} />
                             ) : market.status === MarketStatus.Finalized ? (
                                 <PartialUnlockActions market={market} onUnlocked={reloadMarket} />
                             ) : market.status === MarketStatus.Unlocked ? (
-                                <CompletedMarketCard market={market} />
+                                <CompletedMarketCard market={market} onAction={reloadMarket} />
                             ) : null}
                         </div>
                     </div>
@@ -118,13 +118,13 @@ export default function MarketDetailPage() {
                             ) : market.status === MarketStatus.Uninitialized && polymarketMarket?.closed ? (
                                 <NoVaultEndedNotice polymarketMarket={polymarketMarket} />
                             ) : market.status === MarketStatus.Active && !polymarketMarket?.closed ? (
-                                <ManagePositionCard market={market} polymarketMarket={polymarketMarket} />
+                                <ManagePositionCard market={market} polymarketMarket={polymarketMarket} onAction={reloadMarket} />
                             ) : market.status === MarketStatus.Active && polymarketMarket?.closed ? (
                                 <EndedMarketActions market={market} polymarketMarket={polymarketMarket} onFinalized={reloadMarket} />
                             ) : market.status === MarketStatus.Finalized ? (
                                 <PartialUnlockActions market={market} onUnlocked={reloadMarket} />
                             ) : market.status === MarketStatus.Unlocked ? (
-                                <CompletedMarketCard market={market} />
+                                <CompletedMarketCard market={market} onAction={reloadMarket} />
                             ) : null}
                         </div>
                         <ActivityTable market={market} />

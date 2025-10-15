@@ -18,9 +18,10 @@ import { ValueState } from '../value-state';
 
 type CompletedMarketCardProps = {
     market: Market;
+    onAction: () => void;
 };
 
-export default function CompletedMarketCard({ market }: CompletedMarketCardProps) {
+export default function CompletedMarketCard({ market, onAction }: CompletedMarketCardProps) {
     const { proxyAddress } = useProxyAccount();
     const invalidateQueries = useInvalidateQueries();
 
@@ -57,6 +58,7 @@ export default function CompletedMarketCard({ market }: CompletedMarketCardProps
             });
             await redeemWinningTokensPromise.current;
             await invalidateQueries([tokenUserBalancesQueryKey, vaultUserBalancesQueryKey]);
+            onAction();
         } catch (error) {
             toast.error('Failed to redeem winning tokens' + getErrorMessage(error));
             console.error(error);
@@ -72,6 +74,7 @@ export default function CompletedMarketCard({ market }: CompletedMarketCardProps
             });
             await harvestYieldPromise.current;
             await invalidateQueries([tokenUserBalancesQueryKey, vaultUserBalancesQueryKey, currentYieldQueryKey]);
+            onAction();
         } catch (error) {
             toast.error('Failed to harvest yield' + getErrorMessage(error));
             console.error(error);

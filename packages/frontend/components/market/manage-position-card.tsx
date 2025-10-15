@@ -31,9 +31,10 @@ import useProxyContractInteraction from '@robin-pm-staking/common/hooks/use-prox
 type ManagePositionCardProps = {
     market: Market;
     polymarketMarket: ParsedPolymarketMarket;
+    onAction: () => void;
 };
 
-export default function ManagePositionCard({ market, polymarketMarket }: ManagePositionCardProps) {
+export default function ManagePositionCard({ market, polymarketMarket, onAction }: ManagePositionCardProps) {
     const [tab, setTab] = useState<'stake' | 'withdraw'>('stake');
     const [stakeAmount, setStakeAmount] = useState<string>('');
     const [withdrawAmount, setWithdrawAmount] = useState<string>('');
@@ -160,6 +161,7 @@ export default function ManagePositionCard({ market, polymarketMarket }: ManageP
             await stakePromise.current;
             await invalidateQueries([vaultUserBalancesQueryKey, tokenUserBalancesQueryKey, vaultCurrentApyQueryKey, approvedForAllQueryKey]);
             setStakeAmount('');
+            onAction();
         } catch (error) {
             toast.error('Failed to stake' + getErrorMessage(error));
             console.error(error);
@@ -179,6 +181,7 @@ export default function ManagePositionCard({ market, polymarketMarket }: ManageP
             await withdrawPromise.current;
             await invalidateQueries([vaultUserBalancesQueryKey, tokenUserBalancesQueryKey, vaultCurrentApyQueryKey]);
             setWithdrawAmount('');
+            onAction();
         } catch (error) {
             toast.error('Failed to withdraw' + getErrorMessage(error));
             console.error(error);
