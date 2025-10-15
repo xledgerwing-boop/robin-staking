@@ -24,7 +24,7 @@ import { zeroAddress } from 'viem';
 import { ValueState } from '@/components/value-state';
 import { toast } from 'sonner';
 import { debounce } from 'throttle-debounce';
-import useUpdateQueryParams from '@/lib/useUpdateQueryParams';
+import useUpdateQueryParams from '@/hooks/useUpdateQueryParams';
 
 function StakingPageContent() {
     const { proxyAddress: address, isConnected, isConnecting } = useProxyAccount();

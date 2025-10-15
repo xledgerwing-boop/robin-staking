@@ -18,7 +18,7 @@ import { VaultEvent } from '@robin-pm-staking/common/types/conract-events';
 import { Skeleton } from '../ui/skeleton';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
-import useUpdateQueryParams from '@/lib/useUpdateQueryParams';
+import useUpdateQueryParams from '@/hooks/useUpdateQueryParams';
 
 const typesMapping: Record<string, { title: string; types: VaultEvent[] }> = {
     deposits_withdrawals: {

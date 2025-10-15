@@ -4,6 +4,7 @@ type Contracts = {
     VAULT_MANAGER: `0x${string}`;
     CONDITIONAL_TOKENS: `0x${string}`;
     EXPLORER_URL: string;
+    MULTICALL: `0x${string}`;
 };
 
 const CONTRACT_ADDRESSES: {
@@ -19,6 +20,7 @@ const CONTRACT_ADDRESSES: {
             VAULT_MANAGER: '0x443d773831c8B542F20bd9712c672084911eE10B',
             CONDITIONAL_TOKENS: '0x4D97DCd97eC945f40cF65F87097ACe5EA0476045',
             EXPLORER_URL: 'https://polygonscan.com',
+            MULTICALL: '0xca11bde05977b3631167028862be2a173976ca11',
         },
     },
 };

@@ -27,7 +27,7 @@ import {
     useWriteRobinStakingVaultWithdraw,
 } from '@robin-pm-staking/common/types/contracts';
 import useProxyContractInteraction from '@robin-pm-staking/common/hooks/use-proxy-contract-interaction';
-import useUpdateQueryParams from '@/lib/useUpdateQueryParams';
+import useUpdateQueryParams from '@/hooks/useUpdateQueryParams';
 
 type ManagePositionCardProps = {
     market: Market;

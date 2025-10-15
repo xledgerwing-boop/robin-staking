@@ -9,11 +9,14 @@ import { MarketStatus } from '@robin-pm-staking/common/types/market';
 import { useEffect, useState } from 'react';
 import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
 import { formatUnits } from '@robin-pm-staking/common/lib/utils';
-import { UNDERYLING_DECIMALS } from '@robin-pm-staking/common/constants';
+import { UNDERYLING_DECIMALS, USED_CONTRACTS } from '@robin-pm-staking/common/constants';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PortfolioFilter, UserPositionInfo, UserPositionInfoRow, userPositionRowToUserPosition } from '@robin-pm-staking/common/types/position';
 import { toast } from 'sonner';
+import { useReadContracts } from 'wagmi';
+import { robinStakingVaultAbi } from '@robin-pm-staking/common/types/contracts';
+import { ValueState } from '@/components/value-state';
 
 export default function PortfolioPage() {
     const { proxyAddress: address } = useProxyAccount();
@@ -27,6 +30,25 @@ export default function PortfolioPage() {
     const [totalCount, setTotalCount] = useState(0);
     const [loading, setLoading] = useState(false);
     const [refreshTick, setRefreshTick] = useState(0);
+
+    const {
+        data: userYields,
+        isLoading: userYieldsLoading,
+        error: userYieldsError,
+    } = useReadContracts({
+        contracts: userDeposits.map(deposit => {
+            return {
+                address: deposit.vaultAddress as `0x${string}`,
+                abi: robinStakingVaultAbi,
+                functionName: 'getCurrentUserYield',
+                args: [address as `0x${string}`],
+            };
+        }),
+        multicallAddress: USED_CONTRACTS.MULTICALL,
+        query: {
+            enabled: !!userDeposits.length && !!address,
+        },
+    });
 
     useEffect(() => {
         if (!address) {
@@ -78,7 +100,7 @@ export default function PortfolioPage() {
                 {/* Page Header */}
                 <div className="mb-8">
                     <h1 className="text-3xl md:text-4xl font-bold mb-2">Portfolio</h1>
-                    <p className="text-muted-foreground text-lg">Manage your prediction market positions</p>
+                    <p className="text-muted-foreground text-lg">Manage all your positions staked with Robin</p>
                 </div>
 
                 {/* Your Deposits Section */}
@@ -137,7 +159,7 @@ export default function PortfolioPage() {
                     <CardContent>
                         <div className="space-y-4">
                             {!loading &&
-                                userDeposits.map(deposit => (
+                                userDeposits.map((deposit, index) => (
                                     <Link key={deposit.slug} href={`/market/${encodeURIComponent(deposit.slug)}`}>
                                         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between p-3 md:p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer mt-2">
                                             <div className="flex w-full items-center space-x-4 md:w-auto justify-between flex-col sm:flex-row">
@@ -178,7 +200,7 @@ export default function PortfolioPage() {
                                                 </div>
                                             </div>
 
-                                            <div className="grid w-full grid-cols-2 gap-4 md:w-auto md:flex md:items-center md:space-x-6">
+                                            <div className="grid w-full grid-cols-3 md:w-auto md:flex md:items-center md:space-x-6">
                                                 <div className="text-center">
                                                     <p className="text-xs text-muted-foreground md:text-sm">{deposit.outcomes[0]} Tokens</p>
                                                     <p className="font-medium">
@@ -189,10 +211,17 @@ export default function PortfolioPage() {
                                                     <p className="text-xs text-muted-foreground md:text-sm">{deposit.outcomes[1]} Tokens</p>
                                                     <p className="font-medium">{formatUnits(BigInt(deposit.noTokens ?? '0'), UNDERYLING_DECIMALS)}</p>
                                                 </div>
-                                                {/* <div className="text-center">
-                                                <p className="text-sm text-muted-foreground">Earned Yield</p>
-                                                <p className="font-medium text-primary">{deposit.earnedYield}</p>
-                                                </div> */}
+                                                <div className="text-center">
+                                                    <p className="text-sm text-muted-foreground">Earned Yield</p>
+                                                    <div className="font-medium text-primary">
+                                                        $
+                                                        <ValueState
+                                                            value={formatUnits((userYields?.[index]?.result as bigint) ?? 0n, UNDERYLING_DECIMALS)}
+                                                            loading={userYieldsLoading}
+                                                            error={!!userYieldsError}
+                                                        />
+                                                    </div>
+                                                </div>
                                                 {/* Icons for redemption/harvesting status */}
                                                 <div className="items-center justify-center space-x-3 min-w-28 hidden md:flex">
                                                     <span title="Redeemed">
