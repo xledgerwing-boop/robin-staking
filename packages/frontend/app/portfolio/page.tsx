@@ -216,7 +216,12 @@ export default function PortfolioPage() {
                                                     <div className="font-medium text-primary">
                                                         $
                                                         <ValueState
-                                                            value={formatUnits((userYields?.[index]?.result as bigint) ?? 0n, UNDERYLING_DECIMALS)}
+                                                            value={
+                                                                // @ts-expect-error — deep generic inference with wagmi+ABI here
+                                                                userYields?.[index]?.result != null
+                                                                    ? formatUnits(userYields?.[index].result as bigint, UNDERYLING_DECIMALS)
+                                                                    : '-'
+                                                            }
                                                             loading={userYieldsLoading}
                                                             error={!!userYieldsError}
                                                         />
