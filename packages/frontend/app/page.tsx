@@ -516,7 +516,11 @@ function StakingPageContent() {
 
                                                 <Button className="w-full" size="sm" asChild>
                                                     <Link href={`/market/${encodeURIComponent(market.slug)}`}>
-                                                        {market.status !== MarketStatus.Uninitialized ? 'Stake Now' : 'Initialize Market'}
+                                                        {market.status === MarketStatus.Uninitialized
+                                                            ? 'Initialize Market'
+                                                            : market.status === MarketStatus.Active
+                                                            ? 'Stake Now'
+                                                            : 'View Market'}
                                                         <ArrowUpRight className="w-4 h-4 ml-1" />
                                                     </Link>
                                                 </Button>
