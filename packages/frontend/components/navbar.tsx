@@ -5,7 +5,7 @@ import { ThemeToggle } from './theme-toggle';
 import { ConnectButton } from './connect-button';
 import Link from 'next/link';
 import { Button } from './ui/button';
-import { WalletMinimal } from 'lucide-react';
+import { BookText, WalletMinimal } from 'lucide-react';
 import { BackButton } from './back-button';
 
 export default function Navbar() {
@@ -29,12 +29,17 @@ export default function Navbar() {
                         <Button className="hidden md:inline-flex" variant="default">
                             <WalletMinimal className="w-4 h-4" /> Portfolio
                         </Button>
-                        <Button className="inline-flex md:hidden" variant="default">
+                        <Button className="inline-flex md:hidden" variant="default" size="icon">
                             <WalletMinimal className="w-4 h-4" />
                         </Button>
                     </Link>
                     <ConnectButton />
                     <ThemeToggle />
+                    <Link href="https://robin-markets.gitbook.io" target="_blank" rel="noopener noreferrer" aria-label="Gitbook Docs">
+                        <Button className="hidden md:inline-flex" variant="outline" size="icon">
+                            <BookText className="w-5 h-5" />
+                        </Button>
+                    </Link>
                 </nav>
             </div>
         </header>
