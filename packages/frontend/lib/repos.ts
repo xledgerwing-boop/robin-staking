@@ -84,6 +84,9 @@ export async function queryMarkets(db: Knex, q: MarketsQuery): Promise<{ rows: M
         title: `${MARKETS_TABLE}.question`,
     } as const;
     builder.orderBy(sortMap[sortField], sortDirection);
+    if (sortField === 'tvl') {
+        builder.orderByRaw(`${MARKETS_TABLE}.unmatched_yes_tokens + ${MARKETS_TABLE}.unmatched_no_tokens ${sortDirection}`);
+    }
 
     // Pagination
     if (q.page && q.pageSize) {

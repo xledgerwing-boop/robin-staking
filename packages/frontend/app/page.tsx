@@ -480,13 +480,27 @@ function StakingPageContent() {
                                                 </div>
                                             </Link>
 
-                                            <div className="space-y-3">
+                                            <div className="space-y-2">
                                                 <div className="flex justify-between">
                                                     <span className="text-sm text-muted-foreground">TVL</span>
                                                     <span className="font-medium">
                                                         {market.status !== MarketStatus.Uninitialized
-                                                            ? `$${formatUnits(market.tvl, UNDERYLING_DECIMALS)}`
+                                                            ? `$${formatUnits(market.tvl, UNDERYLING_DECIMALS, 0)}`
                                                             : 'Uninitialized'}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-sm text-muted-foreground">Unmatched Tokens</span>
+                                                    <span className="font-medium">
+                                                        {market.unmatchedYesTokens > 0
+                                                            ? `${formatUnits(market.unmatchedYesTokens, UNDERYLING_DECIMALS, 0)} ${
+                                                                  market.outcomes[0]
+                                                              }`
+                                                            : ''}
+                                                        {market.unmatchedNoTokens > 0
+                                                            ? `${formatUnits(market.unmatchedNoTokens, UNDERYLING_DECIMALS, 0)} ${market.outcomes[1]}`
+                                                            : ''}
+                                                        {market.unmatchedYesTokens === 0n && market.unmatchedNoTokens === 0n ? `0` : ''}
                                                     </span>
                                                 </div>
                                                 <div className="flex justify-between">

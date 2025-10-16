@@ -121,9 +121,7 @@ export default function MarketHeader({ market, polymarketMarket }: { market: Mar
                                 {market.unmatchedNoTokens > 0
                                     ? `${formatUnits(market.unmatchedNoTokens, UNDERYLING_DECIMALS)} ${market.outcomes[1]}`
                                     : ''}
-                                {market.unmatchedYesTokens === 0n && market.unmatchedNoTokens === 0n
-                                    ? `0 ${market.outcomes[0]} / ${market.outcomes[1]}`
-                                    : ''}
+                                {market.unmatchedYesTokens === 0n && market.unmatchedNoTokens === 0n ? `0` : ''}
                             </p>
                         </div>
                     </div>

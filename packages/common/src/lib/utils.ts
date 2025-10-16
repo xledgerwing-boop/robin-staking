@@ -16,6 +16,7 @@ export function getErrorMessage(error: unknown) {
 export function formatUnits(value: bigint, decimals: number, maxDecimals: number = 2) {
     const decimalDiff = UNDERYLING_DECIMALS - maxDecimals;
     const precision = BigInt(10 ** decimalDiff);
+    if (value !== 0n && maxDecimals === 0 && value < BigInt(10 ** decimals)) return '<1';
     if (value !== 0n && value / precision === 0n) return '<0.' + '0'.repeat(maxDecimals - 1) + '1';
     return viemFormatUnits((value / precision) * precision, decimals);
 }
