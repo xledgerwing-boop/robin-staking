@@ -1,4 +1,4 @@
-import { PolymarketPosition } from 'src/types/position';
+import { PolymarketPosition } from '../types/position';
 import { PolymarketEventWithMarkets } from '../types/event';
 import { PolymarketMarketWithEvent } from '../types/market';
 

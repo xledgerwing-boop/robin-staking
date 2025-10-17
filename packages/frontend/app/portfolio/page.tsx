@@ -1,7 +1,7 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Clock, RefreshCcw, HandCoins, Trophy, Loader, Search, X } from 'lucide-react';
+import { Clock, RefreshCcw, HandCoins, Trophy, Loader } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { MarketStatusBadge } from '@/components/market/market-status-badge';
