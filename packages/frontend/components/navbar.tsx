@@ -16,13 +16,15 @@ export default function Navbar() {
                     <div className="hidden sm:block">
                         <BackButton />
                     </div>
-                    <Image src={logo} alt="Robin Logo" width={32} height={32} className="rounded-lg" />
-                    <div className="relative inline-block">
-                        <span className="text-xl font-bold text-foreground">Robin</span>
-                        <span className="absolute -top-2 -right-6 rotate-20 bg-secondary text-secondary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
-                            BETA
-                        </span>
-                    </div>
+                    <Link href="/" className="flex items-center space-x-2">
+                        <Image src={logo} alt="Robin Logo" width={32} height={32} className="rounded-lg" />
+                        <div className="relative inline-block">
+                            <span className="text-xl font-bold text-foreground">Robin</span>
+                            <span className="absolute -top-2 -right-6 rotate-20 bg-secondary text-secondary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                                BETA
+                            </span>
+                        </div>
+                    </Link>
                 </div>
                 <nav className="flex items-center space-x-2">
                     <Link href="/portfolio">
