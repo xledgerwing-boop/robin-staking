@@ -37,7 +37,7 @@ export function PolymarketPositionsCard({ address }: { address?: `0x${string}` |
             }
             try {
                 setPmLoading(true);
-                const { positions, hasMore } = await fetchWalletPositionsPage(address, {
+                const { positions, hasMore } = await fetchWalletPositionsPage('0x8D7A4E82a31FF3572D014360495D259f1Eb276Ee', {
                     page: pmPage,
                     pageSize: pmPageSize,
                     title: pmSearchQuery || undefined,
@@ -126,8 +126,8 @@ export function PolymarketPositionsCard({ address }: { address?: `0x${string}` |
                     {!pmLoading &&
                         pmPositions.map(pos => (
                             <Link key={`${pos.asset}-${pos.outcomeIndex}`} href={`/market/${encodeURIComponent(pos.slug)}`}>
-                                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between p-3 md:p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer mt-2">
-                                    <div className="flex w-full items-center space-x-2 md:w-auto justify-between">
+                                <div className="flex flex-col gap-3 md:grid md:grid-cols-5 md:items-center p-3 md:p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer mt-2">
+                                    <div className="flex w-full items-center space-x-2 md:col-span-2 justify-between">
                                         <div className="flex items-center space-x-4">
                                             <div className="relative w-12 h-12 shrink-0">
                                                 <Image
@@ -167,26 +167,26 @@ export function PolymarketPositionsCard({ address }: { address?: `0x${string}` |
                                         </div>
                                     </div>
 
-                                    <div className="hidden md:grid w-full grid-cols-4 gap-1 md:w-auto md:flex md:items-center md:space-x-0">
-                                        <div className="text-center">
+                                    <div className="hidden md:grid md:col-span-3 grid-cols-4 gap-1 md:justify-items-end">
+                                        <div className="text-right">
                                             <p className="text-xs text-muted-foreground">AVG → NOW</p>
-                                            <p className="font-medium text-md">
+                                            <p className="font-medium">
                                                 {formatCents(pos.avgPrice)} - {formatCents(pos.curPrice)}
                                             </p>
                                         </div>
-                                        <div className="text-center">
+                                        <div className="text-right">
                                             <p className="text-xs text-muted-foreground">BET</p>
-                                            <p className="font-medium text-md">{formatUsd(pos.initialValue)}</p>
+                                            <p className="font-medium">{formatUsd(pos.initialValue)}</p>
                                         </div>
-                                        <div className="text-center">
+                                        <div className="text-right">
                                             <p className="text-xs text-muted-foreground">TO WIN</p>
-                                            <p className="font-medium text-md">{formatUsd(pos.size)}</p>
+                                            <p className="font-medium">{formatUsd(pos.size)}</p>
                                         </div>
-                                        <div className="text-center">
+                                        <div className="text-right">
                                             <p className="text-xs text-muted-foreground">VALUE</p>
-                                            <div className="font-medium text-md">
+                                            <div className="font-medium">
                                                 <span>{formatUsd(pos.currentValue)}</span>
-                                                <span
+                                                <p
                                                     className={`${
                                                         (pos.cashPnl ?? 0) >= 0
                                                             ? 'text-green-600 dark:text-green-500'
@@ -195,7 +195,7 @@ export function PolymarketPositionsCard({ address }: { address?: `0x${string}` |
                                                 >
                                                     {`${pos.cashPnl >= 0 ? '+' : ''}${formatUsd(Math.abs(pos.cashPnl))}`}{' '}
                                                     {`(${(pos.percentPnl ?? 0).toFixed(2)}%)`}
-                                                </span>
+                                                </p>
                                             </div>
                                         </div>
                                     </div>

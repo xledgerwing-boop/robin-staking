@@ -55,9 +55,10 @@ export async function fetchWalletPositionsPage(
     params.set('sizeThreshold', '1');
     params.set('limit', String(limit));
     params.set('offset', String(offset));
-    params.set('sortBy', 'TOKENS');
+    params.set('sortBy', 'CURRENT');
     params.set('sortDirection', 'DESC');
     params.set('sizeThreshold', '1');
+    params.set('redeemable', 'false');
     if ((opts.title ?? '').trim()) params.set('title', (opts.title ?? '').trim());
 
     const url = `${DATA_API_URL}/positions?${params.toString()}`;
@@ -77,14 +78,7 @@ export async function fetchPolymarketPositionIds(
 ): Promise<{ conditionIds: string[]; hasMore: boolean }> {
     const { positions, hasMore } = await fetchWalletPositionsPage(address, opts);
 
-    const conditionIds = Array.from(
-        new Set(
-            (positions || [])
-                .filter(p => p.redeemable === false)
-                .map(p => p.conditionId)
-                .filter(Boolean)
-        )
-    );
+    const conditionIds = Array.from(new Set((positions || []).map(p => p.conditionId).filter(Boolean)));
 
     return { conditionIds, hasMore };
 }
