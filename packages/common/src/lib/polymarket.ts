@@ -1,3 +1,4 @@
+import { PolymarketPosition } from 'src/types/position';
 import { PolymarketEventWithMarkets } from '../types/event';
 import { PolymarketMarketWithEvent } from '../types/market';
 
@@ -44,7 +45,7 @@ export interface WalletPositionsPageOptions {
 export async function fetchWalletPositionsPage(
     address: string,
     opts: WalletPositionsPageOptions = {}
-): Promise<{ conditionIds: string[]; hasMore: boolean }> {
+): Promise<{ positions: PolymarketPosition[]; hasMore: boolean }> {
     const page = opts.page ? Math.max(1, opts.page) : undefined;
     const limit = opts.pageSize ? Math.max(1, Math.min(opts.pageSize, 100)) : undefined;
     const offset = page && limit ? (page - 1) * limit : undefined;
@@ -65,17 +66,26 @@ export async function fetchWalletPositionsPage(
     const response = await fetch(url, options);
     if (!response.ok) throw new Error('Failed to fetch wallet positions');
 
-    const data = (await response.json()) as { conditionId: string; endDate?: string; redeemable: boolean }[];
+    const data = (await response.json()) as PolymarketPosition[];
+    const hasMore = (data || []).length === limit; // best-effort indicator
+    return { positions: data, hasMore };
+}
+
+export async function fetchPolymarketPositionIds(
+    address: string,
+    opts: WalletPositionsPageOptions = {}
+): Promise<{ conditionIds: string[]; hasMore: boolean }> {
+    const { positions, hasMore } = await fetchWalletPositionsPage(address, opts);
 
     const conditionIds = Array.from(
         new Set(
-            (data || [])
+            (positions || [])
                 .filter(p => p.redeemable === false)
                 .map(p => p.conditionId)
                 .filter(Boolean)
         )
     );
-    const hasMore = (data || []).length === limit; // best-effort indicator
+
     return { conditionIds, hasMore };
 }
 

@@ -11,7 +11,7 @@ import Link from 'next/link';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
-import { fetchWalletPositionsPage, isPolymarketUrl } from '@robin-pm-staking/common/lib/polymarket';
+import { fetchPolymarketPositionIds, isPolymarketUrl } from '@robin-pm-staking/common/lib/polymarket';
 import { DateTime } from 'luxon';
 import type { Market, MarketRow } from '@robin-pm-staking/common/types/market';
 import { MarketRowToMarket, MarketStatus } from '@robin-pm-staking/common/types/market';
@@ -182,7 +182,7 @@ function StakingPageContent() {
                 try {
                     //This loads up to 100 positions for the wallet
                     //the user can then paginate through these 100. Assumption is that a user would use the search anyways is they have a lot of positions
-                    const { conditionIds } = await fetchWalletPositionsPage(address, {
+                    const { conditionIds } = await fetchPolymarketPositionIds(address, {
                         title: searchQuery.trim() || undefined,
                     });
                     setWalletConditionIds(conditionIds);

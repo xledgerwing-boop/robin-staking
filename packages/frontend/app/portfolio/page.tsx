@@ -1,7 +1,7 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Clock, RefreshCcw, HandCoins, Trophy, Loader } from 'lucide-react';
+import { Clock, RefreshCcw, HandCoins, Trophy, Loader, Search, X } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { MarketStatusBadge } from '@/components/market/market-status-badge';
@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { useReadContracts } from 'wagmi';
 import { robinStakingVaultAbi } from '@robin-pm-staking/common/types/contracts';
 import { ValueState } from '@/components/value-state';
+import { PolymarketPositionsCard } from '@/components/polymarket-positions-card';
 
 export default function PortfolioPage() {
     const { proxyAddress: address } = useProxyAccount();
@@ -284,6 +285,7 @@ export default function PortfolioPage() {
                         </div>
                     </CardContent>
                 </Card>
+                <PolymarketPositionsCard address={address as `0x${string}` | null} />
             </div>
         </div>
     );
