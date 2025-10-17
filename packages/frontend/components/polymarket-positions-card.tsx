@@ -37,7 +37,7 @@ export function PolymarketPositionsCard({ address }: { address?: `0x${string}` |
             }
             try {
                 setPmLoading(true);
-                const { positions, hasMore } = await fetchWalletPositionsPage('0x8D7A4E82a31FF3572D014360495D259f1Eb276Ee', {
+                const { positions, hasMore } = await fetchWalletPositionsPage(address, {
                     page: pmPage,
                     pageSize: pmPageSize,
                     title: pmSearchQuery || undefined,
