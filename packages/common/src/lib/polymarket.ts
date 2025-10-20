@@ -35,6 +35,25 @@ export async function fetchEventAndMarketsByEventSlug(eventSlug: string): Promis
     return data;
 }
 
+export async function fetchEventsByEventSlugs(eventSlugs: string[]): Promise<PolymarketEventWithMarkets[]> {
+    const url = `${BASE_URL}/events?${eventSlugs.map(slug => `slug=${slug}`).join('&')}`;
+    const options = { method: 'GET', body: undefined };
+    const response = await fetch(url, options);
+    if (!response.ok) throw new Error('Failed to fetch events');
+    const data = (await response.json()) as PolymarketEventWithMarkets[];
+    return data;
+}
+
+export async function fetchEventsBySearch(search: string): Promise<PolymarketEventWithMarkets[]> {
+    const url = `${BASE_URL}/public-search?q=${search}&optimized=true&limit_per_type=10&type=events&search_tags=true&cache=true&event_status=active`;
+    const options = { method: 'GET', body: undefined };
+
+    const response = await fetch(url, options);
+    if (!response.ok) throw new Error('Failed to fetch events by search');
+    const data = (await response.json()) as { events: PolymarketEventWithMarkets[] };
+    return data.events;
+}
+
 export interface WalletPositionsPageOptions {
     page?: number;
     pageSize?: number;

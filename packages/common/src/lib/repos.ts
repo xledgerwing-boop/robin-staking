@@ -1,7 +1,7 @@
 import { MarketRow, MarketStatus, PolymarketMarket } from '../types/market';
 import { Knex } from 'knex';
 import { PolymarketEvent, EventRow } from '../types/event';
-import { fetchEventAndMarketsByEventSlug, fetchMarketByConditionId } from './polymarket';
+import { fetchEventAndMarketsByEventSlug, fetchEventsByEventSlugs, fetchMarketByConditionId } from './polymarket';
 
 export const EVENTS_TABLE = 'events';
 export const MARKETS_TABLE = 'markets';
@@ -83,6 +83,27 @@ export async function ensureSchema(db: Knex): Promise<void> {
             table.unique(['userAddress', 'conditionId']);
         });
     }
+
+    // Create full-text search indexes for better search performance
+    await createFullTextSearchIndexes(db);
+}
+
+async function createFullTextSearchIndexes(db: Knex): Promise<void> {
+    try {
+        // Create GIN indexes for full-text search on text columns
+        await db.raw(`
+            CREATE INDEX IF NOT EXISTS idx_events_title_fts 
+            ON ${EVENTS_TABLE} USING gin(to_tsvector('english', title))
+        `);
+
+        await db.raw(`
+            CREATE INDEX IF NOT EXISTS idx_markets_question_fts 
+            ON ${MARKETS_TABLE} USING gin(to_tsvector('english', question))
+        `);
+    } catch (error) {
+        console.warn('Failed to create full-text search indexes:', error);
+        // Don't throw error as this is an optimization, not a requirement
+    }
 }
 
 export async function insertEvent(db: Knex, evt: PolymarketEvent): Promise<EventRow> {
@@ -99,7 +120,7 @@ export async function insertEvent(db: Knex, evt: PolymarketEvent): Promise<Event
     return row;
 }
 
-export async function insertInactiveMarket(db: Knex, market: PolymarketMarket, eventSlug: string): Promise<MarketRow> {
+export async function insertInactiveMarket(trx: Knex.Transaction, market: PolymarketMarket, eventSlug: string): Promise<MarketRow> {
     const eventId = market.eventId;
     const row: MarketRow = {
         id: market.id,
@@ -122,26 +143,34 @@ export async function insertInactiveMarket(db: Knex, market: PolymarketMarket, e
         unmatchedNoTokens: (0).toString(),
         matchedTokens: (0).toString(),
     };
-    await db(MARKETS_TABLE).insert(row).onConflict().ignore();
+    await trx(MARKETS_TABLE).insert(row).onConflict().ignore();
     return row;
 }
 
-export async function getAndSaveEventAndMarkets(db: Knex, eventSlug?: string, conditionId?: string) {
-    if (!eventSlug && !conditionId) {
-        throw new Error('Either eventSlug or conditionId is required');
-    }
-    if (!eventSlug) {
-        const market = await fetchMarketByConditionId(conditionId as string);
-        if (!market) throw new Error('Market not found');
-        eventSlug = market.events[0].slug;
-    }
+export async function getAndSaveEventAndMarkets(db: Knex, eventSlug: string) {
     const payload = await fetchEventAndMarketsByEventSlug(eventSlug);
     if (!payload) throw new Error('Event not found');
-    await insertEvent(db, payload);
-    await Promise.all(
-        payload.markets.map(async m => {
+    await db.transaction(async trx => {
+        await insertEvent(db, payload);
+        payload.markets.forEach(m => {
             m.eventId = payload.id;
-            await insertInactiveMarket(db, m, payload.slug);
+        });
+        await Promise.all(payload.markets.map(m => insertInactiveMarket(trx, m, payload.slug)));
+    });
+}
+
+export async function getAndSaveEventsAndMarkets(db: Knex, eventSlugs: string[]) {
+    const payload = await fetchEventsByEventSlugs(eventSlugs);
+    if (!payload) throw new Error('Events not found');
+    await Promise.all(
+        payload.map(async e => {
+            await db.transaction(async trx => {
+                await insertEvent(trx, e);
+                e.markets.forEach(m => {
+                    m.eventId = e.id;
+                });
+                await Promise.all(e.markets.map(m => insertInactiveMarket(trx, m, e.slug)));
+            });
         })
     );
 }

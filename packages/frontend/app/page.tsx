@@ -263,7 +263,7 @@ function StakingPageContent() {
 
     const handleSearchInputChange = useMemo(
         () =>
-            debounce(400, (v: string) => {
+            debounce(700, (v: string) => {
                 setSearchQuery(v);
                 const trimmed = v.trim();
                 // Reset to first page on new search
@@ -276,7 +276,8 @@ function StakingPageContent() {
     const handleClearSearch = () => {
         setSearchQuery('');
         setSearchContent('');
-        updateQueryParams({ search: null });
+        setPage(1);
+        updateQueryParams({ search: null, page: '1' });
         inputRef.current?.focus();
     };
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { queryMarkets } from '@/lib/repos';
-import { fetchMarketByConditionId, extractEventSlugFromUrl, isPolymarketUrl } from '@robin-pm-staking/common/lib/polymarket';
+import { fetchMarketByConditionId, extractEventSlugFromUrl, isPolymarketUrl, fetchEventsBySearch } from '@robin-pm-staking/common/lib/polymarket';
 import { getAndSaveEventAndMarkets } from '@robin-pm-staking/common/lib/repos';
 import { rateLimit } from '@/lib/rate-limit';
 
@@ -84,8 +84,8 @@ export async function GET(req: NextRequest) {
     if (!walletOnly && search) {
         const trimmed = search.trim();
         const looksLikeConditionId = !isPolymarketUrl(trimmed) && isConditionId(trimmed);
+        includeUninitialized = true;
         if (isPolymarketUrl(trimmed)) {
-            includeUninitialized = true;
             const slug = extractEventSlugFromUrl(trimmed);
             if (slug) {
                 try {
@@ -107,7 +107,6 @@ export async function GET(req: NextRequest) {
                 }
             }
         } else if (looksLikeConditionId) {
-            includeUninitialized = true;
             try {
                 // DB-first: if exists, skip
                 const existing = await queryMarkets(db, {
@@ -126,11 +125,36 @@ export async function GET(req: NextRequest) {
             } catch (e) {
                 console.log('error', e);
             }
+        } else {
+            // Normal text search - query Polymarket for events and save missing ones
+            try {
+                // Query Polymarket for events
+                const events = await fetchEventsBySearch(trimmed);
+
+                if (events && events.length > 0) {
+                    // Check which events are already in DB
+                    const eventSlugs = events.map(event => event.slug);
+                    const existingEvents = await db('events').select('slug').whereIn('slug', eventSlugs);
+                    const existingSlugs = new Set(existingEvents.map(e => e.slug));
+                    const missingSlugs = eventSlugs.filter(slug => !existingSlugs.has(slug));
+
+                    // Save missing events and their markets
+                    for (const slug of missingSlugs) {
+                        try {
+                            await getAndSaveEventAndMarkets(db, slug);
+                        } catch (e) {
+                            console.log('Error saving event:', slug, e);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.log('error during text search:', e);
+            }
         }
     }
     try {
         const { count, rows } = await queryMarkets(db, {
-            search: walletOnly ? null : search || null,
+            search: search ? search.trim() : null,
             conditionIds: conditionIds.length ? conditionIds : null,
             includeUninitialized,
             userAddressForWalletOnly: walletOnly ? userAddressForWalletOnly || null : null,
