@@ -55,6 +55,7 @@ export class StreamsIndexer {
             logger.info('Webhook processing completed successfully');
         } catch (error) {
             logger.error('Error processing webhook:', error);
+            logger.info('Webhook data:', webhookData);
             throw error;
         }
     }
