@@ -1,7 +1,7 @@
 import { MarketRow, MarketStatus, PolymarketMarket } from '../types/market';
 import { Knex } from 'knex';
 import { PolymarketEvent, EventRow } from '../types/event';
-import { fetchEventAndMarketsByEventSlug, fetchEventsByEventSlugs } from './polymarket';
+import { fetchEventAndMarketsByEventSlug, fetchEventsByEventSlugs, fetchMarketByConditionId } from './polymarket';
 
 export const EVENTS_TABLE = 'events';
 export const MARKETS_TABLE = 'markets';
@@ -147,7 +147,15 @@ export async function insertInactiveMarket(trx: Knex.Transaction, market: Polyma
     return row;
 }
 
-export async function getAndSaveEventAndMarkets(db: Knex, eventSlug: string) {
+export async function getAndSaveEventAndMarkets(db: Knex, eventSlug?: string, conditionId?: string) {
+    if (!eventSlug && !conditionId) {
+        throw new Error('Either eventSlug or conditionId is required');
+    }
+    if (!eventSlug) {
+        const market = await fetchMarketByConditionId(conditionId as string);
+        if (!market) throw new Error('Market not found');
+        eventSlug = market.events[0].slug;
+    }
     const payload = await fetchEventAndMarketsByEventSlug(eventSlug);
     if (!payload) throw new Error('Event not found');
     await db.transaction(async trx => {
