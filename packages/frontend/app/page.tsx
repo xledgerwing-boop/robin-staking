@@ -59,6 +59,7 @@ function StakingPageContent() {
     const [totalCount, setTotalCount] = useState(0);
     const [queryParamsLoaded, setQueryParamsLoaded] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
+    const isConnectingFinishedOnce = useRef(false);
 
     const isPolymarketUrlEff = useMemo(() => isPolymarketUrl(searchQuery), [searchQuery]);
 
@@ -78,9 +79,18 @@ function StakingPageContent() {
             setSearchContent(spSearch);
         }
 
-        const walletOnlyParam = isConnected ? searchParams.get('walletOnly') : 'false';
-        const spWalletOnly = walletOnlyParam === '1' || walletOnlyParam === 'true';
-        if (spWalletOnly !== showWalletOnly) setShowWalletOnly(spWalletOnly);
+        // Wallet-only behavior: default ON when connected, OFF when disconnected
+        if (!isConnected) {
+            if (showWalletOnly) setShowWalletOnly(false);
+        } else {
+            const walletOnlyParam = searchParams.get('walletOnly');
+            const computedWalletOnly = walletOnlyParam == null ? true : walletOnlyParam === '1' || walletOnlyParam === 'true';
+            if (computedWalletOnly !== showWalletOnly) setShowWalletOnly(computedWalletOnly);
+            // If param missing while connected, reflect default in URL
+            if (walletOnlyParam == null && computedWalletOnly) {
+                updateQueryParams({ walletOnly: '1' });
+            }
+        }
 
         const allowedSortFields: SortField[] = ['tvl', 'endDate', 'title'];
         const spSortField = searchParams.get('sortField') as SortField | null;
@@ -130,7 +140,27 @@ function StakingPageContent() {
     useEffect(() => {
         if (isConnecting) return;
         loadQueryParams();
-    }, [searchParams, isConnecting]);
+    }, [searchParams]);
+
+    useEffect(() => {
+        if (isConnecting || isConnectingFinishedOnce.current) return;
+        isConnectingFinishedOnce.current = true;
+        loadQueryParams();
+    }, [isConnecting]);
+
+    // Toggle wallet-only default when connection status changes
+    useEffect(() => {
+        if (isConnecting) return;
+        if (isConnected) {
+            const walletOnlyParam = searchParams.get('walletOnly');
+            if (walletOnlyParam != null) return;
+            if (!showWalletOnly) setShowWalletOnly(true);
+            updateQueryParams({ walletOnly: '1', page: '1' });
+        } else {
+            if (showWalletOnly) setShowWalletOnly(false);
+            updateQueryParams({ walletOnly: null, page: '1' });
+        }
+    }, [isConnected, isConnecting]);
 
     useEffect(() => {
         if (!queryParamsLoaded) return;
@@ -172,7 +202,7 @@ function StakingPageContent() {
             }
         };
         fetchMarkets();
-    }, [searchQuery, showWalletOnly, isConnected, address, walletConditionIds, sortField, sortDirection, queryParamsLoaded, page, pageSize]);
+    }, [searchQuery, showWalletOnly, address, walletConditionIds, sortField, sortDirection, queryParamsLoaded, page, pageSize]);
 
     useEffect(() => {
         if (isPolymarketUrl(searchQuery)) return; //Do the normal flow when the search query is a Polymarket URL
@@ -253,7 +283,7 @@ function StakingPageContent() {
     const handleWalletOnlyChange = (checked: boolean) => {
         setShowWalletOnly(checked);
         setPage(1);
-        updateQueryParams({ walletOnly: checked ? '1' : null, page: '1' });
+        updateQueryParams({ walletOnly: checked ? '1' : '0', page: '1' });
     };
 
     return (
