@@ -67,8 +67,6 @@ export async function queryMarkets(db: Knex, q: MarketsQuery): Promise<{ rows: M
             // This allows searching for words in any order and not necessarily adjacent
             b.orWhereRaw(`to_tsvector('english', ${MARKETS_TABLE}.question) @@ plainto_tsquery('english', ?)`, [s])
                 .orWhereRaw(`to_tsvector('english', ${EVENTS_TABLE}.title) @@ plainto_tsquery('english', ?)`, [s])
-                // Fallback to ILIKE for exact substring matches (useful for IDs, slugs, etc.)
-                .orWhereILike(`${MARKETS_TABLE}.conditionId`, `%${s}%`)
                 .orWhereILike(`${MARKETS_TABLE}.slug`, `%${s}%`)
                 .orWhereILike(`${EVENTS_TABLE}.slug`, `%${s}%`);
         });

@@ -383,7 +383,7 @@ function StakingPageContent() {
                             <div className="relative flex-1">
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                                 <Input
-                                    placeholder="Search by condition ID, name or Polymarket url..."
+                                    placeholder="Search by name or Polymarket URL..."
                                     value={searchContent}
                                     onChange={e => handleSearchContentChange(e.target.value)}
                                     ref={inputRef}

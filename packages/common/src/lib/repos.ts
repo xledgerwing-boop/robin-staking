@@ -1,7 +1,7 @@
 import { MarketRow, MarketStatus, PolymarketMarket } from '../types/market';
 import { Knex } from 'knex';
 import { PolymarketEvent, EventRow } from '../types/event';
-import { fetchEventAndMarketsByEventSlug, fetchEventsByEventSlugs, fetchMarketByConditionId } from './polymarket';
+import { fetchEventAndMarketsByEventSlug, fetchEventsByEventSlugs } from './polymarket';
 
 export const EVENTS_TABLE = 'events';
 export const MARKETS_TABLE = 'markets';

@@ -5,11 +5,6 @@ import { fetchMarketByConditionId, extractEventSlugFromUrl, isPolymarketUrl, fet
 import { getAndSaveEventAndMarkets } from '@robin-pm-staking/common/lib/repos';
 import { rateLimit } from '@/lib/rate-limit';
 
-function isConditionId(input: string): boolean {
-    // Strict 32-byte hex string with 0x prefix
-    return /^0x[a-fA-F0-9]{64}$/.test(input.trim());
-}
-
 export async function GET(req: NextRequest) {
     const ip = req.headers.get('x-forwarded-for') || 'unknown';
     const endpoint = '/api/markets'; // Unique identifier per API
@@ -83,7 +78,6 @@ export async function GET(req: NextRequest) {
     // If there is a search, and it looks like conditionId or Polymarket URL, attempt to upsert missing
     if (!walletOnly && search) {
         const trimmed = search.trim();
-        const looksLikeConditionId = !isPolymarketUrl(trimmed) && isConditionId(trimmed);
         includeUninitialized = true;
         if (isPolymarketUrl(trimmed)) {
             const slug = extractEventSlugFromUrl(trimmed);
@@ -105,25 +99,6 @@ export async function GET(req: NextRequest) {
                 } catch (e) {
                     console.log('error', e);
                 }
-            }
-        } else if (looksLikeConditionId) {
-            try {
-                // DB-first: if exists, skip
-                const existing = await queryMarkets(db, {
-                    search: trimmed,
-                    includeUninitialized: true,
-                    sortField: sortFieldParam,
-                    sortDirection: sortDirectionParam,
-                    page,
-                    pageSize,
-                });
-                if (existing.rows.some(m => m.conditionId === trimmed))
-                    return NextResponse.json({ markets: existing.rows, page, pageSize, totalCount: existing.count }); // already present
-                const market = await fetchMarketByConditionId(trimmed);
-                if (!market) return;
-                await getAndSaveEventAndMarkets(db, market.events[0].slug);
-            } catch (e) {
-                console.log('error', e);
             }
         } else {
             // Normal text search - query Polymarket for events and save missing ones
