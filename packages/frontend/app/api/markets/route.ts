@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { queryMarkets } from '@/lib/repos';
-import { fetchMarketByConditionId, extractEventSlugFromUrl, isPolymarketUrl, fetchEventsBySearch } from '@robin-pm-staking/common/lib/polymarket';
-import { getAndSaveEventAndMarkets } from '@robin-pm-staking/common/lib/repos';
+import { extractEventSlugFromUrl, isPolymarketUrl, fetchEventsBySearch } from '@robin-pm-staking/common/lib/polymarket';
+import { EVENTS_TABLE, getAndSaveEventAndMarkets, getAndSaveEventsAndMarkets, MARKETS_TABLE } from '@robin-pm-staking/common/lib/repos';
 import { rateLimit } from '@/lib/rate-limit';
 
 export async function GET(req: NextRequest) {
@@ -17,58 +17,41 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     let search = searchParams.get('search') || undefined;
-    const walletOnly = searchParams.get('walletOnly') === 'true';
+    let walletOnly = searchParams.get('walletOnly') === 'true';
     const addressParam = searchParams.get('address') || undefined;
     const userAddressForWalletOnly = addressParam ? addressParam.toLowerCase() : undefined;
     const sortFieldParam = (searchParams.get('sortField') as 'tvl' | 'endDate' | 'title') || undefined;
     const sortDirectionParam = (searchParams.get('sortDirection') as 'asc' | 'desc') || undefined;
     // Frontend supplies conditionIds when walletOnly is true
-    const conditionIdsParam = searchParams.get('conditionIds');
-    const conditionIdsFromClient = conditionIdsParam
-        ? conditionIdsParam
-              .split(',')
-              .map(s => s.trim())
-              .filter(Boolean)
-        : [];
+    const conditionIdsParam = searchParams.get('conditionIds') || undefined;
+    const conditionIds = conditionIdsParam
+        ?.split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
 
     const pageParam = parseInt(searchParams.get('page') || '1', 10);
     const page = Math.max(1, isNaN(pageParam) ? 1 : pageParam);
     const pageSize = 12;
 
-    let conditionIds: string[] = [];
     let includeUninitialized = false;
 
-    // If walletOnly, use provided conditionIds from client, ensure they exist in DB (upsert if needed)
-    if (walletOnly) {
-        conditionIds = conditionIdsFromClient;
-        includeUninitialized = true; // include newly created/uninitialized markets as well
+    //if we are searching for something, don't filter for only in wallet
+    if (search) walletOnly = false;
+    if (walletOnly) includeUninitialized = true;
 
+    // If walletOnly, use provided conditionIds from client, ensure they exist in DB (upsert if needed)
+    if (walletOnly && conditionIds) {
         try {
             // For each conditionId, ensure corresponding market exists by fetching from Polymarket if missing
             // We batch-check existence using one DB query
-            const existing =
-                conditionIds.length > 0
-                    ? await queryMarkets(db, {
-                          conditionIds,
-                          includeUninitialized: true,
-                          page: 1,
-                          pageSize: conditionIds.length,
-                      })
-                    : { rows: [], count: 0 };
-            const existingIds = new Set(existing.rows.map(m => m.conditionId));
+            const existingIds = new Set((await db(MARKETS_TABLE).select('conditionId').whereIn('conditionId', conditionIds)) as string[]);
             const missingIds = conditionIds.filter(id => !existingIds.has(id));
 
-            for (const id of missingIds) {
-                try {
-                    const market = await fetchMarketByConditionId(id);
-                    if (market && market.events && market.events.length > 0) {
-                        const eventSlug = market.events[0].slug;
-                        await getAndSaveEventAndMarkets(db, eventSlug);
-                    }
-                } catch (e) {
-                    // Continue on errors per id to avoid failing the whole request
-                    console.log('walletOnly upsert error', e);
-                }
+            try {
+                await getAndSaveEventsAndMarkets(db, undefined, missingIds);
+            } catch (e) {
+                // Continue on errors per id to avoid failing the whole request
+                console.log('walletOnly upsert error', e);
             }
         } catch (e) {
             console.log('walletOnly prefetch error', e);
@@ -85,7 +68,7 @@ export async function GET(req: NextRequest) {
                 try {
                     // First: check DB for existing markets by event_slug
                     const existing = await queryMarkets(db, {
-                        search: slug,
+                        eventSlug: slug,
                         includeUninitialized: true,
                         sortField: sortFieldParam,
                         sortDirection: sortDirectionParam,
@@ -109,7 +92,7 @@ export async function GET(req: NextRequest) {
                 if (events && events.length > 0) {
                     // Check which events are already in DB
                     const eventSlugs = events.map(event => event.slug);
-                    const existingEvents = await db('events').select('slug').whereIn('slug', eventSlugs);
+                    const existingEvents = await db(EVENTS_TABLE).select('slug').whereIn('slug', eventSlugs);
                     const existingSlugs = new Set(existingEvents.map(e => e.slug));
                     const missingSlugs = eventSlugs.filter(slug => !existingSlugs.has(slug));
 
@@ -129,29 +112,18 @@ export async function GET(req: NextRequest) {
     }
     try {
         const { count, rows } = await queryMarkets(db, {
-            search: search ? search.trim() : null,
-            conditionIds: conditionIds.length ? conditionIds : null,
+            search: search?.trim(),
+            walletOnly,
+            conditionIds: conditionIds,
             includeUninitialized,
-            userAddressForWalletOnly: walletOnly ? userAddressForWalletOnly || null : null,
-            sortField: walletOnly ? undefined : sortFieldParam,
-            sortDirection: walletOnly ? undefined : sortDirectionParam,
-            page: walletOnly ? 1 : page,
-            pageSize: walletOnly ? conditionIds.length || pageSize : pageSize,
+            userAddressForWalletOnly: userAddressForWalletOnly,
+            sortField: sortFieldParam,
+            sortDirection: sortDirectionParam,
+            page: page,
+            pageSize: pageSize,
         });
 
-        // If walletOnly, we want to preserve the input order of conditionIds and ignore DB sorting
-        const orderedRows = walletOnly
-            ? [...rows].sort((a, b) => {
-                  const ia = conditionIds.indexOf(a.conditionId);
-                  const ib = conditionIds.indexOf(b.conditionId);
-                  const ai = ia === -1 ? Number.MAX_SAFE_INTEGER : ia;
-                  const bi = ib === -1 ? Number.MAX_SAFE_INTEGER : ib;
-                  return ai - bi;
-              })
-            : rows;
-
-        const total = walletOnly ? orderedRows.length : count;
-        return NextResponse.json({ markets: orderedRows, page, pageSize, totalCount: total });
+        return NextResponse.json({ markets: rows, page, pageSize, totalCount: count });
     } catch (e) {
         console.log('error', e);
         return NextResponse.json({ error: 'Failed to query markets' }, { status: 500 });

@@ -61,8 +61,6 @@ function StakingPageContent() {
     const inputRef = useRef<HTMLInputElement>(null);
     const isConnectingFinishedOnce = useRef(false);
 
-    const isPolymarketUrlEff = useMemo(() => isPolymarketUrl(searchQuery), [searchQuery]);
-
     // Sorting state
     type SortField = 'tvl' | 'endDate' | 'title';
     type SortDirection = 'asc' | 'desc';
@@ -179,13 +177,11 @@ function StakingPageContent() {
                 if (showWalletOnlyEff) {
                     params.set('walletOnly', 'true');
                     params.set('address', address ?? '');
-                    if (walletConditionIds && walletConditionIds.length > 0) params.set('conditionIds', walletConditionIds.join(','));
+                    if (walletConditionIds) params.set('conditionIds', walletConditionIds.join(','));
                 }
-                // pass sorting to server
-                if (!showWalletOnlyEff) {
-                    params.set('sortField', sortField);
-                    params.set('sortDirection', sortDirection);
-                }
+
+                params.set('sortField', sortField);
+                params.set('sortDirection', sortDirection);
                 params.set('page', String(page));
                 params.set('pageSize', String(pageSize));
                 const res = await fetch(`/api/markets?${params.toString()}`, { signal: controller.signal });
@@ -211,17 +207,14 @@ function StakingPageContent() {
             if (showWalletOnly && isConnected && address) {
                 try {
                     //This loads up to 100 positions for the wallet
-                    //the user can then paginate through these 100. Assumption is that a user would use the search anyways is they have a lot of positions
+                    //the user can then paginate through these 100. Assumption is that a user would use the search anyways is they have more than 100 positions
                     const { conditionIds } = await fetchPolymarketPositionIds(address, {
                         title: searchQuery.trim() || undefined,
+                        pageSize: 100,
                     });
                     setWalletConditionIds(conditionIds);
-                    // const offset = (page - 1) * pageSize;
-                    // const estTotal = hasMore ? page * pageSize + 1 : offset + conditionIds.length;
-                    // setTotalCount(estTotal);
                 } catch {
                     setWalletConditionIds(null);
-                    // setTotalCount(0);
                 }
             } else {
                 setWalletConditionIds(null);
@@ -229,7 +222,7 @@ function StakingPageContent() {
         };
         run();
         return () => controller.abort();
-    }, [showWalletOnly, isConnected, address, page, pageSize, searchQuery]);
+    }, [showWalletOnly, isConnected, address, searchQuery]);
 
     const defaultDirectionByField: Record<SortField, SortDirection> = {
         tvl: 'desc',
@@ -416,12 +409,7 @@ function StakingPageContent() {
                             <div className="flex items-center">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="min-w-36 justify-between"
-                                            disabled={showWalletOnly && !isPolymarketUrlEff}
-                                        >
+                                        <Button variant="outline" size="sm" className="min-w-36 justify-between">
                                             <span className="flex items-center gap-2">{sortLabels[sortField]}</span>
                                             {sortDirection === 'asc' ? (
                                                 <ArrowUp className="w-4 h-4 text-primary" />
@@ -431,7 +419,7 @@ function StakingPageContent() {
                                         </Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" className="w-48">
-                                        <DropdownMenuItem onClick={() => handleSortSelect('tvl')} disabled={showWalletOnly && !isPolymarketUrlEff}>
+                                        <DropdownMenuItem onClick={() => handleSortSelect('tvl')}>
                                             <span className="flex-1">TVL</span>
                                             {sortField === 'tvl' ? (
                                                 sortDirection === 'asc' ? (
@@ -443,10 +431,7 @@ function StakingPageContent() {
                                                 <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
                                             )}
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem
-                                            onClick={() => handleSortSelect('endDate')}
-                                            disabled={showWalletOnly && !isPolymarketUrlEff}
-                                        >
+                                        <DropdownMenuItem onClick={() => handleSortSelect('endDate')}>
                                             <span className="flex-1">End Date</span>
                                             {sortField === 'endDate' ? (
                                                 sortDirection === 'asc' ? (
@@ -458,7 +443,7 @@ function StakingPageContent() {
                                                 <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
                                             )}
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleSortSelect('title')} disabled={showWalletOnly && !isPolymarketUrlEff}>
+                                        <DropdownMenuItem onClick={() => handleSortSelect('title')}>
                                             <span className="flex-1">Name</span>
                                             {sortField === 'title' ? (
                                                 sortDirection === 'asc' ? (

@@ -1,10 +1,20 @@
 import { PolymarketPosition } from '../types/position';
 import { PolymarketEventWithMarkets } from '../types/event';
-import { PolymarketMarketWithEvent } from '../types/market';
+import { PolymarketMarket, PolymarketMarketWithEvent } from '../types/market';
 
 // Function prototypes only — implement integration later
 const BASE_URL = 'https://gamma-api.polymarket.com';
 const DATA_API_URL = 'https://data-api.polymarket.com';
+
+export async function fetchMarketsByConditionIds(conditionIds: string[]): Promise<PolymarketMarketWithEvent[]> {
+    const url = `${BASE_URL}/markets?${conditionIds.map(id => `condition_ids=${id}`).join('&')}`;
+    const options = { method: 'GET', body: undefined };
+
+    const response = await fetch(url, options);
+    if (!response.ok) throw new Error('Failed to fetch market');
+    const data = (await response.json()) as PolymarketMarketWithEvent[];
+    return data;
+}
 
 export async function fetchMarketByConditionId(conditionId: string): Promise<PolymarketMarketWithEvent> {
     const url = `${BASE_URL}/markets?limit=1&condition_ids=${conditionId}`;

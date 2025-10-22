@@ -4,16 +4,17 @@ import { MarketStatus, MarketRow } from '@robin-pm-staking/common/types/market';
 import { EVENTS_TABLE, MARKETS_TABLE, USER_POSITIONS_TABLE } from '@robin-pm-staking/common/src/lib/repos';
 
 export interface MarketsQuery {
-    search?: string | null;
-    conditionIds?: string[] | null;
-    eventSlug?: string | null;
+    search?: string;
+    walletOnly?: boolean;
+    conditionIds?: string[];
+    eventSlug?: string;
     includeUninitialized?: boolean;
     sortField?: 'tvl' | 'endDate' | 'title';
     sortDirection?: 'asc' | 'desc';
-    page?: number | null;
-    pageSize?: number | null;
+    page?: number;
+    pageSize?: number;
     // When provided, include markets that the user has had positions in (even if not in conditionIds)
-    userAddressForWalletOnly?: string | null;
+    userAddressForWalletOnly?: string;
 }
 
 export async function queryEvent(db: Knex, eventSlug: string): Promise<EventRow | null> {
@@ -42,21 +43,18 @@ export async function queryMarkets(db: Knex, q: MarketsQuery): Promise<{ rows: M
     }
 
     const addUserPositionWhere = (b: Knex.QueryBuilder) => {
+        if (!userAddressLc) return b;
         b.where(`${USER_POSITIONS_TABLE}.userAddress`, userAddressLc)
             .andWhereRaw(`${USER_POSITIONS_TABLE}.yes_tokens + ${USER_POSITIONS_TABLE}.no_tokens > 0`)
             .andWhereNot(`${MARKETS_TABLE}.status`, MarketStatus.Unlocked);
     };
 
-    if (q.conditionIds && q.conditionIds.length > 0) {
-        if (userAddressLc) {
-            // Include markets either explicitly listed by conditionIds OR where the user has positions
-            builder.andWhere(b => {
-                b.whereIn(`${MARKETS_TABLE}.conditionId`, q.conditionIds as string[]).orWhere(addUserPositionWhere);
-            });
-        } else {
-            builder.whereIn(`${MARKETS_TABLE}.conditionId`, q.conditionIds);
-        }
-    } else if (userAddressLc) {
+    if (q.conditionIds && q.walletOnly) {
+        // Include markets either explicitly listed by conditionIds OR where the user has positions
+        builder.andWhere(b => {
+            b.whereIn(`${MARKETS_TABLE}.conditionId`, q.conditionIds as string[]).orWhere(addUserPositionWhere);
+        });
+    } else if (q.walletOnly) {
         builder.andWhere(addUserPositionWhere);
     }
 
@@ -67,9 +65,12 @@ export async function queryMarkets(db: Knex, q: MarketsQuery): Promise<{ rows: M
             // This allows searching for words in any order and not necessarily adjacent
             b.orWhereRaw(`to_tsvector('english', ${MARKETS_TABLE}.question) @@ plainto_tsquery('english', ?)`, [s])
                 .orWhereRaw(`to_tsvector('english', ${EVENTS_TABLE}.title) @@ plainto_tsquery('english', ?)`, [s])
-                .orWhereILike(`${MARKETS_TABLE}.slug`, `%${s}%`)
-                .orWhereILike(`${EVENTS_TABLE}.slug`, `%${s}%`);
+                .orWhereILike(`${MARKETS_TABLE}.slug`, `%${s}%`);
         });
+    }
+
+    if (q.eventSlug) {
+        builder.andWhere(`${MARKETS_TABLE}.eventSlug`, q.eventSlug);
     }
 
     const countBuilder = builder.clone().countDistinct<{ count: string }[]>({ count: `${MARKETS_TABLE}.id` });
@@ -84,6 +85,25 @@ export async function queryMarkets(db: Knex, q: MarketsQuery): Promise<{ rows: M
         endDate: `${MARKETS_TABLE}.endDate`,
         title: `${MARKETS_TABLE}.question`,
     } as const;
+    //first sort by whether in user wallet if searching and we have user address
+    if (q.search) {
+        if (userAddressLc) {
+            builder.orderByRaw(
+                `CASE WHEN ${USER_POSITIONS_TABLE}.user_address = ?
+                AND ${USER_POSITIONS_TABLE}.yes_tokens + ${USER_POSITIONS_TABLE}.no_tokens > 0
+                AND ${MARKETS_TABLE}.status <> ?
+                THEN 0 else 1 END`,
+                [userAddressLc, MarketStatus.Unlocked]
+            );
+        }
+        if (q.conditionIds?.length) {
+            builder.orderByRaw(
+                `CASE WHEN ${MARKETS_TABLE}.condition_id IN (${q.conditionIds.map(() => '?').join(',')}) THEN 0 else 1 END`,
+                q.conditionIds
+            );
+        }
+    }
+    //TODO in general how do I sort by market status?, can't really sort if I don't have the info of Polymarket, but no vault and polymarket ended should not be displayed or only at the bottom ---- maybe run job every hour that deletes unitizialzed markets that have ended on Polymarket?
     builder.orderBy(sortMap[sortField], sortDirection);
     if (sortField === 'tvl') {
         builder.orderByRaw(`${MARKETS_TABLE}.unmatched_yes_tokens + ${MARKETS_TABLE}.unmatched_no_tokens ${sortDirection}`);
