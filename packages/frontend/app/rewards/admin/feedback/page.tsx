@@ -43,6 +43,23 @@ export default function AdminFeedbackListPage() {
         }
     };
 
+    const handleExport = async () => {
+        try {
+            const res = await fetch('/api/rewards/admin/feedback/export', { headers });
+            if (!res.ok) throw new Error('Failed to export');
+            const data = await res.json();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `feedback-submissions-${new Date().toISOString()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            toast.error((e as Error)?.message || 'Export failed');
+        }
+    };
+
     return (
         <div className="min-h-screen bg-background">
             <div className="container mx-auto px-4 py-8 space-y-6">
@@ -60,9 +77,14 @@ export default function AdminFeedbackListPage() {
                             <Label htmlFor="password">Admin Password</Label>
                             <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
                         </div>
-                        <Button onClick={() => load(1)} disabled={!password || loading}>
-                            {loading ? 'Loading…' : 'Load Feedback'}
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Button onClick={() => load(1)} disabled={!password || loading}>
+                                {loading ? 'Loading…' : 'Load Feedback'}
+                            </Button>
+                            <Button variant="outline" onClick={handleExport} disabled={!password}>
+                                Export JSON
+                            </Button>
+                        </div>
                     </CardContent>
                 </Card>
 
