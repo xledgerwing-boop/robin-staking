@@ -23,6 +23,7 @@ import PartialUnlockActions from '@/components/market/partial-unlock-actions';
 import { Loader } from 'lucide-react';
 import { toast } from 'sonner';
 import { useIsLgScreen } from '@/hooks/use-lg-screen';
+import { MarketFeedbackCta } from '@/components/market/market-feedback-cta';
 
 export default function MarketDetailPage() {
     const params = useParams();
@@ -110,6 +111,7 @@ export default function MarketDetailPage() {
                             ) : market.status === MarketStatus.Unlocked ? (
                                 <CompletedMarketCard market={market} onAction={onRefresh} />
                             ) : null}
+                            <MarketFeedbackCta updateEligible={true} />
                         </div>
                     </div>
                 )}
@@ -130,6 +132,7 @@ export default function MarketDetailPage() {
                             ) : market.status === MarketStatus.Unlocked ? (
                                 <CompletedMarketCard market={market} onAction={onRefresh} />
                             ) : null}
+                            <MarketFeedbackCta updateEligible={true} />
                         </div>
                         <ActivityTable market={market} />
                     </div>

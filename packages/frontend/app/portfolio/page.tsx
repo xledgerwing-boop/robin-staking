@@ -229,7 +229,7 @@ export default function PortfolioPage() {
                                                     </div>
                                                 </div>
                                                 {/* Icons for redemption/harvesting status */}
-                                                <div className="items-center justify-center space-x-3 min-w-28 hidden md:flex">
+                                                <div className="items-center justify-center space-x-3 min-w-42 hidden md:flex">
                                                     <span title="Redeemed">
                                                         <Trophy
                                                             className={`w-5 h-5 ${

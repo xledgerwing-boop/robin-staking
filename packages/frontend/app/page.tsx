@@ -25,6 +25,7 @@ import { ValueState } from '@/components/value-state';
 import { toast } from 'sonner';
 import { debounce } from 'throttle-debounce';
 import useUpdateQueryParams from '@/hooks/useUpdateQueryParams';
+import { RewardsSummary } from '@/components/rewards/rewards-summary';
 
 function StakingPageContent() {
     const { proxyAddress: address, isConnected, isConnecting } = useProxyAccount();
@@ -367,6 +368,7 @@ function StakingPageContent() {
                 </div>
 
                 {/* Available Markets Section */}
+                <RewardsSummary onHomepage={true} />
                 <Card className="h-full">
                     <CardHeader>
                         <CardTitle className="text-xl">Available Markets</CardTitle>

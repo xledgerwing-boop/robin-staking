@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import knex from 'knex';
 import { knexSnakeCaseMappers } from 'objection';
 import { rateLimit } from '@/lib/rate-limit';
+import { ACTIVITIES_TABLE } from '@robin-pm-staking/common/lib/repos';
 
 const pg = knex({ client: 'pg', connection: process.env.POSTGRES_URI, ...knexSnakeCaseMappers() });
 
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
 
         if (!vaultAddress) return NextResponse.json({ error: 'Missing vaultAddress' }, { status: 400 });
 
-        let query = pg('activities').where('vaultAddress', vaultAddress).orderBy('timestamp', 'desc').orderBy('id', 'desc').limit(limit);
+        let query = pg(ACTIVITIES_TABLE).where('vaultAddress', vaultAddress).orderBy('timestamp', 'desc').orderBy('id', 'desc').limit(limit);
 
         if (since) {
             query = query.where('timestamp', '>', parseInt(since, 10));

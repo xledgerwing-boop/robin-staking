@@ -1,0 +1,26 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getDb } from '@/lib/db';
+import { queryUserRewardActivities } from '@/lib/rewards';
+import { rateLimit } from '@/lib/rate-limit';
+
+export async function GET(req: NextRequest) {
+    const ip = req.headers.get('x-forwarded-for') || 'unknown';
+    const endpoint = '/api/rewards/activities';
+
+    if (!rateLimit(ip, endpoint)) {
+        return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const address = searchParams.get('address');
+    if (!address) return NextResponse.json({ error: 'Missing address' }, { status: 400 });
+
+    try {
+        const db = await getDb();
+        const activities = await queryUserRewardActivities(db, address.toLowerCase());
+        return NextResponse.json({ activities });
+    } catch (e) {
+        console.error('Failed to fetch rewards activities', e);
+        return NextResponse.json({ error: 'Failed to fetch rewards activities' }, { status: 500 });
+    }
+}

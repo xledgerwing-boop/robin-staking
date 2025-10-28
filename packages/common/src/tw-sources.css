@@ -129,3 +129,37 @@
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-ring: var(--sidebar-ring);
 }
+
+/* Animated gradient for borders */
+@keyframes gradientShift {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+.pmx-gradient-border {
+    border-width: 0;
+    border-radius: var(--radius-xl);
+    padding: 2px; /* Border thickness */
+    background: linear-gradient(45deg, #3b82f6, #14b8a6, #eab308);
+    background-size: 200% 200%;
+    animation: gradientShift 3s ease-in-out infinite;
+}
+
+.pmx-gradient-inner {
+    background: var(--card);
+    border-radius: calc(var(--radius-xl) - 1px);
+}
+
+/* Gradient fill utility to match the card border gradient */
+.gradient-fill {
+    background: linear-gradient(45deg, #3b82f6, #14b8a6, #eab308);
+    background-size: 200% 200%;
+    animation: gradientShift 3s ease-in-out infinite;
+}

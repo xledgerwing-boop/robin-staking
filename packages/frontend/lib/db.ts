@@ -1,4 +1,5 @@
 import { ensureSchema } from '@robin-pm-staking/common/lib/repos';
+import { ensureRewardsSchema } from './rewards';
 import knex, { Knex } from 'knex';
 import { knexSnakeCaseMappers } from 'objection';
 
@@ -13,6 +14,7 @@ export async function getDb(): Promise<Knex> {
 
         dbInstance = knex({ client: 'pg', connection: connectionString, ...knexSnakeCaseMappers(), pool: { min: 0, max: 10 } });
         await ensureSchema(dbInstance);
+        await ensureRewardsSchema(dbInstance);
     }
     return dbInstance;
 }
