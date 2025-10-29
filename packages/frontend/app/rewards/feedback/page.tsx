@@ -60,7 +60,7 @@ export default function FeedbackPage() {
                     },
                     {
                         id: 'lockupYieldPct',
-                        label: 'For what percentage of yield would you lock up staked positions for 30 days?',
+                        label: 'How much yield (APY) would you need to earn to be willing to lock up positions for 30 days?',
                         type: 'number',
                         unitSuffix: '%',
                         placeholder: 'e.g. 10',
