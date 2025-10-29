@@ -1,0 +1,1 @@
+export const FEEDBACK_REWARD_PONTS = 250;

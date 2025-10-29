@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { FEEDBACK_REWARD_PONTS } from '@/lib/constants';
 
 export function RewardsSummary({ onHomepage = false }: { onHomepage?: boolean }) {
     const { address, proxyAddress, isConnected } = useProxyAccount();
@@ -68,7 +69,7 @@ export function RewardsSummary({ onHomepage = false }: { onHomepage?: boolean })
 
             <Card className="lg:col-span-2">
                 <CardHeader>
-                    <CardTitle>Staking Feedback: 100 points</CardTitle>
+                    <CardTitle>Staking Feedback: {FEEDBACK_REWARD_PONTS} points</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-3">

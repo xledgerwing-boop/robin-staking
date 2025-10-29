@@ -3,6 +3,7 @@ import { getDb } from '@/lib/db';
 import { getProxyAddressForUser } from '@/lib/proxy';
 import { rateLimit } from '@/lib/rate-limit';
 import { doesUserHaveDeposit, FEEDBACK_SUBMISSIONS_TABLE, insertRewardActivity, upsertFeedbackSubmission } from '@/lib/rewards';
+import { FEEDBACK_REWARD_PONTS } from '@/lib/constants';
 
 type FeedbackPayload = {
     address: string;
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
 
         const reward = await insertRewardActivity(db, {
             userAddress: address,
-            points: 100,
+            points: FEEDBACK_REWARD_PONTS,
             type: 'Provided Feedback',
             details: { submissionId: submission.id },
         });

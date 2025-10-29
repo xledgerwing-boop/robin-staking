@@ -2,6 +2,7 @@ import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-accoun
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '../ui/card';
+import { FEEDBACK_REWARD_PONTS } from '@/lib/constants';
 
 export function MarketFeedbackCta({ updateEligible = false }: { updateEligible?: boolean }) {
     const [eligible, setEligible] = useState<boolean>(false);
@@ -45,7 +46,7 @@ export function MarketFeedbackCta({ updateEligible = false }: { updateEligible?:
                 <CardContent className="p-3">
                     <div className="mb-2">
                         <div className="font-medium">Give feedback to earn rewards</div>
-                        <div className="text-sm text-muted-foreground">Earn 100 points by submitting a feedback form.</div>
+                        <div className="text-sm text-muted-foreground">Earn {FEEDBACK_REWARD_PONTS} points by submitting a feedback form.</div>
                     </div>
                     <Link href="/rewards/feedback" className="text-primary font-medium hover:underline">
                         Go to form
