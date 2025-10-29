@@ -42,14 +42,14 @@ export default function InitializeMarketCard({ market, onInitialized }: { market
         <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                    <span>Initialize Market</span>
+                    <span>Activate Market</span>
                 </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground">Create this market vault on-chain to start depositing tokens</p>
                 <Button className="w-full" onClick={handleInitialize} disabled={initializeMarketLoading}>
                     {initializeMarketLoading ? <Loader className="w-4 h-4 animate-spin" /> : <Rocket className="w-4 h-4" />}
-                    Initialize
+                    Activate
                 </Button>
             </CardContent>
         </Card>

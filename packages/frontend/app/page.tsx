@@ -371,8 +371,11 @@ function StakingPageContent() {
                 <RewardsSummary onHomepage={true} />
                 <Card className="h-full">
                     <CardHeader>
-                        <CardTitle className="text-xl">Available Markets</CardTitle>
-                        <p className="text-muted-foreground">Discover new prediction market opportunities to stake your tokens</p>
+                        <CardTitle className="text-xl">Explore Markets</CardTitle>
+                        <p className="text-muted-foreground">
+                            You can stake on any Polymarket event you want. Connect your wallet to see your positions or enter a Polymarket URL to
+                            activate a new market.
+                        </p>
 
                         <div className="flex flex-col sm:flex-row gap-4 pt-4">
                             <div className="relative flex-1">
@@ -501,11 +504,7 @@ function StakingPageContent() {
                                             <div className="space-y-2">
                                                 <div className="flex justify-between">
                                                     <span className="text-sm text-muted-foreground">TVL</span>
-                                                    <span className="font-medium">
-                                                        {market.status !== MarketStatus.Uninitialized
-                                                            ? `$${formatUnits(market.tvl, UNDERYLING_DECIMALS, 0)}`
-                                                            : 'Uninitialized'}
-                                                    </span>
+                                                    <span className="font-medium">${formatUnits(market.tvl || 0n, UNDERYLING_DECIMALS, 0)}</span>
                                                 </div>
                                                 <div className="flex justify-between">
                                                     <span className="text-sm text-muted-foreground">Unmatched Tokens</span>
@@ -539,7 +538,7 @@ function StakingPageContent() {
                                                 <Button className="w-full" size="sm" asChild>
                                                     <Link href={`/market/${encodeURIComponent(market.slug)}`}>
                                                         {market.status === MarketStatus.Uninitialized
-                                                            ? 'Initialize Market'
+                                                            ? 'Activate Market'
                                                             : market.status === MarketStatus.Active
                                                             ? 'Stake Now'
                                                             : 'View Market'}
@@ -554,7 +553,7 @@ function StakingPageContent() {
                             {availableMarkets.length === 0 && !marketsLoading && (
                                 <div className="col-span-full text-center py-8">
                                     <p className="text-muted-foreground">
-                                        No markets found matching your criteria. Try searching by Polymarket URL or condition ID to initialize a
+                                        No markets found matching your criteria. Try searching by Polymarket URL or condition ID to activate a
                                         non-existing market.
                                     </p>
                                 </div>

@@ -17,6 +17,13 @@ const getStatusIcon = (status: MarketStatus) => {
     }
 };
 
+const getStatusText = (status: MarketStatus) => {
+    if (status === MarketStatus.Uninitialized) {
+        return 'Activate';
+    }
+    return status.charAt(0).toUpperCase() + status.slice(1);
+};
+
 export function MarketStatusBadge({ status }: { status: MarketStatus }) {
     const variants = {
         [MarketStatus.Uninitialized]: 'outline',
@@ -27,7 +34,7 @@ export function MarketStatusBadge({ status }: { status: MarketStatus }) {
 
     return (
         <Badge variant={variants[status as keyof typeof variants] || 'outline'}>
-            {getStatusIcon(status)} {status.charAt(0).toUpperCase() + status.slice(1)}
+            {getStatusIcon(status)} {getStatusText(status)}
         </Badge>
     );
 }
