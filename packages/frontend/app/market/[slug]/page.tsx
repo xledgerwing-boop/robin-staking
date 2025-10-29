@@ -111,7 +111,7 @@ export default function MarketDetailPage() {
                             ) : market.status === MarketStatus.Unlocked ? (
                                 <CompletedMarketCard market={market} onAction={onRefresh} />
                             ) : null}
-                            <MarketFeedbackCta updateEligible={true} />
+                            {/* <MarketFeedbackCta updateEligible={true} /> */}
                         </div>
                     </div>
                 )}
@@ -132,7 +132,7 @@ export default function MarketDetailPage() {
                             ) : market.status === MarketStatus.Unlocked ? (
                                 <CompletedMarketCard market={market} onAction={onRefresh} />
                             ) : null}
-                            <MarketFeedbackCta updateEligible={true} />
+                            {/* <MarketFeedbackCta updateEligible={true} /> */}
                         </div>
                         <ActivityTable market={market} />
                     </div>
