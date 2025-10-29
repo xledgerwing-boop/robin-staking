@@ -314,10 +314,10 @@ export default function FeedbackPage() {
             } catch {}
         };
         onSelect();
-        carouselApi.on('select' as any, onSelect as any);
+        carouselApi.on('select', onSelect);
         return () => {
             try {
-                carouselApi.off('select' as any, onSelect as any);
+                carouselApi.off('select', onSelect);
             } catch {}
         };
     }, [carouselApi]);

@@ -93,8 +93,8 @@ export default function AdminRewardsPage() {
             a.download = `reward-activities-${new Date().toISOString()}.json`;
             a.click();
             URL.revokeObjectURL(url);
-        } catch (e: any) {
-            toast.error(e?.message || 'Export failed');
+        } catch (e) {
+            toast.error((e as Error)?.message || 'Export failed');
         }
     };
 
