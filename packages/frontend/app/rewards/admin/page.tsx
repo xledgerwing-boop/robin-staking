@@ -68,6 +68,8 @@ export default function AdminRewardsPage() {
     };
 
     const handleDelete = async (id: string) => {
+        const ok = typeof window !== 'undefined' ? window.confirm('Delete this reward activity? This action cannot be undone.') : false;
+        if (!ok) return;
         try {
             const res = await fetch(`/api/rewards/admin?id=${encodeURIComponent(id)}`, {
                 method: 'DELETE',
