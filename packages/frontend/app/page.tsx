@@ -368,7 +368,7 @@ function StakingPageContent() {
                 </div>
 
                 {/* Available Markets Section */}
-                {/* <RewardsSummary onHomepage={true} /> */}
+                <RewardsSummary onHomepage={true} />
                 <Card className="h-full">
                     <CardHeader>
                         <CardTitle className="text-xl">Available Markets</CardTitle>
