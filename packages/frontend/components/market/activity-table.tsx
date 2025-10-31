@@ -128,7 +128,6 @@ export default function ActivityTable({ market }: { market: Market }) {
             console.error('Error fetching historical activities:', error);
             toast.error('Failed to fetch activities');
         } finally {
-            setHasMore(false);
             setLoadingMore(false);
         }
     };
@@ -149,7 +148,7 @@ export default function ActivityTable({ market }: { market: Market }) {
                     fetchHistoricalActivities();
                 }
             },
-            { threshold: 0.1 }
+            { threshold: 0.1, root: tableRef.current ?? null }
         );
 
         if (observerRef.current) {
