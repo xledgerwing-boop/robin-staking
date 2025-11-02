@@ -463,7 +463,12 @@ export default function FeedbackPage() {
 
                             <Separator className="h-1 bg-background" />
 
-                            <Carousel setApi={setCarouselApi} opts={{ loop: false, align: 'start' }} className="w-full">
+                            <Carousel
+                                setApi={setCarouselApi}
+                                opts={{ loop: false, align: 'start', watchDrag: false }}
+                                disableKeyScroll
+                                className="w-full"
+                            >
                                 <CarouselContent>
                                     {sections.map((section, idx) => (
                                         <CarouselItem key={section.id}>
