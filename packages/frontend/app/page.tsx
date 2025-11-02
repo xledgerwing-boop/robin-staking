@@ -343,7 +343,11 @@ function StakingPageContent() {
                                 <div>
                                     <p className="text-sm text-muted-foreground">Total TVL</p>
                                     <div className="text-2xl font-bold text-right">
-                                        <ValueState value={`$${formatUnits(totalTVL, UNDERYLING_DECIMALS)}`} loading={metricsLoading} error={false} />
+                                        <ValueState
+                                            value={`$${formatUnits(totalTVL, UNDERYLING_DECIMALS, 0)}`}
+                                            loading={metricsLoading}
+                                            error={false}
+                                        />
                                     </div>
                                 </div>
                             </div>
