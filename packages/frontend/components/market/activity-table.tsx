@@ -226,7 +226,7 @@ export default function ActivityTable({ market }: { market: Market }) {
                                 <div>
                                     <p className="font-medium text-sm">
                                         {shortenAddress(activity.userAddress)}
-                                        {activity.userAddress?.toLowerCase() === proxyAddress?.toLowerCase() && (
+                                        {activity.userAddress && activity.userAddress.toLowerCase() === proxyAddress?.toLowerCase() && (
                                             <span className="text-primary ml-1">(You)</span>
                                         )}
                                     </p>
@@ -235,7 +235,7 @@ export default function ActivityTable({ market }: { market: Market }) {
                             </div>
                             <div className="text-right">
                                 <Badge variant="outline" className="mb-1">
-                                    {activity.type}
+                                    {(activity.type ?? '').toString().replace(/([a-z0-9])([A-Z])/g, '$1 $2')}
                                 </Badge>
                                 <p className="text-xs text-muted-foreground">
                                     {formatDistanceToNow(new Date(activity.timestamp * 1000), { addSuffix: true })}
