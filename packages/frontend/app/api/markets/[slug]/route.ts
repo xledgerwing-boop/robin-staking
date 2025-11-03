@@ -28,7 +28,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
             return NextResponse.json({ error: 'Market not found' }, { status: 404 });
         }
         return NextResponse.json({ market: result, polymarketMarket: polymarketMarket });
-    } catch {
+    } catch (e) {
+        console.error(e);
         return NextResponse.json({ error: 'Failed to query markets' }, { status: 500 });
     }
 }

@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     const endpoint = '/api/markets/initialize';
 
     if (!rateLimit(ip, endpoint, 1, 60 * 1000)) {
-        return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+        return NextResponse.json({ error: 'Too many requests. Try again in a few minutes.' }, { status: 429 });
     }
 
     try {

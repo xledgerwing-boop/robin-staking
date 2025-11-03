@@ -55,12 +55,12 @@ export default function MarketDetailPage() {
         fetchMarket();
         const interval = setInterval(() => {
             fetchMarket();
-        }, 4000);
+        }, 6000);
         return () => clearInterval(interval);
     }, [marketSlug]);
 
     const onRefresh = async () => {
-        //await fetchMarket(); not needed atm because of auto-refresh
+        await fetchMarket();
     };
 
     if (marketLoading)
