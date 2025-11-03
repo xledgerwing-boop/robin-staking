@@ -78,6 +78,12 @@ export class EventService {
             info: eventInfoToDb(logData),
         };
 
+        const existingActivity = await this.dbService.getActivity(activity.id);
+        if (existingActivity) {
+            logger.warn(`Activity already exists: ${activity.id}`);
+            return;
+        }
+
         // Adjust based on event
         if (activity.type === VaultEvent.Deposited) {
             const depositedData = logData as DepositedEvent;

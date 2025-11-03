@@ -41,6 +41,10 @@ export class DBService {
         await this.knex('activities').insert(activity).onConflict('id').ignore();
     }
 
+    public async getActivity(id: string): Promise<ActivityRow | undefined> {
+        return await this.knex('activities').where('id', id).first();
+    }
+
     public async adjustUserPosition(
         userAddress: string,
         conditionId: string,
