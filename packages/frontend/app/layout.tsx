@@ -8,6 +8,7 @@ import Footer from '@/components/footer';
 import { Toaster } from '@/components/ui/sonner';
 import { BackButton } from '@/components/back-button';
 import Navbar from '@/components/navbar';
+import BlockedGuard from '@/components/blocked-guard';
 
 const myFont = localFont({
     src: '../public/Satoshi-Variable.ttf',
@@ -85,11 +86,13 @@ export default function RootLayout({
                 <Web3Provider>
                     <ThemeProvider defaultTheme="light">
                         <Navbar />
-                        <div className="block sm:hidden py-3 px-2">
-                            <BackButton />
-                        </div>
-                        {children}
-                        <Footer />
+                        <BlockedGuard>
+                            <div className="block sm:hidden py-3 px-2">
+                                <BackButton />
+                            </div>
+                            {children}
+                            <Footer />
+                        </BlockedGuard>
                         <Toaster />
                     </ThemeProvider>
                 </Web3Provider>
