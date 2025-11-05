@@ -14,6 +14,7 @@ import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-accoun
 import OutcomeToken from '@robin-pm-staking/common/components/outcome-token';
 import { ValueState } from '../value-state';
 import { Badge } from '../ui/badge';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '../ui/dropdown-menu';
 
 export default function MarketHeader({ market, polymarketMarket }: { market: Market; polymarketMarket: ParsedPolymarketMarket }) {
     const { proxyAddress } = useProxyAccount();
@@ -50,7 +51,20 @@ export default function MarketHeader({ market, polymarketMarket }: { market: Mar
                                     <Clock className="w-4 h-4 hidden sm:block" />
                                     <span>{market.endDate ? DateTime.fromMillis(market.endDate).toLocaleString(DateTime.DATE_MED) : '—'}</span>
                                 </div>
-                                <MarketStatusBadge status={market.status} />
+                                {market.contractAddress ? (
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <button type="button" className="inline-flex" title="View contract address">
+                                                <MarketStatusBadge status={market.status} />
+                                            </button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent side="top" align="start">
+                                            <div className="px-2 py-1 text-xs font-mono break-all">{market.contractAddress}</div>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                ) : (
+                                    <MarketStatusBadge status={market.status} />
+                                )}
                                 <Link href={`https://polymarket.com/event/${market.eventSlug}/${market.slug}`} target="_blank" className="lg:hidden">
                                     <Badge variant="outline">
                                         <ExternalLink className="w-2 h-2" /> View
