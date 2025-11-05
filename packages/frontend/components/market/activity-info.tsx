@@ -75,7 +75,7 @@ function YieldUnlockProgressInfo({ activity, market }: { activity: Activity; mar
     return (
         <div className="text-xs">
             Yield Unlock Progress: ${formatUnits(info.cumulativeWithdrawn, UNDERYLING_DECIMALS)} of $
-            {formatUnits(info.remainingInStrategy, UNDERYLING_DECIMALS)} withdrawn
+            {formatUnits(info.remainingInStrategy + info.cumulativeWithdrawn, UNDERYLING_DECIMALS)} withdrawn
         </div>
     );
 }
@@ -84,7 +84,7 @@ function YieldUnlockedInfo({ activity, market }: { activity: Activity; market: M
     const info = eventInfoFromDb(activity.info) as YieldUnlockedEvent;
     return (
         <div className="text-xs">
-            Yield Unlocked: ${formatUnits(info.totalWithdrawnUsd, UNDERYLING_DECIMALS)} principal and $
+            Yield Unlocked: ${formatUnits(info.totalWithdrawnUsd - info.totalYield, UNDERYLING_DECIMALS)} principal and $
             {formatUnits(info.totalYield, UNDERYLING_DECIMALS)} yield
         </div>
     );

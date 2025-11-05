@@ -10,10 +10,14 @@ import { useVaultUserInfo } from '@robin-pm-staking/common/hooks/use-vault-user-
 import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
 import useInvalidateQueries from '@robin-pm-staking/common/hooks/use-invalidate-queries';
 import useProxyContractInteraction from '@robin-pm-staking/common/hooks/use-proxy-contract-interaction';
-import { useWriteRobinStakingVaultHarvestYield, useWriteRobinStakingVaultRedeemWinningForUsd } from '@robin-pm-staking/common/types/contracts';
+import {
+    useReadErc20BalanceOf,
+    useWriteRobinStakingVaultHarvestYield,
+    useWriteRobinStakingVaultRedeemWinningForUsd,
+} from '@robin-pm-staking/common/types/contracts';
 import { formatUnits, getErrorMessage } from '@robin-pm-staking/common/lib/utils';
 import { toast } from 'sonner';
-import { UNDERYLING_DECIMALS } from '@robin-pm-staking/common/constants';
+import { UNDERYLING_DECIMALS, USED_CONTRACTS } from '@robin-pm-staking/common/constants';
 import { ValueState } from '../value-state';
 
 type CompletedMarketCardProps = {
@@ -36,6 +40,16 @@ export default function CompletedMarketCard({ market, onAction }: CompletedMarke
         currentYieldLoading,
         currentYieldError,
     } = useVaultUserInfo(market.contractAddress as `0x${string}`, proxyAddress as `0x${string}`, market);
+
+    const {
+        data: userUsdc,
+        isLoading: userUsdcLoading,
+        error: userUsdcError,
+        queryKey: userUsdcQueryKey,
+    } = useReadErc20BalanceOf({
+        address: USED_CONTRACTS.USDCE,
+        args: [proxyAddress as `0x${string}`],
+    });
 
     const {
         write: redeemWinningTokens,
@@ -61,7 +75,8 @@ export default function CompletedMarketCard({ market, onAction }: CompletedMarke
                 hookIndex: 0,
             });
             await redeemWinningTokensPromise.current;
-            await invalidateQueries([tokenUserBalancesQueryKey, vaultUserBalancesQueryKey]);
+            await invalidateQueries([tokenUserBalancesQueryKey, vaultUserBalancesQueryKey, userUsdcQueryKey]);
+            toast.success('USDC winnings were withdrawn to your Polymarket account.');
             onAction();
         } catch (error) {
             toast.error('Failed to redeem winning tokens' + getErrorMessage(error));
@@ -81,7 +96,8 @@ export default function CompletedMarketCard({ market, onAction }: CompletedMarke
                 hookIndex: 0,
             });
             await harvestYieldPromise.current;
-            await invalidateQueries([tokenUserBalancesQueryKey, vaultUserBalancesQueryKey, currentYieldQueryKey]);
+            await invalidateQueries([tokenUserBalancesQueryKey, vaultUserBalancesQueryKey, currentYieldQueryKey, userUsdcQueryKey]);
+            toast.success('Yield was withdrawn to your Polymarket account.');
             onAction();
         } catch (error) {
             toast.error('Failed to harvest yield' + getErrorMessage(error));
@@ -138,6 +154,18 @@ export default function CompletedMarketCard({ market, onAction }: CompletedMarke
                                 error={!!currentYieldError}
                             />
                         </div>
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-8 text-center">Winnings and Yield are withdrawn to your Polymarket account.</div>
+                    <div className="text-center p-4 bg-muted/50 rounded-lg">
+                        <p className="text-sm text-muted-foreground">USDC Balance</p>
+                        <span className="text-lg font-bold">
+                            $
+                            <ValueState
+                                value={`${formatUnits(userUsdc ?? 0n, UNDERYLING_DECIMALS)}`}
+                                loading={userUsdcLoading}
+                                error={!!userUsdcError}
+                            />
+                        </span>
                     </div>
                 </div>
 
