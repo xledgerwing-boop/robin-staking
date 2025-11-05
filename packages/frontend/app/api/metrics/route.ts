@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
         const marketsCountRow = await db(MARKETS_TABLE).whereNot('status', MarketStatus.Uninitialized).count<{ count: string }[]>({ count: 'id' });
         const numberOfMarkets = Number(marketsCountRow?.[0]?.count ?? 0);
 
-        const tvlSumRow = await db(MARKETS_TABLE).whereNot('status', MarketStatus.Unlocked).sum<{ sum: string }[]>({ sum: 'tvl' });
+        const tvlSumRow = await db(MARKETS_TABLE).sum<{ sum: string }[]>({ sum: 'tvl' });
         const totalTVL = tvlSumRow?.[0]?.sum ?? '0'; // keep as string to preserve precision
 
         const usersCountRow = await db(ACTIVITIES_TABLE).whereNotNull('userAddress').countDistinct<{ count: string }[]>({ count: 'userAddress' });
