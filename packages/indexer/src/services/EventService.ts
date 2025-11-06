@@ -14,9 +14,9 @@ import {
     WithdrawnEvent,
 } from '@robin-pm-staking/common/types/conract-events';
 import { MarketRow, MarketStatus, Outcome } from '@robin-pm-staking/common/types/market';
-import { getAndSaveEventAndMarkets } from '@robin-pm-staking/common/lib/repos';
+import { getAndSaveEventAndMarkets, MARKETS_TABLE, ACTIVITIES_TABLE } from '@robin-pm-staking/common/lib/repos';
 import { ethers } from 'ethers';
-import { eventInfoToDb } from '@robin-pm-staking/common/lib/utils';
+import { eventInfoToDb, eventInfoFromDb } from '@robin-pm-staking/common/lib/utils';
 
 export interface LogInfo {
     address: string;
@@ -159,11 +159,11 @@ export class EventService {
                     ? ActivityPosition.No
                     : ActivityPosition.Both;
             activity.userAddress = redeemedWinningForUSDData.user;
-            let yesDelta = market.winningPosition === Outcome.Yes ? redeemedWinningForUSDData.winningAmount : 0n;
-            let noDelta = market.winningPosition === Outcome.No ? redeemedWinningForUSDData.winningAmount : 0n;
+            let yesDelta = market.winningPosition === Outcome.Yes ? -redeemedWinningForUSDData.winningAmount : 0n;
+            let noDelta = market.winningPosition === Outcome.No ? -redeemedWinningForUSDData.winningAmount : 0n;
             if (market.winningPosition === Outcome.Both) {
-                yesDelta = redeemedWinningForUSDData.winningAmount / 2n;
-                noDelta = redeemedWinningForUSDData.winningAmount / 2n;
+                yesDelta = -redeemedWinningForUSDData.winningAmount / 2n;
+                noDelta = -redeemedWinningForUSDData.winningAmount / 2n;
             }
             const calculatedAmounts = this.calculateTokenAmounts(yesDelta, noDelta, market);
             await this.dbService.updateMarket(market.conditionId, {
@@ -174,8 +174,8 @@ export class EventService {
             });
             // Adjust user side: remove winning tokens and record USD redeemed
             await this.dbService.adjustUserPosition(redeemedWinningForUSDData.user, market.conditionId, vaultAddress, {
-                yesDelta: market.winningPosition === Outcome.Yes || market.winningPosition === Outcome.Both ? -yesDelta : 0n,
-                noDelta: market.winningPosition === Outcome.No || market.winningPosition === Outcome.Both ? -noDelta : 0n,
+                yesDelta: yesDelta,
+                noDelta: noDelta,
                 usdRedeemedDelta: redeemedWinningForUSDData.usdPaid,
             });
         } else if (activity.type === VaultEvent.HarvestedProtocolYield) {
@@ -207,5 +207,95 @@ export class EventService {
             unmatchedYesTokens: newUnmatchedYesTokens,
             unmatchedNoTokens: newUnmatchedNoTokens,
         };
+    }
+
+    public async recomputeAllMarkets() {
+        const markets: MarketRow[] = await this.dbService.knex(MARKETS_TABLE).whereNot('status', MarketStatus.Uninitialized);
+
+        for (const market of markets) {
+            const vaultAddress = market.contractAddress?.toLowerCase();
+            if (!vaultAddress) {
+                continue;
+            }
+
+            const activities: ActivityRow[] = await this.dbService
+                .knex(ACTIVITIES_TABLE)
+                .where('vaultAddress', vaultAddress)
+                .orderBy('blockNumber', 'asc')
+                .orderBy('id', 'asc');
+
+            // Start from zero for recomputation
+            const running: MarketRow = {
+                ...market,
+                matchedTokens: '0',
+                unmatchedYesTokens: '0',
+                unmatchedNoTokens: '0',
+            };
+
+            for (const a of activities) {
+                const type = a.type;
+                const rawInfo = a.info;
+                const info = typeof rawInfo === 'string' ? eventInfoFromDb(JSON.parse(rawInfo)) : eventInfoFromDb(rawInfo);
+
+                let yesDelta: bigint = 0n;
+                let noDelta: bigint = 0n;
+
+                if (type === VaultEvent.Deposited) {
+                    const { isYes, amount } = info as DepositedEvent;
+                    const isYesBool = isYes;
+                    const amountBig = amount;
+                    yesDelta = isYesBool ? amountBig : 0n;
+                    noDelta = isYesBool ? 0n : amountBig;
+                } else if (type === VaultEvent.Withdrawn) {
+                    const { yesAmount, noAmount } = info as WithdrawnEvent;
+                    const yesAmountBig = yesAmount;
+                    const noAmountBig = noAmount;
+                    yesDelta = -yesAmountBig;
+                    noDelta = -noAmountBig;
+                } else if (type === VaultEvent.MarketFinalized) {
+                    const { winningPosition } = info as MarketFinalizedEvent;
+                    const wp = winningPosition;
+                    if (wp === WinningPosition.Yes) running.winningPosition = Outcome.Yes;
+                    else if (wp === WinningPosition.No) running.winningPosition = Outcome.No;
+                    else if (wp === WinningPosition.Both) running.winningPosition = Outcome.Both;
+                    else running.winningPosition = undefined;
+                    continue; // status change only
+                } else if (type === VaultEvent.RedeemedWinningForUSD) {
+                    const { winningAmount } = info as RedeemedWinningForUSDEvent;
+                    if (running.winningPosition === Outcome.Yes) {
+                        yesDelta = -winningAmount;
+                        noDelta = 0n;
+                    } else if (running.winningPosition === Outcome.No) {
+                        yesDelta = 0n;
+                        noDelta = -winningAmount;
+                    } else if (running.winningPosition === Outcome.Both) {
+                        yesDelta = -winningAmount / 2n;
+                        noDelta = -winningAmount / 2n;
+                    } else {
+                        // If unresolved, skip as we cannot attribute side
+                        continue;
+                    }
+                } else {
+                    // Other activity types do not affect token balances
+                    continue;
+                }
+
+                const calculated = this.calculateTokenAmounts(yesDelta, noDelta, running);
+                running.matchedTokens = calculated.matchedTokens.toString();
+                running.unmatchedYesTokens = calculated.unmatchedYesTokens.toString();
+                running.unmatchedNoTokens = calculated.unmatchedNoTokens.toString();
+            }
+
+            const tvl = running.matchedTokens;
+
+            await this.dbService.updateMarket(market.conditionId, {
+                matchedTokens: running.matchedTokens,
+                unmatchedYesTokens: running.unmatchedYesTokens,
+                unmatchedNoTokens: running.unmatchedNoTokens,
+                tvl,
+            });
+        }
+
+        return true;
     }
 }

@@ -5,6 +5,7 @@ import { logger } from './utils/logger';
 import { DBService } from './services/DbService';
 import crypto from 'crypto';
 import { USED_CONTRACTS } from '@robin-pm-staking/common/constants';
+import { EventService } from './services/EventService';
 
 dotenv.config();
 
@@ -32,14 +33,21 @@ async function main() {
 
         let indexer: StreamsIndexer;
 
-        startWebhookServer(webhookPort, dbService, async (data: any) => {
-            // Handle streams-specific webhooks if it's a streams indexer
-            if (indexerType === IndexerType.STREAMS && indexer instanceof StreamsIndexer) {
-                await (indexer as StreamsIndexer).processWebhook(data);
-            } else {
-                console.log('Webhook received for', indexerType, 'indexer:', data.length);
-            }
-        });
+        const eventService = new EventService(POSTGRES_URI);
+
+        startWebhookServer(
+            webhookPort,
+            dbService,
+            async (data: any) => {
+                // Handle streams-specific webhooks if it's a streams indexer
+                if (indexerType === IndexerType.STREAMS && indexer instanceof StreamsIndexer) {
+                    await (indexer as StreamsIndexer).processWebhook(data);
+                } else {
+                    console.log('Webhook received for', indexerType, 'indexer:', data.length);
+                }
+            },
+            eventService
+        );
 
         if (indexerType === IndexerType.STREAMS) {
             if (!RPC_URL || !RPC_CHAIN_ID || !Number(RPC_CHAIN_ID) || !MANAGER_ADDRESS || !QUICKNODE_SECURITY_TOKEN) {
@@ -79,7 +87,7 @@ async function main() {
 
 main();
 
-function startWebhookServer(port: number, dbService: DBService, callback: (data: any) => Promise<void>) {
+function startWebhookServer(port: number, dbService: DBService, callback: (data: any) => Promise<void>, eventService: EventService) {
     // Set up Express server for webhooks
     app = express();
     app.use(express.json({ limit: '10mb' }));
@@ -128,6 +136,17 @@ function startWebhookServer(port: number, dbService: DBService, callback: (data:
                 message: 'Error processing webhook',
                 error: error instanceof Error ? error.message : 'Unknown error',
             });
+        }
+    });
+
+    // Admin endpoint to recompute market balances and TVL from activities
+    app.post('/admin/recompute-market-balances', async (req: Request, res: Response) => {
+        try {
+            await eventService.recomputeAllMarkets();
+            res.status(200).json({ success: true });
+        } catch (error) {
+            logger.error('Error recomputing market balances:', error);
+            res.status(500).json({ success: false, message: 'Error recomputing market balances' });
         }
     });
 
