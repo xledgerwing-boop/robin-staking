@@ -10,6 +10,3 @@
 [submodule "lib/aave-v3-origin"]
 	path = packages/contracts/lib/aave-v3-origin
 	url = https://github.com/aave-dao/aave-v3-origin
-[submodule "packages/contracts/lib/openzeppelin-contracts"]
-	path = packages/contracts/lib/openzeppelin-contracts
-	url = https://github.com/OpenZeppelin/openzeppelin-contracts
