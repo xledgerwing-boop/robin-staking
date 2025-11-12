@@ -44,30 +44,6 @@ contract PromotionVaultTest is Test, Constants, ForkFixture {
     // prices
     uint256[] internal prices; // price of A for each market, priceB implied as 1e6 - priceA
 
-    struct Accrual {
-        uint256 totalValueTime;
-        uint256 totalExtraValueTime;
-        uint256 aliceUsd;
-        uint256 aliceEusd;
-        uint256 aliceValueTime;
-        uint256 aliceExtraValueTime;
-        uint256 aliceM0a;
-        uint256 aliceM1b;
-        uint256 bobUsd;
-        uint256 bobEusd;
-        uint256 bobValueTime;
-        uint256 bobExtraValueTime;
-        uint256 bobM0b;
-        uint256 carolUsd;
-        uint256 carolEusd;
-        uint256 carolValueTime;
-        uint256 carolExtraValueTime;
-        uint256 carolM0a;
-        uint256 carolM1a;
-    }
-
-    Accrual A;
-
     function setUp() public {
         _selectPolygonFork(PROMOTION_FORK_BLOCK);
 
@@ -544,6 +520,30 @@ contract PromotionVaultTest is Test, Constants, ForkFixture {
     }
 
     // ---------- End-to-end scenario ----------
+    struct Accrual {
+        uint256 totalValueTime;
+        uint256 totalExtraValueTime;
+        uint256 aliceUsd;
+        uint256 aliceEusd;
+        uint256 aliceValueTime;
+        uint256 aliceExtraValueTime;
+        uint256 aliceM0a;
+        uint256 aliceM1b;
+        uint256 bobUsd;
+        uint256 bobEusd;
+        uint256 bobValueTime;
+        uint256 bobExtraValueTime;
+        uint256 bobM0b;
+        uint256 carolUsd;
+        uint256 carolEusd;
+        uint256 carolValueTime;
+        uint256 carolExtraValueTime;
+        uint256 carolM0a;
+        uint256 carolM1a;
+    }
+
+    Accrual A;
+
     function advanceAccrual(uint256 delta) public {
         A.aliceUsd = (A.aliceM0a * prices[0]) / PRICE_SCALE + (A.aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
         A.aliceEusd = (A.aliceM0a * prices[0]) / PRICE_SCALE;
