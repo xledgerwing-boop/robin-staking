@@ -20,7 +20,6 @@ import { Constants } from './helpers/Constants.t.sol';
 import { ForkFixture } from './helpers/ForkFixture.t.sol';
 
 contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
-    uint256 internal constant FORK_BLOCK = 76163124;
     BettingMarketInfo internal resolvedMarketUsed = resolvedMarket; //quickly switch between negRisk, non-negRisk and equalAmount markets
 
     // actors
@@ -283,10 +282,10 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
     }
 
     // ========== Redeeming Winners ==========
-    function _setupResolvedVaultWithWinners(uint256 amountYes, uint256 amountNo)
-        internal
-        returns (PolymarketAaveStakingVault vault, Winner[] memory winners)
-    {
+    function _setupResolvedVaultWithWinners(
+        uint256 amountYes,
+        uint256 amountNo
+    ) internal returns (PolymarketAaveStakingVault vault, Winner[] memory winners) {
         // NO is winner on resolvedMarket per Constants
         vault = _createVault(resolvedMarketUsed);
 
@@ -307,7 +306,7 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
         bool isBoth = resolvedMarketUsed.winningPosition == RobinStakingVault.WinningPosition.BOTH;
         Winner[] memory winnersTmp = isBoth ? new Winner[](2) : new Winner[](1);
         if (resolvedMarketUsed.winningPosition == RobinStakingVault.WinningPosition.YES) {
-            (uint256 bobYes,) = vault.getUserBalances(bob);
+            (uint256 bobYes, ) = vault.getUserBalances(bob);
             winnersTmp[0] = Winner({ winner: bob, winnerAmount: bobYes });
         } else if (resolvedMarketUsed.winningPosition == RobinStakingVault.WinningPosition.NO) {
             (, uint256 aliceNo) = vault.getUserBalances(alice);
@@ -502,7 +501,7 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
         v.deposit(false, amt);
 
         // Immediately after, estimate may be zero or near zero. After warp it should be > 0
-        (uint256 eTot0,,) = v.getCurrentYieldBreakdown();
+        (uint256 eTot0, , ) = v.getCurrentYieldBreakdown();
         vm.warp(block.timestamp + 20 days);
         (uint256 eTot1, uint256 eUser1, uint256 eProt1) = v.getCurrentYieldBreakdown();
         assertGe(eTot1, eTot0);
@@ -849,8 +848,8 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
                 gBal += amt;
             } else if (op == 2) {
                 // alice withdraw YES but only from unpaired to avoid splits
-                (uint256 uY,) = v.getVaultUnpaired();
-                (uint256 uYes,) = v.getUserBalances(alice);
+                (uint256 uY, ) = v.getVaultUnpaired();
+                (uint256 uYes, ) = v.getUserBalances(alice);
                 uint256 maxYes = uY < uYes ? uY : uYes;
                 if (maxYes <= 1) continue;
                 uint256 amtCandidate = 1 + ((r >> 48) % maxYes);
@@ -1026,13 +1025,13 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
         assertEq(yup, 0);
         assertEq(nup, 0);
         // leftoverUsd is private; verify via TVL on-hand which should be 0
-        (uint256 onHand,,,) = vault.getTvlUsd();
+        (uint256 onHand, , , ) = vault.getTvlUsd();
         assertEq(onHand, 0);
         assertFalse(vault.protocolYieldHarvested());
 
         // scores zero
         assertEq(vault.getGlobalScore(), 0);
-        (uint256 bal,, uint256 score) = vault.getUserState(alice);
+        (uint256 bal, , uint256 score) = vault.getUserState(alice);
         assertEq(bal, 0);
         assertEq(score, 0);
 
@@ -1331,7 +1330,7 @@ contract PolymarketAaveStakingVaultTest is Test, ForkFixture, Constants {
         PolymarketAaveStakingVault v = _createVault(runningMarket);
 
         // Determine headroom to Aave supply cap in outcome units
-        (,,, uint256 strategySupply, uint256 strategyLimit) = v.getCurrentSupplyAndLimit();
+        (, , , uint256 strategySupply, uint256 strategyLimit) = v.getCurrentSupplyAndLimit();
         if (strategyLimit == 0) {
             // Unlimited cap on strategy — nothing to test here
             revert('Aave cap mapping test: strategyLimit == 0');

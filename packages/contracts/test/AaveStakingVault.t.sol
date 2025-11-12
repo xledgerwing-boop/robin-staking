@@ -13,8 +13,6 @@ import { ForkFixture } from './helpers/ForkFixture.t.sol';
 
 contract AaveStakingVaultTest is Test, ForkFixture, Constants {
     // ===== Fill these constants before running tests =====
-    // Pick a stable snapshot block so values are deterministic
-    uint256 internal constant FORK_BLOCK = 76163124; // e.g., 62500000
 
     // Test amounts (in smallest units). Ensure decimals match UNDERLYING_USD (e.g., 6 for USDC)
     uint256 internal constant SUPPLY_AMOUNT = 1_000_000_000; // e.g., 1_000_000 = 1 USDC

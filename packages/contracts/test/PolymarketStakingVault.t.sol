@@ -11,9 +11,6 @@ import { ForkFixture } from './helpers/ForkFixture.t.sol';
 import { RobinStakingVault } from '../src/RobinStakingVault.sol';
 
 contract PolymarketStakingVaultTest is Test, ForkFixture, Constants {
-    // Fork settings
-    uint256 internal constant FORK_BLOCK = 76163124; // e.g., 61500000
-
     // Amounts (USDC has 6 decimals on Polygon). Example: 1_000_000 = 1 USDC
     uint256 internal constant AMOUNT_TO_SPLIT = 1_000_000_000; // e.g., 1_000_000
 
@@ -169,7 +166,7 @@ contract PolymarketStakingVaultTest is Test, ForkFixture, Constants {
 
         // Unresolved should report false
         MockPolyMarketAaveVault vaultUnres = _deployVault(runningMarket);
-        (bool resolvedUnres,) = vaultUnres.harnessPmCheckResolved();
+        (bool resolvedUnres, ) = vaultUnres.harnessPmCheckResolved();
         assertFalse(resolvedUnres, 'expected unresolved');
 
         // Resolved should report true and the winner should match the expected winner

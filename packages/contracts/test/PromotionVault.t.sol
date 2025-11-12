@@ -2,26 +2,16 @@
 pragma solidity ^0.8.28;
 
 import { Test } from 'forge-std/Test.sol';
-import { ERC20Mock } from '@openzeppelin/contracts/mocks/token/ERC20Mock.sol';
-import { ERC1155 } from '@openzeppelin/contracts/token/ERC1155/ERC1155.sol';
 import { Pausable } from '@openzeppelin/contracts/utils/Pausable.sol';
 
+import { IConditionalTokens } from '../src/interfaces/IConditionalTokens.sol';
+import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import { PromotionVault } from '../src/PromotionVault.sol';
+import { Constants } from './helpers/Constants.t.sol';
+import { ForkFixture } from './helpers/ForkFixture.t.sol';
+import { INegRiskAdapter } from '../src/interfaces/INegRiskAdapter.sol';
 
-// Minimal mintable ERC1155 for testing
-contract MockERC1155Mintable is ERC1155('') {
-    function mint(address to, uint256 id, uint256 amount) external {
-        _mint(to, id, amount, '');
-    }
-}
-
-contract MockERC20 is ERC20Mock {
-    function decimals() public pure override returns (uint8) {
-        return 6;
-    }
-}
-
-contract PromotionVaultTest is Test {
+contract PromotionVaultTest is Test, Constants, ForkFixture {
     // actors
     address internal owner;
     address internal alice;
@@ -29,11 +19,18 @@ contract PromotionVaultTest is Test {
     address internal carol;
 
     // tokens
-    MockERC20 internal usdc;
-    MockERC1155Mintable internal outcome;
+    IERC20 internal usdc;
+    IConditionalTokens internal ctf;
+    INegRiskAdapter internal adapter;
 
     // system under test
     PromotionVault internal vault;
+    /// forge-lint: disable-next-line(mixed-case-variable)
+    PromotionMarketInfo M0 = firstEligible;
+    /// forge-lint: disable-next-line(mixed-case-variable)
+    PromotionMarketInfo M1 = firstNonEligible;
+    /// forge-lint: disable-next-line(mixed-case-variable)
+    PromotionMarketInfo NEW_M = secondNonEligible;
 
     // config
     uint256 internal constant PRICE_SCALE = 1e6;
@@ -44,36 +41,48 @@ contract PromotionVaultTest is Test {
     uint256 internal constant BASE_REWARD = 1_000_000_000; //1k
     uint256 internal constant EXTRA_REWARD = 100_000_000; //100
 
-    // market ids for tests (placeholder; user can change to real market ids)
-    uint256 internal constant M0_A = 101;
-    uint256 internal constant M0_B = 102;
-    uint256 internal constant M1_A = 201;
-    uint256 internal constant M1_B = 202;
-
     // prices
     uint256[] internal prices; // price of A for each market, priceB implied as 1e6 - priceA
 
     function setUp() public {
+        _selectPolygonFork(PROMOTION_FORK_BLOCK);
+
         owner = address(this);
-        alice = makeAddr('alice');
-        bob = makeAddr('bob');
+        alice = makeAddr('alice2');
+        bob = makeAddr('bob2');
         carol = makeAddr('carol');
+        vm.label(owner, 'owner');
+        vm.label(alice, 'alice2');
+        vm.label(bob, 'bob2');
+        vm.label(carol, 'carol');
+        vm.deal(owner, 100 ether);
+        vm.deal(alice, 100 ether);
+        vm.deal(bob, 100 ether);
+        vm.deal(carol, 100 ether);
 
         // deploy tokens
-        usdc = new MockERC20();
-        outcome = new MockERC1155Mintable();
+        usdc = IERC20(UNDERLYING_USD);
+        ctf = IConditionalTokens(CTF);
+        adapter = INegRiskAdapter(NEG_RISK_ADAPTER);
 
         // deploy vault (owner = this test contract)
-        vault = new PromotionVault(address(outcome), address(usdc), TVL_CAP);
+        vault = new PromotionVault(address(ctf), address(usdc), TVL_CAP);
 
         // seed USDC to owner for base pool funding and extras
-        usdc.mint(owner, 10_000_000_000_000); // 10M USDC (6-dec notion)
+        vm.startPrank(USDC_WHALE);
+        bool success = usdc.transfer(owner, 10_000_000_000_000); // 10M USDC (6-dec notion)
+        assertTrue(success);
+        vm.stopPrank();
 
         // add two markets while paused
         // market 0: eligible = true
-        vault.addMarket(M0_A, M0_B, 600_000, true); // A = $0.60, B = $0.40
+        vm.expectEmit(true, true, true, true, address(vault));
+        emit PromotionVault.MarketAdded(0, M0.yesPositionId, M0.noPositionId, M0.extraEligible);
+        vault.addMarket(M0.conditionId, 600_000, M0.extraEligible, M0.collateral); // A = $0.60, B = $0.40
         // market 1: eligible = false
-        vault.addMarket(M1_A, M1_B, 300_000, false); // A = $0.30, B = $0.70
+        vm.expectEmit(true, true, true, true, address(vault));
+        emit PromotionVault.MarketAdded(1, M1.yesPositionId, M1.noPositionId, M1.extraEligible);
+        vault.addMarket(M1.conditionId, 300_000, M1.extraEligible, M1.collateral); // A = $0.30, B = $0.70
 
         // record prices vector
         prices = new uint256[](2);
@@ -88,7 +97,7 @@ contract PromotionVaultTest is Test {
 
         // add extra USDC to the vault
         usdc.approve(address(vault), EXTRA_REWARD);
-        bool success = usdc.transfer(address(vault), EXTRA_REWARD);
+        success = usdc.transfer(address(vault), EXTRA_REWARD);
         assertTrue(success);
 
         // push initial prices to set initial totals to zero (no deposits yet)
@@ -99,8 +108,29 @@ contract PromotionVaultTest is Test {
 
     // ---------- Helpers ----------
 
-    function _mintOutcome(address user, uint256 tokenId, uint256 amount) internal {
-        outcome.mint(user, tokenId, amount);
+    function _partitionYesNo() internal pure returns (uint256[] memory p) {
+        p = new uint256[](2);
+        p[0] = 1; // YES_INDEX_SET
+        p[1] = 2; // NO_INDEX_SET
+    }
+
+    function _mintOutcome(address user, PromotionMarketInfo memory market, uint256 amount) internal {
+        vm.startPrank(USDC_WHALE);
+        bool success = usdc.transfer(user, amount);
+        assertTrue(success);
+        vm.stopPrank();
+
+        uint256[] memory partition = _partitionYesNo();
+        bool isNegRisk = market.negRisk;
+        vm.startPrank(user);
+        if (isNegRisk) {
+            usdc.approve(address(adapter), amount);
+            adapter.splitPosition(address(usdc), bytes32(0), market.conditionId, partition, amount);
+        } else {
+            usdc.approve(address(ctf), amount);
+            ctf.splitPosition(address(usdc), bytes32(0), market.conditionId, partition, amount);
+        }
+        vm.stopPrank();
     }
 
     function _warpAndPush(uint256 secs) internal {
@@ -110,7 +140,7 @@ contract PromotionVaultTest is Test {
 
     function _deposit(address user, uint256 marketIndex, bool isA, uint256 amount) internal {
         vm.prank(user);
-        outcome.setApprovalForAll(address(vault), true); // not required since user is from, but harmless
+        ctf.setApprovalForAll(address(vault), true); // not required since user is from, but harmless
         vm.prank(user);
         vm.expectEmit(true, true, true, true, address(vault));
         emit PromotionVault.DepositEvent(user, marketIndex, isA, amount);
@@ -126,7 +156,7 @@ contract PromotionVaultTest is Test {
 
     function _batchDeposit(address user, uint256[] memory idxs, bool[] memory sides, uint256[] memory amts) internal {
         vm.prank(user);
-        outcome.setApprovalForAll(address(vault), true);
+        ctf.setApprovalForAll(address(vault), true);
         // Expect events for each item, in order
         for (uint256 i = 0; i < idxs.length; i++) {
             vm.expectEmit(true, true, true, true, address(vault));
@@ -166,7 +196,7 @@ contract PromotionVaultTest is Test {
     function test_Pause_Blocks_MutatingOps() public {
         vault.pause();
         // deposit blocked
-        _mintOutcome(alice, M0_A, 1_000_000);
+        _mintOutcome(alice, M0, 1_000_000);
         vm.prank(alice);
         vm.expectRevert(Pausable.EnforcedPause.selector); // Pausable revert
         vault.deposit(0, true, 1);
@@ -182,8 +212,8 @@ contract PromotionVaultTest is Test {
     // ---------- Deposits, Withdrawals, Prices ----------
 
     function test_Deposit_UpdatesTotals_And_TvlCap() public {
-        _mintOutcome(alice, M0_A, 2_000_000); // 2 shares
-        _mintOutcome(bob, M0_B, 3_000_000); // 3 shares
+        _mintOutcome(alice, M0, 2_000_000); // 2 shares
+        _mintOutcome(bob, M0, 3_000_000); // 3 shares
         // deposit A (0.60 each -> $1.20)
         _deposit(alice, 0, true, 2_000_000);
         assertEq(vault.totalValueUsd(), (2_000_000 * prices[0]) / PRICE_SCALE);
@@ -196,7 +226,7 @@ contract PromotionVaultTest is Test {
 
     function test_Deposit_Enforces_TvlCap() public {
         vault.setTvlCap(1); // very small cap
-        _mintOutcome(alice, M0_A, 10);
+        _mintOutcome(alice, M0, 10);
         vm.prank(alice);
         vm.expectRevert(PromotionVault.TvlCapExceeded.selector);
         vault.deposit(0, true, 10);
@@ -204,8 +234,8 @@ contract PromotionVaultTest is Test {
 
     function test_BatchDeposit_MultipleMarketsSides_UpdatesTotalsAndBalances() public {
         // mint: market0 A and market1 B to alice
-        _mintOutcome(alice, M0_A, 2_000_000);
-        _mintOutcome(alice, M1_B, 1_000_000);
+        _mintOutcome(alice, M0, 2_000_000);
+        _mintOutcome(alice, M1, 1_000_000);
         uint256[] memory idxs = new uint256[](2);
         bool[] memory sides = new bool[](2);
         uint256[] memory amts = new uint256[](2);
@@ -234,8 +264,8 @@ contract PromotionVaultTest is Test {
 
     function test_BatchWithdraw_MultipleMarketsSides_UpdatesTotalsAndBalances() public {
         // seed deposits first
-        _mintOutcome(alice, M0_A, 3_000_000);
-        _mintOutcome(alice, M1_B, 2_000_000);
+        _mintOutcome(alice, M0, 3_000_000);
+        _mintOutcome(alice, M1, 2_000_000);
         _deposit(alice, 0, true, 3_000_000);
         _deposit(alice, 1, false, 2_000_000);
 
@@ -250,10 +280,10 @@ contract PromotionVaultTest is Test {
         sides[1] = false;
         amts[1] = 500_000; // withdraw 0.5M from M1 B
 
-        uint256 preVaultA0 = outcome.balanceOf(address(vault), M0_A);
-        uint256 preVaultB1 = outcome.balanceOf(address(vault), M1_B);
-        uint256 preUserA0 = outcome.balanceOf(alice, M0_A);
-        uint256 preUserB1 = outcome.balanceOf(alice, M1_B);
+        uint256 preVaultA0 = ctf.balanceOf(address(vault), M0.yesPositionId);
+        uint256 preVaultB1 = ctf.balanceOf(address(vault), M1.noPositionId);
+        uint256 preUserA0 = ctf.balanceOf(alice, M0.yesPositionId);
+        uint256 preUserB1 = ctf.balanceOf(alice, M1.noPositionId);
 
         _batchWithdraw(alice, idxs, sides, amts);
 
@@ -266,10 +296,10 @@ contract PromotionVaultTest is Test {
         assertEq(b1, 1_500_000); // 2M - 0.5M
 
         // token balances moved back to user
-        assertEq(outcome.balanceOf(address(vault), M0_A), preVaultA0 - 1_000_000);
-        assertEq(outcome.balanceOf(address(vault), M1_B), preVaultB1 - 500_000);
-        assertEq(outcome.balanceOf(alice, M0_A), preUserA0 + 1_000_000);
-        assertEq(outcome.balanceOf(alice, M1_B), preUserB1 + 500_000);
+        assertEq(ctf.balanceOf(address(vault), M0.yesPositionId), preVaultA0 - 1_000_000);
+        assertEq(ctf.balanceOf(address(vault), M1.noPositionId), preVaultB1 - 500_000);
+        assertEq(ctf.balanceOf(alice, M0.yesPositionId), preUserA0 + 1_000_000);
+        assertEq(ctf.balanceOf(alice, M1.noPositionId), preUserB1 + 500_000);
     }
 
     function test_BatchDeposit_LengthMismatch_Reverts() public {
@@ -300,16 +330,16 @@ contract PromotionVaultTest is Test {
     }
 
     function test_Withdraw_UpdatesTotals_And_ReturnsTokens() public {
-        _mintOutcome(alice, M0_A, 1_500_000);
+        _mintOutcome(alice, M0, 1_500_000);
         _deposit(alice, 0, true, 1_500_000);
-        uint256 pre = outcome.balanceOf(address(vault), M0_A);
+        uint256 pre = ctf.balanceOf(address(vault), M0.yesPositionId);
         _withdraw(alice, 0, true, 500_000);
-        assertEq(outcome.balanceOf(address(vault), M0_A), pre - 500_000);
-        assertEq(outcome.balanceOf(alice, M0_A), 500_000);
+        assertEq(ctf.balanceOf(address(vault), M0.yesPositionId), pre - 500_000);
+        assertEq(ctf.balanceOf(alice, M0.yesPositionId), 500_000);
     }
 
     function test_BatchUpdatePrices_RecomputesTotals_And_EnforcesBounds() public {
-        _mintOutcome(alice, M0_A, 1_000_000);
+        _mintOutcome(alice, M0, 1_000_000);
         _deposit(alice, 0, true, 1_000_000);
         // change priceA of market 0 to 0.90
         prices[0] = 900_000;
@@ -326,7 +356,7 @@ contract PromotionVaultTest is Test {
 
     function test_EarnedBase_And_EligibleAccrual_GrowOverTime() public {
         // Alice deposits in eligible market 0 (A side)
-        _mintOutcome(alice, M0_A, 2_000_000);
+        _mintOutcome(alice, M0, 2_000_000);
         _deposit(alice, 0, true, 2_000_000);
         (uint256 tot0, uint256 base0, uint256 extra0) = vault.viewUserEstimatedEarnings(alice);
         assertEq(tot0, 0);
@@ -346,31 +376,29 @@ contract PromotionVaultTest is Test {
 
     function test_EndAndReplaceMarket_StopsAccrual_OnOld_AllowsNew() public {
         // deposit into market 1 to have some totals there
-        _mintOutcome(alice, M1_B, 2_000_000);
+        _mintOutcome(alice, M1, 2_000_000);
         _deposit(alice, 1, false, 2_000_000);
         // end market 1 and replace with a new market 2
-        uint256 newA = 301;
-        uint256 newB = 302;
+
         vm.expectEmit(true, true, true, true, address(vault));
         emit PromotionVault.MarketEnded(1);
         vm.expectEmit(true, true, true, true, address(vault));
-        emit PromotionVault.MarketAdded(2, newA, newB, false);
-        vault.endAndReplaceMarket(1, newA, newB, 500_000, false);
-        // deposit into ended market should revert
-        _mintOutcome(bob, M1_B, 100_000);
+        emit PromotionVault.MarketAdded(2, NEW_M.yesPositionId, NEW_M.noPositionId, NEW_M.extraEligible);
+        vault.endAndReplaceMarket(1, NEW_M.conditionId, 500_000, NEW_M.extraEligible, NEW_M.collateral);
+        // deposit into ended market shoul d revert
+        _mintOutcome(bob, M1, 100_000);
         vm.prank(bob);
         vm.expectRevert(PromotionVault.MarketNotActive.selector);
         vault.deposit(1, false, 100_000);
         // deposit into new market succeeds
-        _mintOutcome(bob, newB, 100_000);
+        _mintOutcome(bob, NEW_M, 100_000);
         _deposit(bob, 2, false, 100_000);
     }
 
     function test_DuplicateTokenIds_Rejected() public {
         // Try adding a market overlapping tokenId with an active one (M0_A)
-        vault.pause(); // addMarket is only callable when paused
         vm.expectRevert(PromotionVault.DuplicateTokenId.selector);
-        vault.addMarket(M0_A, 999_999, 500_000, true);
+        vault.addMarket(M0.conditionId, 500_000, M0.extraEligible, M0.collateral);
     }
 
     // ---------- Finalization and Claims ----------
@@ -380,8 +408,8 @@ contract PromotionVaultTest is Test {
         uint256 amountBob = 2_000_000;
 
         // Alice and Bob deposit in eligible market 0 to create TVL
-        _mintOutcome(alice, M0_A, amountAlice);
-        _mintOutcome(bob, M0_B, amountBob);
+        _mintOutcome(alice, M0, amountAlice);
+        _mintOutcome(bob, M0, amountBob);
         _deposit(alice, 0, true, amountAlice);
         _deposit(bob, 0, false, amountBob);
 
@@ -431,8 +459,8 @@ contract PromotionVaultTest is Test {
 
     function test_Finalize_NoEligible_DistributesAllAsBase() public {
         // Use only market 1 (eligible=false)
-        _mintOutcome(alice, M1_A, 1_000_000);
-        _mintOutcome(bob, M1_B, 1_000_000);
+        _mintOutcome(alice, M1, 1_000_000);
+        _mintOutcome(bob, M1, 1_000_000);
         _deposit(alice, 1, true, 1_000_000);
         _deposit(bob, 1, false, 1_000_000);
         _warpAndPush(3 * HOUR);
@@ -456,7 +484,7 @@ contract PromotionVaultTest is Test {
     }
 
     function test_Claim_Reverts_BeforeFinalize_And_WhenNothingToClaim() public {
-        _mintOutcome(alice, M0_A, 1_000_000);
+        _mintOutcome(alice, M0, 1_000_000);
         _deposit(alice, 0, true, 1_000_000);
         vm.prank(alice);
         vm.expectRevert(PromotionVault.CampaignNotFinalized.selector);
@@ -473,8 +501,8 @@ contract PromotionVaultTest is Test {
     // ---------- Views ----------
 
     function test_UserBalances_And_CurrentValues() public {
-        _mintOutcome(alice, M0_A, 2_000_000);
-        _mintOutcome(alice, M1_B, 1_000_000);
+        _mintOutcome(alice, M0, 2_000_000);
+        _mintOutcome(alice, M1, 1_000_000);
         _deposit(alice, 0, true, 2_000_000);
         _deposit(alice, 1, false, 1_000_000);
         (uint256 a0, uint256 b0) = vault.userMarketBalances(alice, 0);
@@ -500,34 +528,34 @@ contract PromotionVaultTest is Test {
 
         uint256 aliceValueTime = 0;
         uint256 aliceExtraValueTime = 0;
-        uint256 aliceM0A = 0;
-        uint256 aliceM1B = 0;
+        uint256 aliceM0a = 0;
+        uint256 aliceM1b = 0;
 
         uint256 bobValueTime = 0;
         uint256 bobExtraValueTime = 0;
-        uint256 bobM0B = 0;
+        uint256 bobM0b = 0;
 
         uint256 carolValueTime = 0;
         uint256 carolExtraValueTime = 0;
-        uint256 carolM0A = 0;
-        uint256 carolM1A = 0;
+        uint256 carolM0a = 0;
+        uint256 carolM1a = 0;
 
         // alice: deposit eligible A, then later B on ineligible market
-        _mintOutcome(alice, M0_A, 5_000_000);
-        _mintOutcome(alice, M1_B, 2_000_000);
+        _mintOutcome(alice, M0, 5_000_000);
+        _mintOutcome(alice, M1, 2_000_000);
         _deposit(alice, 0, true, 3_000_000);
-        aliceM0A += 3_000_000;
+        aliceM0a += 3_000_000;
         uint256 delta = 2 * HOUR;
         _warpAndPush(delta);
 
         // S1: t1 -> t2
         {
-            uint256 aliceUsd = (aliceM0A * prices[0]) / PRICE_SCALE + (aliceM1B * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
-            uint256 aliceEusd = (aliceM0A * prices[0]) / PRICE_SCALE;
-            uint256 bobUsd = (bobM0B * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-            uint256 bobEusd = (bobM0B * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-            uint256 carolUsd = (carolM0A * prices[0]) / PRICE_SCALE + (carolM1A * prices[1]) / PRICE_SCALE;
-            uint256 carolEusd = (carolM0A * prices[0]) / PRICE_SCALE;
+            uint256 aliceUsd = (aliceM0a * prices[0]) / PRICE_SCALE + (aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
+            uint256 aliceEusd = (aliceM0a * prices[0]) / PRICE_SCALE;
+            uint256 bobUsd = (bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+            uint256 bobEusd = (bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+            uint256 carolUsd = (carolM0a * prices[0]) / PRICE_SCALE + (carolM1a * prices[1]) / PRICE_SCALE;
+            uint256 carolEusd = (carolM0a * prices[0]) / PRICE_SCALE;
             totalValueTime += (aliceUsd + bobUsd + carolUsd) * delta;
             totalExtraValueTime += (aliceEusd + bobEusd + carolEusd) * delta;
             aliceValueTime += aliceUsd * delta;
@@ -540,19 +568,19 @@ contract PromotionVaultTest is Test {
 
         // bob: deposit B on eligible market later, withdraw part before end
         _deposit(alice, 1, false, 2_000_000);
-        aliceM1B += 2_000_000;
-        _mintOutcome(bob, M0_B, 6_000_000);
+        aliceM1b += 2_000_000;
+        _mintOutcome(bob, M0, 6_000_000);
         delta = 3 * HOUR;
         _warpAndPush(delta);
 
         // S2: t2 -> t3 (alice adds m1B 2M)
         {
-            uint256 aliceUsd = (aliceM0A * prices[0]) / PRICE_SCALE + (aliceM1B * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
-            uint256 aliceEusd = (aliceM0A * prices[0]) / PRICE_SCALE;
-            uint256 bobUsd = (bobM0B * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-            uint256 bobEusd = (bobM0B * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-            uint256 carolUsd = (carolM0A * prices[0]) / PRICE_SCALE + (carolM1A * prices[1]) / PRICE_SCALE;
-            uint256 carolEusd = (carolM0A * prices[0]) / PRICE_SCALE;
+            uint256 aliceUsd = (aliceM0a * prices[0]) / PRICE_SCALE + (aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
+            uint256 aliceEusd = (aliceM0a * prices[0]) / PRICE_SCALE;
+            uint256 bobUsd = (bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+            uint256 bobEusd = (bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+            uint256 carolUsd = (carolM0a * prices[0]) / PRICE_SCALE + (carolM1a * prices[1]) / PRICE_SCALE;
+            uint256 carolEusd = (carolM0a * prices[0]) / PRICE_SCALE;
             totalValueTime += (aliceUsd + bobUsd + carolUsd) * delta;
             totalExtraValueTime += (aliceEusd + bobEusd + carolEusd) * delta;
             aliceValueTime += aliceUsd * delta;
@@ -564,18 +592,18 @@ contract PromotionVaultTest is Test {
         }
 
         _deposit(bob, 0, false, 4_000_000);
-        bobM0B += 4_000_000;
+        bobM0b += 4_000_000;
         delta = 1 * HOUR;
         _warpAndPush(delta);
 
         // S3: t3 -> t4 (bob adds m0B 4M)
         {
-            uint256 aliceUsd = (aliceM0A * prices[0]) / PRICE_SCALE + (aliceM1B * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
-            uint256 aliceEusd = (aliceM0A * prices[0]) / PRICE_SCALE;
-            uint256 bobUsd = (bobM0B * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-            uint256 bobEusd = (bobM0B * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-            uint256 carolUsd = (carolM0A * prices[0]) / PRICE_SCALE + (carolM1A * prices[1]) / PRICE_SCALE;
-            uint256 carolEusd = (carolM0A * prices[0]) / PRICE_SCALE;
+            uint256 aliceUsd = (aliceM0a * prices[0]) / PRICE_SCALE + (aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
+            uint256 aliceEusd = (aliceM0a * prices[0]) / PRICE_SCALE;
+            uint256 bobUsd = (bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+            uint256 bobEusd = (bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+            uint256 carolUsd = (carolM0a * prices[0]) / PRICE_SCALE + (carolM1a * prices[1]) / PRICE_SCALE;
+            uint256 carolEusd = (carolM0a * prices[0]) / PRICE_SCALE;
             totalValueTime += (aliceUsd + bobUsd + carolUsd) * delta;
             totalExtraValueTime += (aliceEusd + bobEusd + carolEusd) * delta;
             aliceValueTime += aliceUsd * delta;
@@ -587,7 +615,7 @@ contract PromotionVaultTest is Test {
         }
 
         _withdraw(bob, 0, false, 1_000_000);
-        bobM0B -= 1_000_000;
+        bobM0b -= 1_000_000;
         prices[0] = 550_000; // 0.55 / 0.45
         prices[1] = 350_000; // 0.35 / 0.65
         vault.batchUpdatePrices(prices);
@@ -596,12 +624,12 @@ contract PromotionVaultTest is Test {
 
         // S4: t4 -> t5
         {
-            uint256 aliceUsd = (aliceM0A * prices[0]) / PRICE_SCALE + (aliceM1B * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
-            uint256 aliceEusd = (aliceM0A * prices[0]) / PRICE_SCALE;
-            uint256 bobUsd = (bobM0B * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-            uint256 bobEusd = (bobM0B * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-            uint256 carolUsd = (carolM0A * prices[0]) / PRICE_SCALE + (carolM1A * prices[1]) / PRICE_SCALE;
-            uint256 carolEusd = (carolM0A * prices[0]) / PRICE_SCALE;
+            uint256 aliceUsd = (aliceM0a * prices[0]) / PRICE_SCALE + (aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
+            uint256 aliceEusd = (aliceM0a * prices[0]) / PRICE_SCALE;
+            uint256 bobUsd = (bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+            uint256 bobEusd = (bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+            uint256 carolUsd = (carolM0a * prices[0]) / PRICE_SCALE + (carolM1a * prices[1]) / PRICE_SCALE;
+            uint256 carolEusd = (carolM0a * prices[0]) / PRICE_SCALE;
             totalValueTime += (aliceUsd + bobUsd + carolUsd) * delta;
             totalExtraValueTime += (aliceEusd + bobEusd + carolEusd) * delta;
             aliceValueTime += aliceUsd * delta;
@@ -613,12 +641,12 @@ contract PromotionVaultTest is Test {
         }
 
         // carol: interacts on both markets at different prices
-        _mintOutcome(carol, M0_A, 3_000_000);
-        _mintOutcome(carol, M1_A, 1_000_000);
+        _mintOutcome(carol, M0, 3_000_000);
+        _mintOutcome(carol, M1, 1_000_000);
         _deposit(carol, 0, true, 2_000_000);
-        carolM0A += 2_000_000;
+        carolM0a += 2_000_000;
         _deposit(carol, 1, true, 1_000_000);
-        carolM1A += 1_000_000;
+        carolM1a += 1_000_000;
         // more price changes
         prices[0] = 480_000;
         prices[1] = 420_000;
@@ -627,12 +655,12 @@ contract PromotionVaultTest is Test {
 
         // S5: t5 -> t6
         {
-            uint256 aliceUsd = (aliceM0A * prices[0]) / PRICE_SCALE + (aliceM1B * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
-            uint256 aliceEusd = (aliceM0A * prices[0]) / PRICE_SCALE;
-            uint256 bobUsd = (bobM0B * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-            uint256 bobEusd = (bobM0B * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-            uint256 carolUsd = (carolM0A * prices[0]) / PRICE_SCALE + (carolM1A * prices[1]) / PRICE_SCALE;
-            uint256 carolEusd = (carolM0A * prices[0]) / PRICE_SCALE;
+            uint256 aliceUsd = (aliceM0a * prices[0]) / PRICE_SCALE + (aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
+            uint256 aliceEusd = (aliceM0a * prices[0]) / PRICE_SCALE;
+            uint256 bobUsd = (bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+            uint256 bobEusd = (bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+            uint256 carolUsd = (carolM0a * prices[0]) / PRICE_SCALE + (carolM1a * prices[1]) / PRICE_SCALE;
+            uint256 carolEusd = (carolM0a * prices[0]) / PRICE_SCALE;
             totalValueTime += (aliceUsd + bobUsd + carolUsd) * delta;
             totalExtraValueTime += (aliceEusd + bobEusd + carolEusd) * delta;
             aliceValueTime += aliceUsd * delta;
@@ -645,18 +673,20 @@ contract PromotionVaultTest is Test {
 
         // top up extras
         uint256 extraReward = 200_000_000;
-        usdc.mint(address(vault), extraReward); // 200 USDC
+        vm.prank(USDC_WHALE);
+        bool success = usdc.transfer(address(vault), extraReward); // 200 USDC
+        assertTrue(success);
         delta = vault.campaignEndTimestamp() - block.timestamp;
         _warpAndPush(delta);
 
         // S6: t6 -> end
         {
-            uint256 aliceUsd = (aliceM0A * prices[0]) / PRICE_SCALE + (aliceM1B * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
-            uint256 aliceEusd = (aliceM0A * prices[0]) / PRICE_SCALE;
-            uint256 bobUsd = (bobM0B * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-            uint256 bobEusd = (bobM0B * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-            uint256 carolUsd = (carolM0A * prices[0]) / PRICE_SCALE + (carolM1A * prices[1]) / PRICE_SCALE;
-            uint256 carolEusd = (carolM0A * prices[0]) / PRICE_SCALE;
+            uint256 aliceUsd = (aliceM0a * prices[0]) / PRICE_SCALE + (aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
+            uint256 aliceEusd = (aliceM0a * prices[0]) / PRICE_SCALE;
+            uint256 bobUsd = (bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+            uint256 bobEusd = (bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+            uint256 carolUsd = (carolM0a * prices[0]) / PRICE_SCALE + (carolM1a * prices[1]) / PRICE_SCALE;
+            uint256 carolEusd = (carolM0a * prices[0]) / PRICE_SCALE;
             totalValueTime += (aliceUsd + bobUsd + carolUsd) * delta;
             totalExtraValueTime += (aliceEusd + bobEusd + carolEusd) * delta;
             aliceValueTime += aliceUsd * delta;
@@ -707,5 +737,27 @@ contract PromotionVaultTest is Test {
         assertApproxEqRel(aPaid, expAlice, 0.00025e18); // allow small rounding drift across segments (0.025%)
         assertApproxEqRel(bPaid, expBob, 0.00025e18);
         assertApproxEqRel(cPaid, expCarol, 0.00025e18);
+
+        // // ---------- Withdraw all tokens after claiming ----------
+        // // Alice: market 0 A
+        // if (aliceM0a > 0) {
+        //     _withdraw(alice, 0, true, aliceM0a);
+        // }
+        // // Alice: market 1 B
+        // if (aliceM1b > 0) {
+        //     _withdraw(alice, 1, false, aliceM1b);
+        // }
+        // // Bob: market 0 B
+        // if (bobM0b > 0) {
+        //     _withdraw(bob, 0, false, bobM0b);
+        // }
+        // // Carol: market 0 A
+        // if (carolM0a > 0) {
+        //     _withdraw(carol, 0, true, carolM0a);
+        // }
+        // // Carol: market 1 A
+        // if (carolM1a > 0) {
+        //     _withdraw(carol, 1, true, carolM1a);
+        // }
     }
 }

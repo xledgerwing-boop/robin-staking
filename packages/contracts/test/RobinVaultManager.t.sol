@@ -17,9 +17,6 @@ import { Constants } from './helpers/Constants.t.sol';
 import { ForkFixture } from './helpers/ForkFixture.t.sol';
 
 contract RobinVaultManagerTest is Test, ForkFixture, Constants {
-    // Fork at a recent block to ensure constants are valid
-    uint256 internal constant FORK_BLOCK = 76163124;
-
     MockRobinVaultManager internal manager;
     MockVaultForManager internal vaultImpl;
 
@@ -131,70 +128,160 @@ contract RobinVaultManagerTest is Test, ForkFixture, Constants {
         // setImplementation emits with old config values except implementation
         vm.expectEmit(true, true, true, true);
         emit RobinVaultManager.ConfigUpdated(
-            newImpl, PROTOCOL_FEE_BPS, UNDERLYING_USD, WCOL, CTF, NEG_RISK_ADAPTER, NEG_RISK_CTF_EXCHANGE, CTF_EXCHANGE, AAVE_POOL, DATA_PROVIDER
+            newImpl,
+            PROTOCOL_FEE_BPS,
+            UNDERLYING_USD,
+            WCOL,
+            CTF,
+            NEG_RISK_ADAPTER,
+            NEG_RISK_CTF_EXCHANGE,
+            CTF_EXCHANGE,
+            AAVE_POOL,
+            DATA_PROVIDER
         );
         manager.setImplementation(newImpl);
 
         // setProtocolFeeBps
         vm.expectEmit(true, true, true, true);
         emit RobinVaultManager.ConfigUpdated(
-            newImpl, newFee, UNDERLYING_USD, WCOL, CTF, NEG_RISK_ADAPTER, NEG_RISK_CTF_EXCHANGE, CTF_EXCHANGE, AAVE_POOL, DATA_PROVIDER
+            newImpl,
+            newFee,
+            UNDERLYING_USD,
+            WCOL,
+            CTF,
+            NEG_RISK_ADAPTER,
+            NEG_RISK_CTF_EXCHANGE,
+            CTF_EXCHANGE,
+            AAVE_POOL,
+            DATA_PROVIDER
         );
         manager.setProtocolFeeBps(newFee);
 
         // setUnderlyingUsd
         vm.expectEmit(true, true, true, true);
         emit RobinVaultManager.ConfigUpdated(
-            newImpl, newFee, newUsd, WCOL, CTF, NEG_RISK_ADAPTER, NEG_RISK_CTF_EXCHANGE, CTF_EXCHANGE, AAVE_POOL, DATA_PROVIDER
+            newImpl,
+            newFee,
+            newUsd,
+            WCOL,
+            CTF,
+            NEG_RISK_ADAPTER,
+            NEG_RISK_CTF_EXCHANGE,
+            CTF_EXCHANGE,
+            AAVE_POOL,
+            DATA_PROVIDER
         );
         manager.setUnderlyingUsd(newUsd);
 
         // setPolymarketWcol
         vm.expectEmit(true, true, true, true);
         emit RobinVaultManager.ConfigUpdated(
-            newImpl, newFee, newUsd, newWcol, CTF, NEG_RISK_ADAPTER, NEG_RISK_CTF_EXCHANGE, CTF_EXCHANGE, AAVE_POOL, DATA_PROVIDER
+            newImpl,
+            newFee,
+            newUsd,
+            newWcol,
+            CTF,
+            NEG_RISK_ADAPTER,
+            NEG_RISK_CTF_EXCHANGE,
+            CTF_EXCHANGE,
+            AAVE_POOL,
+            DATA_PROVIDER
         );
         manager.setPolymarketWcol(newWcol);
 
         // setCtf
         vm.expectEmit(true, true, true, true);
         emit RobinVaultManager.ConfigUpdated(
-            newImpl, newFee, newUsd, newWcol, newCtf, NEG_RISK_ADAPTER, NEG_RISK_CTF_EXCHANGE, CTF_EXCHANGE, AAVE_POOL, DATA_PROVIDER
+            newImpl,
+            newFee,
+            newUsd,
+            newWcol,
+            newCtf,
+            NEG_RISK_ADAPTER,
+            NEG_RISK_CTF_EXCHANGE,
+            CTF_EXCHANGE,
+            AAVE_POOL,
+            DATA_PROVIDER
         );
         manager.setCtf(newCtf);
 
         // setNegRiskAdapter
         vm.expectEmit(true, true, true, true);
         emit RobinVaultManager.ConfigUpdated(
-            newImpl, newFee, newUsd, newWcol, newCtf, newNegRisk, NEG_RISK_CTF_EXCHANGE, CTF_EXCHANGE, AAVE_POOL, DATA_PROVIDER
+            newImpl,
+            newFee,
+            newUsd,
+            newWcol,
+            newCtf,
+            newNegRisk,
+            NEG_RISK_CTF_EXCHANGE,
+            CTF_EXCHANGE,
+            AAVE_POOL,
+            DATA_PROVIDER
         );
         manager.setNegRiskAdapter(newNegRisk);
 
         // setNegRiskCtfExchange
         vm.expectEmit(true, true, true, true);
         emit RobinVaultManager.ConfigUpdated(
-            newImpl, newFee, newUsd, newWcol, newCtf, newNegRisk, newNegRiskCtfExchange, CTF_EXCHANGE, AAVE_POOL, DATA_PROVIDER
+            newImpl,
+            newFee,
+            newUsd,
+            newWcol,
+            newCtf,
+            newNegRisk,
+            newNegRiskCtfExchange,
+            CTF_EXCHANGE,
+            AAVE_POOL,
+            DATA_PROVIDER
         );
         manager.setNegRiskCtfExchange(newNegRiskCtfExchange);
 
         // setCtfExchange
         vm.expectEmit(true, true, true, true);
         emit RobinVaultManager.ConfigUpdated(
-            newImpl, newFee, newUsd, newWcol, newCtf, newNegRisk, newNegRiskCtfExchange, newCtfExchange, AAVE_POOL, DATA_PROVIDER
+            newImpl,
+            newFee,
+            newUsd,
+            newWcol,
+            newCtf,
+            newNegRisk,
+            newNegRiskCtfExchange,
+            newCtfExchange,
+            AAVE_POOL,
+            DATA_PROVIDER
         );
         manager.setCtfExchange(newCtfExchange);
 
         // setAavePool
         vm.expectEmit(true, true, true, true);
         emit RobinVaultManager.ConfigUpdated(
-            newImpl, newFee, newUsd, newWcol, newCtf, newNegRisk, newNegRiskCtfExchange, newCtfExchange, newPool, DATA_PROVIDER
+            newImpl,
+            newFee,
+            newUsd,
+            newWcol,
+            newCtf,
+            newNegRisk,
+            newNegRiskCtfExchange,
+            newCtfExchange,
+            newPool,
+            DATA_PROVIDER
         );
         manager.setAavePool(newPool);
 
         // setAaveDataProv
         vm.expectEmit(true, true, true, true);
         emit RobinVaultManager.ConfigUpdated(
-            newImpl, newFee, newUsd, newWcol, newCtf, newNegRisk, newNegRiskCtfExchange, newCtfExchange, newPool, newDp
+            newImpl,
+            newFee,
+            newUsd,
+            newWcol,
+            newCtf,
+            newNegRisk,
+            newNegRiskCtfExchange,
+            newCtfExchange,
+            newPool,
+            newDp
         );
         manager.setAaveDataProv(newDp);
         vm.stopPrank();

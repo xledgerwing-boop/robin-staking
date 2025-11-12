@@ -1,37 +1,27 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import { IERC1155 } from '@openzeppelin/contracts/token/ERC1155/IERC1155.sol';
 import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import { SafeERC20 } from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import { ReentrancyGuard } from '@openzeppelin/contracts/utils/ReentrancyGuard.sol';
 import { Ownable } from '@openzeppelin/contracts/access/Ownable.sol';
 import { Pausable } from '@openzeppelin/contracts/utils/Pausable.sol';
 import { ERC1155Holder } from '@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol';
+import { IConditionalTokens } from './interfaces/IConditionalTokens.sol';
 
 contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
     using SafeERC20 for IERC20;
-    // ---------- Errors ----------
-    error ZeroAddress();
-    error PriceOutOfRange();
-    error AlreadyStarted();
-    error LengthMismatch();
-    error DuplicateTokenId();
-    error ToEarlierThanLast();
-    error CampaignNotActive();
-    error MarketIndexOutOfBounds();
-    error ZeroAmount();
-    error MarketNotActive();
-    error TvlCapExceeded();
-    error InsufficientBalance();
-    error CampaignNotEnded();
-    error CampaignNotFinalized();
 
     // ---------- Constants & scales ----------
     uint256 public constant PRICE_SCALE = 1e6; // price: 6 decimals (UsdC-like)
+    uint256 public constant YES_INDEX = 0;
+    uint256 public constant NO_INDEX = 1;
+    uint256 public constant YES_INDEX_SET = 1; // YES is always the first index set for us
+    uint256 public constant NO_INDEX_SET = 2; // NO is always the second index set for us
+    bytes32 public constant PARENT_COLLECTION_ID = 0x0; // Always 0x0 for Polymarket
 
     // ---------- Tokens ----------
-    IERC1155 public outcomeToken; // single ERC-1155 contract for all markets
+    IConditionalTokens public ctf;
     IERC20 public usdc; // UsdC (6 decimals)
 
     // ---------- Reward & TVL state ----------
@@ -100,18 +90,45 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
     event TvlCapUpdated(uint256 oldCapUsd, uint256 newCapUsd);
     event LeftoversSwept(address indexed to, uint256 amount);
 
+    // ---------- Errors ----------
+    error ZeroAddress();
+    error PriceOutOfRange();
+    error InvalidOutcomeSlotCount(uint256 outcomeSlotCount);
+    error AlreadyStarted();
+    error LengthMismatch();
+    error DuplicateTokenId();
+    error ToEarlierThanLast();
+    error CampaignNotActive();
+    error MarketIndexOutOfBounds();
+    error ZeroAmount();
+    error MarketNotActive();
+    error TvlCapExceeded();
+    error InsufficientBalance();
+    error CampaignNotEnded();
+    error CampaignNotFinalized();
+
     // ---------- Constructor ----------
-    constructor(address _outcomeToken, address _usdc, uint256 _tvlCapUsd) Ownable(msg.sender) {
-        if (_outcomeToken == address(0) || _usdc == address(0)) revert ZeroAddress();
-        outcomeToken = IERC1155(_outcomeToken);
+    constructor(address _ctf, address _usdc, uint256 _tvlCapUsd) Ownable(msg.sender) {
+        if (_ctf == address(0) || _usdc == address(0)) revert ZeroAddress();
+        ctf = IConditionalTokens(_ctf);
         usdc = IERC20(_usdc);
         tvlCapUsd = _tvlCapUsd;
         _pause();
     }
 
     // ---------- Admin: market management ----------
-    function addMarket(uint256 tokenIdA, uint256 tokenIdB, uint256 priceA, bool extraEligible) external onlyOwner whenPaused {
+    function addMarket(bytes32 conditionId, uint256 priceA, bool extraEligible, address polymarketCollateral) public onlyOwner {
         if (priceA > PRICE_SCALE) revert PriceOutOfRange();
+
+        //Only allow Polymarket binary markets
+        uint256 outcomeSlotCount = ctf.getOutcomeSlotCount(conditionId);
+        if (outcomeSlotCount != 2) revert InvalidOutcomeSlotCount(outcomeSlotCount); //also checks that market is created (prepared)
+
+        bytes32 yesColl = ctf.getCollectionId(PARENT_COLLECTION_ID, conditionId, YES_INDEX_SET);
+        bytes32 noColl = ctf.getCollectionId(PARENT_COLLECTION_ID, conditionId, NO_INDEX_SET);
+        uint256 tokenIdA = ctf.getPositionId(polymarketCollateral, yesColl);
+        uint256 tokenIdB = ctf.getPositionId(polymarketCollateral, noColl);
+
         _validateNoDuplicateTokenIds(tokenIdA, tokenIdB);
         uint256 pA = priceA;
         uint256 pB = PRICE_SCALE - pA;
@@ -196,10 +213,10 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
     // End a market and append a replacement in same call
     function endAndReplaceMarket(
         uint256 endIndex,
-        uint256 newTokenIdA,
-        uint256 newTokenIdB,
+        bytes32 conditionId,
         uint256 newPriceA,
-        bool newExtraEligible
+        bool newExtraEligible,
+        address newPolymarketCollateral
     ) external onlyOwner whenNotPaused {
         if (endIndex >= markets.length) revert MarketIndexOutOfBounds();
         _advanceTime();
@@ -215,28 +232,9 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
             }
             old.active = false;
         }
-
-        if (newPriceA > PRICE_SCALE) revert PriceOutOfRange();
-        _validateNoDuplicateTokenIds(newTokenIdA, newTokenIdB);
-        uint256 pA = newPriceA;
-        uint256 pB = PRICE_SCALE - pA;
-        markets.push(
-            Market({
-                tokenIdA: newTokenIdA,
-                tokenIdB: newTokenIdB,
-                totalAmountA: 0,
-                totalAmountB: 0,
-                priceA: pA,
-                priceB: pB,
-                active: true,
-                extraEligible: newExtraEligible,
-                rewardPerAmountA: 0,
-                rewardPerAmountB: 0
-            })
-        );
-
         emit MarketEnded(endIndex);
-        emit MarketAdded(markets.length - 1, newTokenIdA, newTokenIdB, newExtraEligible);
+
+        addMarket(conditionId, newPriceA, newExtraEligible, newPolymarketCollateral);
     }
 
     // Validate that neither tokenId conflicts with any currently active market,
@@ -312,7 +310,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
             uint256 deltaUsd = (amount * m.priceA) / PRICE_SCALE;
             if (totalValueUsd + deltaUsd > tvlCapUsd) revert TvlCapExceeded();
             // transfer tokens in after cap check
-            outcomeToken.safeTransferFrom(msg.sender, address(this), m.tokenIdA, amount, '');
+            ctf.safeTransferFrom(msg.sender, address(this), m.tokenIdA, amount, '');
             m.totalAmountA += amount;
             users[msg.sender].amountsA[marketIndex] += amount;
 
@@ -323,7 +321,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
         } else {
             uint256 deltaUsd = (amount * m.priceB) / PRICE_SCALE;
             if (totalValueUsd + deltaUsd > tvlCapUsd) revert TvlCapExceeded();
-            outcomeToken.safeTransferFrom(msg.sender, address(this), m.tokenIdB, amount, '');
+            ctf.safeTransferFrom(msg.sender, address(this), m.tokenIdB, amount, '');
             m.totalAmountB += amount;
             users[msg.sender].amountsB[marketIndex] += amount;
 
@@ -368,7 +366,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
                 }
             }
 
-            outcomeToken.safeTransferFrom(address(this), msg.sender, m.tokenIdA, amount, '');
+            ctf.safeTransferFrom(address(this), msg.sender, m.tokenIdA, amount, '');
         } else {
             uint256 bal = u.amountsB[marketIndex];
             if (bal < amount) revert InsufficientBalance();
@@ -385,7 +383,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
                 }
             }
 
-            outcomeToken.safeTransferFrom(address(this), msg.sender, m.tokenIdB, amount, '');
+            ctf.safeTransferFrom(address(this), msg.sender, m.tokenIdB, amount, '');
         }
 
         emit WithdrawEvent(msg.sender, marketIndex, isA, amount);
