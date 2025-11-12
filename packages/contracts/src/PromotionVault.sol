@@ -21,8 +21,8 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
     bytes32 public constant PARENT_COLLECTION_ID = 0x0; // Always 0x0 for Polymarket
 
     // ---------- Tokens ----------
-    IConditionalTokens public ctf;
-    IERC20 public usdc; // UsdC (6 decimals)
+    IConditionalTokens public immutable ctf;
+    IERC20 public immutable usdc; // UsdC (6 decimals)
 
     // ---------- Reward & TVL state ----------
     uint256 public baseRewardPool; // funded at start (UsdC 6 decimals)
@@ -52,7 +52,6 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
         uint256 totalAmountA; // amount uses 6 decimals (micro-shares)
         uint256 totalAmountB; // amount uses 6 decimals (micro-shares)
         uint256 priceA; // UsdC per base unit (6 decimals)
-        uint256 priceB; // PRICE_SCALE - priceA
         bool active;
         bool extraEligible;
         // value-per-amount accumulators for BASE (units: PRICE_SCALE * seconds per amount unit)
@@ -131,7 +130,6 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
 
         _validateNoDuplicateTokenIds(tokenIdA, tokenIdB);
         uint256 pA = priceA;
-        uint256 pB = PRICE_SCALE - pA;
         markets.push(
             Market({
                 tokenIdA: tokenIdA,
@@ -139,7 +137,6 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
                 totalAmountA: 0,
                 totalAmountB: 0,
                 priceA: pA,
-                priceB: pB,
                 active: true,
                 extraEligible: extraEligible,
                 rewardPerAmountA: 0,
@@ -193,12 +190,11 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
             Market storage m = markets[i];
             uint256 pA = pricesA[i];
             if (pA > PRICE_SCALE) revert PriceOutOfRange();
-            uint256 pB = PRICE_SCALE - pA;
             m.priceA = pA;
-            m.priceB = pB;
             if (m.active) {
                 uint256 vA = (m.totalAmountA * m.priceA) / PRICE_SCALE;
-                uint256 vB = (m.totalAmountB * m.priceB) / PRICE_SCALE;
+                uint256 pBNow = PRICE_SCALE - pA;
+                uint256 vB = (m.totalAmountB * pBNow) / PRICE_SCALE;
                 uint256 mVal = vA + vB;
                 newTotalValue += mVal;
                 if (m.extraEligible) newExtraTotal += mVal;
@@ -223,7 +219,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
 
         Market storage old = markets[endIndex];
         if (old.active) {
-            uint256 oldVal = (old.totalAmountA * old.priceA) / PRICE_SCALE + (old.totalAmountB * old.priceB) / PRICE_SCALE;
+            uint256 oldVal = (old.totalAmountA * old.priceA) / PRICE_SCALE + (old.totalAmountB * (PRICE_SCALE - old.priceA)) / PRICE_SCALE;
             if (totalValueUsd >= oldVal) totalValueUsd -= oldVal;
             else totalValueUsd = 0;
             if (old.extraEligible) {
@@ -268,7 +264,8 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
             Market storage m = markets[i];
             if (!m.active) continue;
             m.rewardPerAmountA += m.priceA * delta;
-            m.rewardPerAmountB += m.priceB * delta;
+            uint256 pBNow = PRICE_SCALE - m.priceA;
+            m.rewardPerAmountB += pBNow * delta;
         }
 
         if (totalValueUsd > 0) {
@@ -319,7 +316,8 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
                 totalExtraValueUsd += deltaUsd;
             }
         } else {
-            uint256 deltaUsd = (amount * m.priceB) / PRICE_SCALE;
+            uint256 pBNow = PRICE_SCALE - m.priceA;
+            uint256 deltaUsd = (amount * pBNow) / PRICE_SCALE;
             if (totalValueUsd + deltaUsd > tvlCapUsd) revert TvlCapExceeded();
             ctf.safeTransferFrom(msg.sender, address(this), m.tokenIdB, amount, '');
             m.totalAmountB += amount;
@@ -373,7 +371,8 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
             u.amountsB[marketIndex] = bal - amount;
             m.totalAmountB -= amount;
 
-            uint256 deltaUsd = (amount * m.priceB) / PRICE_SCALE;
+            uint256 pBNow = PRICE_SCALE - m.priceA;
+            uint256 deltaUsd = (amount * pBNow) / PRICE_SCALE;
             if (m.active) {
                 if (totalValueUsd >= deltaUsd) totalValueUsd -= deltaUsd;
                 else totalValueUsd = 0;
@@ -561,7 +560,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
 
     // Return the user's raw ERC-1155 balances for a given market index
     function userMarketBalances(address account, uint256 marketIndex) external view returns (uint256 amountA, uint256 amountB) {
-        require(marketIndex < markets.length, 'market OOB');
+        if (marketIndex >= markets.length) revert MarketIndexOutOfBounds();
         User storage u = users[account];
         amountA = u.amountsA[marketIndex];
         amountB = u.amountsB[marketIndex];
@@ -574,7 +573,8 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
             Market storage m = markets[i];
             if (!m.active) continue;
             uint256 vA = (u.amountsA[i] * m.priceA) / PRICE_SCALE;
-            uint256 vB = (u.amountsB[i] * m.priceB) / PRICE_SCALE;
+            uint256 pBNow = PRICE_SCALE - m.priceA;
+            uint256 vB = (u.amountsB[i] * pBNow) / PRICE_SCALE;
             uint256 v = vA + vB;
             valueUsd += v;
             if (m.extraEligible) {
@@ -602,7 +602,8 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
         for (uint256 i = 0; i < markets.length; i++) {
             Market storage m = markets[i];
             uint256 addA = (delta > 0 && m.active && m.priceA > 0) ? (m.priceA * delta) : 0;
-            uint256 addB = (delta > 0 && m.active && m.priceB > 0) ? (m.priceB * delta) : 0;
+            uint256 pBNow = PRICE_SCALE - m.priceA;
+            uint256 addB = (delta > 0 && m.active && pBNow > 0) ? (pBNow * delta) : 0;
 
             uint256 rpaNow = m.rewardPerAmountA + addA;
             uint256 rpbNow = m.rewardPerAmountB + addB;
