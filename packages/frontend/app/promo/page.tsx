@@ -332,7 +332,12 @@ export default function PromoVaultPage() {
                                                     <CardContent className="pt-4">
                                                         <div className="flex items-start gap-3">
                                                             <div className="w-16 h-16 relative shrink-0 rounded-md overflow-hidden bg-muted">
-                                                                <Image src={m.image || '/placeholder.png'} alt="market" fill className="object-cover" />
+                                                                <Image
+                                                                    src={m.image || '/placeholder.png'}
+                                                                    alt="market"
+                                                                    fill
+                                                                    className="object-cover"
+                                                                />
                                                             </div>
                                                             <div className="flex-1">
                                                                 <div className="flex items-center justify-between gap-2">
@@ -347,10 +352,14 @@ export default function PromoVaultPage() {
                                                                 </div>
                                                                 <div className="mt-2 flex items-center gap-2">
                                                                     <Button variant="outline" size="sm" className="h-8">
-                                                                        <OutcomeToken outcome={m.side} symbolHolder={{ outcomes: [m.yesSymbol, m.noSymbol] } as any} />
+                                                                        <OutcomeToken
+                                                                            outcome={m.side}
+                                                                            symbolHolder={{ outcomes: [m.yesSymbol, m.noSymbol] }}
+                                                                        />
                                                                     </Button>
                                                                     <div className="text-xs text-muted-foreground">
-                                                                        Wallet: {formatUsd(m.walletAmount / 1_000_000, 2)} tokens (${formatUsd(calcValue(m.walletAmount, m.priceUsd), 2)})
+                                                                        Wallet: {formatUsd(m.walletAmount / 1_000_000, 2)} tokens ($
+                                                                        {formatUsd(calcValue(m.walletAmount, m.priceUsd), 2)})
                                                                     </div>
                                                                 </div>
 
@@ -364,7 +373,10 @@ export default function PromoVaultPage() {
                                                                                 const parsed = Number(v || 0);
                                                                                 setDepositDraft(prev => ({
                                                                                     ...prev,
-                                                                                    [m.id]: Math.max(0, Math.min(m.walletAmount, Math.round(parsed * 1_000_000))),
+                                                                                    [m.id]: Math.max(
+                                                                                        0,
+                                                                                        Math.min(m.walletAmount, Math.round(parsed * 1_000_000))
+                                                                                    ),
                                                                                 }));
                                                                             }}
                                                                             showMax={false}
@@ -448,7 +460,12 @@ export default function PromoVaultPage() {
                                                     <CardContent className="pt-4">
                                                         <div className="flex items-start gap-3">
                                                             <div className="w-16 h-16 relative shrink-0 rounded-md overflow-hidden bg-muted">
-                                                                <Image src={m.image || '/placeholder.png'} alt="market" fill className="object-cover" />
+                                                                <Image
+                                                                    src={m.image || '/placeholder.png'}
+                                                                    alt="market"
+                                                                    fill
+                                                                    className="object-cover"
+                                                                />
                                                             </div>
                                                             <div className="flex-1">
                                                                 <div className="flex items-center justify-between gap-2">
@@ -463,10 +480,14 @@ export default function PromoVaultPage() {
                                                                 </div>
                                                                 <div className="mt-2 flex items-center gap-2">
                                                                     <Button variant="outline" size="sm" className="h-8">
-                                                                        <OutcomeToken outcome={m.side} symbolHolder={{ outcomes: [m.yesSymbol, m.noSymbol] } as any} />
+                                                                        <OutcomeToken
+                                                                            outcome={m.side}
+                                                                            symbolHolder={{ outcomes: [m.yesSymbol, m.noSymbol] }}
+                                                                        />
                                                                     </Button>
                                                                     <div className="text-xs text-muted-foreground">
-                                                                        In Vault: {formatUsd(m.vaultAmount / 1_000_000, 2)} tokens (${formatUsd(calcValue(m.vaultAmount, m.priceUsd), 2)})
+                                                                        In Vault: {formatUsd(m.vaultAmount / 1_000_000, 2)} tokens ($
+                                                                        {formatUsd(calcValue(m.vaultAmount, m.priceUsd), 2)})
                                                                     </div>
                                                                 </div>
 
@@ -480,7 +501,10 @@ export default function PromoVaultPage() {
                                                                                 const parsed = Number(v || 0);
                                                                                 setWithdrawDraft(prev => ({
                                                                                     ...prev,
-                                                                                    [m.id]: Math.max(0, Math.min(max, Math.round(parsed * 1_000_000))),
+                                                                                    [m.id]: Math.max(
+                                                                                        0,
+                                                                                        Math.min(max, Math.round(parsed * 1_000_000))
+                                                                                    ),
                                                                                 }));
                                                                             }}
                                                                             showMax={false}
@@ -582,5 +606,3 @@ export default function PromoVaultPage() {
         </div>
     );
 }
-
-
