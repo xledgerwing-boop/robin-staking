@@ -544,6 +544,22 @@ contract PromotionVaultTest is Test, Constants, ForkFixture {
     }
 
     // ---------- End-to-end scenario ----------
+    function advanceAccrual(uint256 delta) public {
+        A.aliceUsd = (A.aliceM0a * prices[0]) / PRICE_SCALE + (A.aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
+        A.aliceEusd = (A.aliceM0a * prices[0]) / PRICE_SCALE;
+        A.bobUsd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+        A.bobEusd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+        A.carolUsd = (A.carolM0a * prices[0]) / PRICE_SCALE + (A.carolM1a * prices[1]) / PRICE_SCALE;
+        A.carolEusd = (A.carolM0a * prices[0]) / PRICE_SCALE;
+        A.totalValueTime += (A.aliceUsd + A.bobUsd + A.carolUsd) * delta;
+        A.totalExtraValueTime += (A.aliceEusd + A.bobEusd + A.carolEusd) * delta;
+        A.aliceValueTime += A.aliceUsd * delta;
+        A.aliceExtraValueTime += A.aliceEusd * delta;
+        A.bobValueTime += A.bobUsd * delta;
+        A.bobExtraValueTime += A.bobEusd * delta;
+        A.carolValueTime += A.carolUsd * delta;
+        A.carolExtraValueTime += A.carolEusd * delta;
+    }
 
     function test_EndToEnd_MultiUser_MultiMarket_MultiPriceUpdates() public {
         // ---- Incremental simulation of USD-seconds across warps/updates ----
@@ -558,20 +574,7 @@ contract PromotionVaultTest is Test, Constants, ForkFixture {
         _warpAndPush(delta);
 
         // S1: t1 -> t2
-        A.aliceUsd = (A.aliceM0a * prices[0]) / PRICE_SCALE + (A.aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
-        A.aliceEusd = (A.aliceM0a * prices[0]) / PRICE_SCALE;
-        A.bobUsd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-        A.bobEusd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-        A.carolUsd = (A.carolM0a * prices[0]) / PRICE_SCALE + (A.carolM1a * prices[1]) / PRICE_SCALE;
-        A.carolEusd = (A.carolM0a * prices[0]) / PRICE_SCALE;
-        A.totalValueTime += (A.aliceUsd + A.bobUsd + A.carolUsd) * delta;
-        A.totalExtraValueTime += (A.aliceEusd + A.bobEusd + A.carolEusd) * delta;
-        A.aliceValueTime += A.aliceUsd * delta;
-        A.aliceExtraValueTime += A.aliceEusd * delta;
-        A.bobValueTime += A.bobUsd * delta;
-        A.bobExtraValueTime += A.bobEusd * delta;
-        A.carolValueTime += A.carolUsd * delta;
-        A.carolExtraValueTime += A.carolEusd * delta;
+        advanceAccrual(delta);
 
         // bob: deposit B on eligible market later, withdraw part before end
         _deposit(alice, 1, false, 2_000_000);
@@ -581,20 +584,7 @@ contract PromotionVaultTest is Test, Constants, ForkFixture {
         _warpAndPush(delta);
 
         // S2: t2 -> t3 (alice adds m1B 2M)
-        A.aliceUsd = (A.aliceM0a * prices[0]) / PRICE_SCALE + (A.aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
-        A.aliceEusd = (A.aliceM0a * prices[0]) / PRICE_SCALE;
-        A.bobUsd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-        A.bobEusd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-        A.carolUsd = (A.carolM0a * prices[0]) / PRICE_SCALE + (A.carolM1a * prices[1]) / PRICE_SCALE;
-        A.carolEusd = (A.carolM0a * prices[0]) / PRICE_SCALE;
-        A.totalValueTime += (A.aliceUsd + A.bobUsd + A.carolUsd) * delta;
-        A.totalExtraValueTime += (A.aliceEusd + A.bobEusd + A.carolEusd) * delta;
-        A.aliceValueTime += A.aliceUsd * delta;
-        A.aliceExtraValueTime += A.aliceEusd * delta;
-        A.bobValueTime += A.bobUsd * delta;
-        A.bobExtraValueTime += A.bobEusd * delta;
-        A.carolValueTime += A.carolUsd * delta;
-        A.carolExtraValueTime += A.carolEusd * delta;
+        advanceAccrual(delta);
 
         _deposit(bob, 0, false, 4_000_000);
         A.bobM0b += 4_000_000;
@@ -602,21 +592,7 @@ contract PromotionVaultTest is Test, Constants, ForkFixture {
         _warpAndPush(delta);
 
         // S3: t3 -> t4 (bob adds m0B 4M)
-
-        A.aliceUsd = (A.aliceM0a * prices[0]) / PRICE_SCALE + (A.aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
-        A.aliceEusd = (A.aliceM0a * prices[0]) / PRICE_SCALE;
-        A.bobUsd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-        A.bobEusd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-        A.carolUsd = (A.carolM0a * prices[0]) / PRICE_SCALE + (A.carolM1a * prices[1]) / PRICE_SCALE;
-        A.carolEusd = (A.carolM0a * prices[0]) / PRICE_SCALE;
-        A.totalValueTime += (A.aliceUsd + A.bobUsd + A.carolUsd) * delta;
-        A.totalExtraValueTime += (A.aliceEusd + A.bobEusd + A.carolEusd) * delta;
-        A.aliceValueTime += A.aliceUsd * delta;
-        A.aliceExtraValueTime += A.aliceEusd * delta;
-        A.bobValueTime += A.bobUsd * delta;
-        A.bobExtraValueTime += A.bobEusd * delta;
-        A.carolValueTime += A.carolUsd * delta;
-        A.carolExtraValueTime += A.carolEusd * delta;
+        advanceAccrual(delta);
 
         _withdraw(bob, 0, false, 1_000_000);
         A.bobM0b -= 1_000_000;
@@ -627,20 +603,7 @@ contract PromotionVaultTest is Test, Constants, ForkFixture {
         _warpAndPush(delta);
 
         // S4: t4 -> t5
-        A.aliceUsd = (A.aliceM0a * prices[0]) / PRICE_SCALE + (A.aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
-        A.aliceEusd = (A.aliceM0a * prices[0]) / PRICE_SCALE;
-        A.bobUsd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-        A.bobEusd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-        A.carolUsd = (A.carolM0a * prices[0]) / PRICE_SCALE + (A.carolM1a * prices[1]) / PRICE_SCALE;
-        A.carolEusd = (A.carolM0a * prices[0]) / PRICE_SCALE;
-        A.totalValueTime += (A.aliceUsd + A.bobUsd + A.carolUsd) * delta;
-        A.totalExtraValueTime += (A.aliceEusd + A.bobEusd + A.carolEusd) * delta;
-        A.aliceValueTime += A.aliceUsd * delta;
-        A.aliceExtraValueTime += A.aliceEusd * delta;
-        A.bobValueTime += A.bobUsd * delta;
-        A.bobExtraValueTime += A.bobEusd * delta;
-        A.carolValueTime += A.carolUsd * delta;
-        A.carolExtraValueTime += A.carolEusd * delta;
+        advanceAccrual(delta);
 
         // carol: interacts on both markets at different prices
         _mintOutcome(carol, M0, 3_000_000);
@@ -656,20 +619,7 @@ contract PromotionVaultTest is Test, Constants, ForkFixture {
         _warpAndPush(delta);
 
         // S5: t5 -> t6
-        A.aliceUsd = (A.aliceM0a * prices[0]) / PRICE_SCALE + (A.aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
-        A.aliceEusd = (A.aliceM0a * prices[0]) / PRICE_SCALE;
-        A.bobUsd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-        A.bobEusd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-        A.carolUsd = (A.carolM0a * prices[0]) / PRICE_SCALE + (A.carolM1a * prices[1]) / PRICE_SCALE;
-        A.carolEusd = (A.carolM0a * prices[0]) / PRICE_SCALE;
-        A.totalValueTime += (A.aliceUsd + A.bobUsd + A.carolUsd) * delta;
-        A.totalExtraValueTime += (A.aliceEusd + A.bobEusd + A.carolEusd) * delta;
-        A.aliceValueTime += A.aliceUsd * delta;
-        A.aliceExtraValueTime += A.aliceEusd * delta;
-        A.bobValueTime += A.bobUsd * delta;
-        A.bobExtraValueTime += A.bobEusd * delta;
-        A.carolValueTime += A.carolUsd * delta;
-        A.carolExtraValueTime += A.carolEusd * delta;
+        advanceAccrual(delta);
 
         // top up extras
         uint256 extraReward = 200_000_000;
@@ -680,20 +630,7 @@ contract PromotionVaultTest is Test, Constants, ForkFixture {
         _warpAndPush(delta);
 
         // S6: t6 -> end
-        A.aliceUsd = (A.aliceM0a * prices[0]) / PRICE_SCALE + (A.aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
-        A.aliceEusd = (A.aliceM0a * prices[0]) / PRICE_SCALE;
-        A.bobUsd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-        A.bobEusd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-        A.carolUsd = (A.carolM0a * prices[0]) / PRICE_SCALE + (A.carolM1a * prices[1]) / PRICE_SCALE;
-        A.carolEusd = (A.carolM0a * prices[0]) / PRICE_SCALE;
-        A.totalValueTime += (A.aliceUsd + A.bobUsd + A.carolUsd) * delta;
-        A.totalExtraValueTime += (A.aliceEusd + A.bobEusd + A.carolEusd) * delta;
-        A.aliceValueTime += A.aliceUsd * delta;
-        A.aliceExtraValueTime += A.aliceEusd * delta;
-        A.bobValueTime += A.bobUsd * delta;
-        A.bobExtraValueTime += A.bobEusd * delta;
-        A.carolValueTime += A.carolUsd * delta;
-        A.carolExtraValueTime += A.carolEusd * delta;
+        advanceAccrual(delta);
 
         // finalize and claim
         vault.finalizeCampaign();
