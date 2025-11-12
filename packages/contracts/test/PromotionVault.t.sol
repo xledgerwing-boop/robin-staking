@@ -44,6 +44,30 @@ contract PromotionVaultTest is Test, Constants, ForkFixture {
     // prices
     uint256[] internal prices; // price of A for each market, priceB implied as 1e6 - priceA
 
+    struct Accrual {
+        uint256 totalValueTime;
+        uint256 totalExtraValueTime;
+        uint256 aliceUsd;
+        uint256 aliceEusd;
+        uint256 aliceValueTime;
+        uint256 aliceExtraValueTime;
+        uint256 aliceM0a;
+        uint256 aliceM1b;
+        uint256 bobUsd;
+        uint256 bobEusd;
+        uint256 bobValueTime;
+        uint256 bobExtraValueTime;
+        uint256 bobM0b;
+        uint256 carolUsd;
+        uint256 carolEusd;
+        uint256 carolValueTime;
+        uint256 carolExtraValueTime;
+        uint256 carolM0a;
+        uint256 carolM1a;
+    }
+
+    Accrual A;
+
     function setUp() public {
         _selectPolygonFork(PROMOTION_FORK_BLOCK);
 
@@ -523,99 +547,79 @@ contract PromotionVaultTest is Test, Constants, ForkFixture {
 
     function test_EndToEnd_MultiUser_MultiMarket_MultiPriceUpdates() public {
         // ---- Incremental simulation of USD-seconds across warps/updates ----
-        uint256 totalValueTime = 0;
-        uint256 totalExtraValueTime = 0;
-
-        uint256 aliceValueTime = 0;
-        uint256 aliceExtraValueTime = 0;
-        uint256 aliceM0a = 0;
-        uint256 aliceM1b = 0;
-
-        uint256 bobValueTime = 0;
-        uint256 bobExtraValueTime = 0;
-        uint256 bobM0b = 0;
-
-        uint256 carolValueTime = 0;
-        uint256 carolExtraValueTime = 0;
-        uint256 carolM0a = 0;
-        uint256 carolM1a = 0;
+        uint256 delta;
 
         // alice: deposit eligible A, then later B on ineligible market
         _mintOutcome(alice, M0, 5_000_000);
         _mintOutcome(alice, M1, 2_000_000);
         _deposit(alice, 0, true, 3_000_000);
-        aliceM0a += 3_000_000;
-        uint256 delta = 2 * HOUR;
+        A.aliceM0a += 3_000_000;
+        delta = 2 * HOUR;
         _warpAndPush(delta);
 
         // S1: t1 -> t2
-        {
-            uint256 aliceUsd = (aliceM0a * prices[0]) / PRICE_SCALE + (aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
-            uint256 aliceEusd = (aliceM0a * prices[0]) / PRICE_SCALE;
-            uint256 bobUsd = (bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-            uint256 bobEusd = (bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-            uint256 carolUsd = (carolM0a * prices[0]) / PRICE_SCALE + (carolM1a * prices[1]) / PRICE_SCALE;
-            uint256 carolEusd = (carolM0a * prices[0]) / PRICE_SCALE;
-            totalValueTime += (aliceUsd + bobUsd + carolUsd) * delta;
-            totalExtraValueTime += (aliceEusd + bobEusd + carolEusd) * delta;
-            aliceValueTime += aliceUsd * delta;
-            aliceExtraValueTime += aliceEusd * delta;
-            bobValueTime += bobUsd * delta;
-            bobExtraValueTime += bobEusd * delta;
-            carolValueTime += carolUsd * delta;
-            carolExtraValueTime += carolEusd * delta;
-        }
+        A.aliceUsd = (A.aliceM0a * prices[0]) / PRICE_SCALE + (A.aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
+        A.aliceEusd = (A.aliceM0a * prices[0]) / PRICE_SCALE;
+        A.bobUsd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+        A.bobEusd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+        A.carolUsd = (A.carolM0a * prices[0]) / PRICE_SCALE + (A.carolM1a * prices[1]) / PRICE_SCALE;
+        A.carolEusd = (A.carolM0a * prices[0]) / PRICE_SCALE;
+        A.totalValueTime += (A.aliceUsd + A.bobUsd + A.carolUsd) * delta;
+        A.totalExtraValueTime += (A.aliceEusd + A.bobEusd + A.carolEusd) * delta;
+        A.aliceValueTime += A.aliceUsd * delta;
+        A.aliceExtraValueTime += A.aliceEusd * delta;
+        A.bobValueTime += A.bobUsd * delta;
+        A.bobExtraValueTime += A.bobEusd * delta;
+        A.carolValueTime += A.carolUsd * delta;
+        A.carolExtraValueTime += A.carolEusd * delta;
 
         // bob: deposit B on eligible market later, withdraw part before end
         _deposit(alice, 1, false, 2_000_000);
-        aliceM1b += 2_000_000;
+        A.aliceM1b += 2_000_000;
         _mintOutcome(bob, M0, 6_000_000);
         delta = 3 * HOUR;
         _warpAndPush(delta);
 
         // S2: t2 -> t3 (alice adds m1B 2M)
-        {
-            uint256 aliceUsd = (aliceM0a * prices[0]) / PRICE_SCALE + (aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
-            uint256 aliceEusd = (aliceM0a * prices[0]) / PRICE_SCALE;
-            uint256 bobUsd = (bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-            uint256 bobEusd = (bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-            uint256 carolUsd = (carolM0a * prices[0]) / PRICE_SCALE + (carolM1a * prices[1]) / PRICE_SCALE;
-            uint256 carolEusd = (carolM0a * prices[0]) / PRICE_SCALE;
-            totalValueTime += (aliceUsd + bobUsd + carolUsd) * delta;
-            totalExtraValueTime += (aliceEusd + bobEusd + carolEusd) * delta;
-            aliceValueTime += aliceUsd * delta;
-            aliceExtraValueTime += aliceEusd * delta;
-            bobValueTime += bobUsd * delta;
-            bobExtraValueTime += bobEusd * delta;
-            carolValueTime += carolUsd * delta;
-            carolExtraValueTime += carolEusd * delta;
-        }
+        A.aliceUsd = (A.aliceM0a * prices[0]) / PRICE_SCALE + (A.aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
+        A.aliceEusd = (A.aliceM0a * prices[0]) / PRICE_SCALE;
+        A.bobUsd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+        A.bobEusd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+        A.carolUsd = (A.carolM0a * prices[0]) / PRICE_SCALE + (A.carolM1a * prices[1]) / PRICE_SCALE;
+        A.carolEusd = (A.carolM0a * prices[0]) / PRICE_SCALE;
+        A.totalValueTime += (A.aliceUsd + A.bobUsd + A.carolUsd) * delta;
+        A.totalExtraValueTime += (A.aliceEusd + A.bobEusd + A.carolEusd) * delta;
+        A.aliceValueTime += A.aliceUsd * delta;
+        A.aliceExtraValueTime += A.aliceEusd * delta;
+        A.bobValueTime += A.bobUsd * delta;
+        A.bobExtraValueTime += A.bobEusd * delta;
+        A.carolValueTime += A.carolUsd * delta;
+        A.carolExtraValueTime += A.carolEusd * delta;
 
         _deposit(bob, 0, false, 4_000_000);
-        bobM0b += 4_000_000;
+        A.bobM0b += 4_000_000;
         delta = 1 * HOUR;
         _warpAndPush(delta);
 
         // S3: t3 -> t4 (bob adds m0B 4M)
-        {
-            uint256 aliceUsd = (aliceM0a * prices[0]) / PRICE_SCALE + (aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
-            uint256 aliceEusd = (aliceM0a * prices[0]) / PRICE_SCALE;
-            uint256 bobUsd = (bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-            uint256 bobEusd = (bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-            uint256 carolUsd = (carolM0a * prices[0]) / PRICE_SCALE + (carolM1a * prices[1]) / PRICE_SCALE;
-            uint256 carolEusd = (carolM0a * prices[0]) / PRICE_SCALE;
-            totalValueTime += (aliceUsd + bobUsd + carolUsd) * delta;
-            totalExtraValueTime += (aliceEusd + bobEusd + carolEusd) * delta;
-            aliceValueTime += aliceUsd * delta;
-            aliceExtraValueTime += aliceEusd * delta;
-            bobValueTime += bobUsd * delta;
-            bobExtraValueTime += bobEusd * delta;
-            carolValueTime += carolUsd * delta;
-            carolExtraValueTime += carolEusd * delta;
-        }
+
+        A.aliceUsd = (A.aliceM0a * prices[0]) / PRICE_SCALE + (A.aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
+        A.aliceEusd = (A.aliceM0a * prices[0]) / PRICE_SCALE;
+        A.bobUsd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+        A.bobEusd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+        A.carolUsd = (A.carolM0a * prices[0]) / PRICE_SCALE + (A.carolM1a * prices[1]) / PRICE_SCALE;
+        A.carolEusd = (A.carolM0a * prices[0]) / PRICE_SCALE;
+        A.totalValueTime += (A.aliceUsd + A.bobUsd + A.carolUsd) * delta;
+        A.totalExtraValueTime += (A.aliceEusd + A.bobEusd + A.carolEusd) * delta;
+        A.aliceValueTime += A.aliceUsd * delta;
+        A.aliceExtraValueTime += A.aliceEusd * delta;
+        A.bobValueTime += A.bobUsd * delta;
+        A.bobExtraValueTime += A.bobEusd * delta;
+        A.carolValueTime += A.carolUsd * delta;
+        A.carolExtraValueTime += A.carolEusd * delta;
 
         _withdraw(bob, 0, false, 1_000_000);
-        bobM0b -= 1_000_000;
+        A.bobM0b -= 1_000_000;
         prices[0] = 550_000; // 0.55 / 0.45
         prices[1] = 350_000; // 0.35 / 0.65
         vault.batchUpdatePrices(prices);
@@ -623,30 +627,28 @@ contract PromotionVaultTest is Test, Constants, ForkFixture {
         _warpAndPush(delta);
 
         // S4: t4 -> t5
-        {
-            uint256 aliceUsd = (aliceM0a * prices[0]) / PRICE_SCALE + (aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
-            uint256 aliceEusd = (aliceM0a * prices[0]) / PRICE_SCALE;
-            uint256 bobUsd = (bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-            uint256 bobEusd = (bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-            uint256 carolUsd = (carolM0a * prices[0]) / PRICE_SCALE + (carolM1a * prices[1]) / PRICE_SCALE;
-            uint256 carolEusd = (carolM0a * prices[0]) / PRICE_SCALE;
-            totalValueTime += (aliceUsd + bobUsd + carolUsd) * delta;
-            totalExtraValueTime += (aliceEusd + bobEusd + carolEusd) * delta;
-            aliceValueTime += aliceUsd * delta;
-            aliceExtraValueTime += aliceEusd * delta;
-            bobValueTime += bobUsd * delta;
-            bobExtraValueTime += bobEusd * delta;
-            carolValueTime += carolUsd * delta;
-            carolExtraValueTime += carolEusd * delta;
-        }
+        A.aliceUsd = (A.aliceM0a * prices[0]) / PRICE_SCALE + (A.aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
+        A.aliceEusd = (A.aliceM0a * prices[0]) / PRICE_SCALE;
+        A.bobUsd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+        A.bobEusd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+        A.carolUsd = (A.carolM0a * prices[0]) / PRICE_SCALE + (A.carolM1a * prices[1]) / PRICE_SCALE;
+        A.carolEusd = (A.carolM0a * prices[0]) / PRICE_SCALE;
+        A.totalValueTime += (A.aliceUsd + A.bobUsd + A.carolUsd) * delta;
+        A.totalExtraValueTime += (A.aliceEusd + A.bobEusd + A.carolEusd) * delta;
+        A.aliceValueTime += A.aliceUsd * delta;
+        A.aliceExtraValueTime += A.aliceEusd * delta;
+        A.bobValueTime += A.bobUsd * delta;
+        A.bobExtraValueTime += A.bobEusd * delta;
+        A.carolValueTime += A.carolUsd * delta;
+        A.carolExtraValueTime += A.carolEusd * delta;
 
         // carol: interacts on both markets at different prices
         _mintOutcome(carol, M0, 3_000_000);
         _mintOutcome(carol, M1, 1_000_000);
         _deposit(carol, 0, true, 2_000_000);
-        carolM0a += 2_000_000;
+        A.carolM0a += 2_000_000;
         _deposit(carol, 1, true, 1_000_000);
-        carolM1a += 1_000_000;
+        A.carolM1a += 1_000_000;
         // more price changes
         prices[0] = 480_000;
         prices[1] = 420_000;
@@ -654,22 +656,20 @@ contract PromotionVaultTest is Test, Constants, ForkFixture {
         _warpAndPush(delta);
 
         // S5: t5 -> t6
-        {
-            uint256 aliceUsd = (aliceM0a * prices[0]) / PRICE_SCALE + (aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
-            uint256 aliceEusd = (aliceM0a * prices[0]) / PRICE_SCALE;
-            uint256 bobUsd = (bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-            uint256 bobEusd = (bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-            uint256 carolUsd = (carolM0a * prices[0]) / PRICE_SCALE + (carolM1a * prices[1]) / PRICE_SCALE;
-            uint256 carolEusd = (carolM0a * prices[0]) / PRICE_SCALE;
-            totalValueTime += (aliceUsd + bobUsd + carolUsd) * delta;
-            totalExtraValueTime += (aliceEusd + bobEusd + carolEusd) * delta;
-            aliceValueTime += aliceUsd * delta;
-            aliceExtraValueTime += aliceEusd * delta;
-            bobValueTime += bobUsd * delta;
-            bobExtraValueTime += bobEusd * delta;
-            carolValueTime += carolUsd * delta;
-            carolExtraValueTime += carolEusd * delta;
-        }
+        A.aliceUsd = (A.aliceM0a * prices[0]) / PRICE_SCALE + (A.aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
+        A.aliceEusd = (A.aliceM0a * prices[0]) / PRICE_SCALE;
+        A.bobUsd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+        A.bobEusd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+        A.carolUsd = (A.carolM0a * prices[0]) / PRICE_SCALE + (A.carolM1a * prices[1]) / PRICE_SCALE;
+        A.carolEusd = (A.carolM0a * prices[0]) / PRICE_SCALE;
+        A.totalValueTime += (A.aliceUsd + A.bobUsd + A.carolUsd) * delta;
+        A.totalExtraValueTime += (A.aliceEusd + A.bobEusd + A.carolEusd) * delta;
+        A.aliceValueTime += A.aliceUsd * delta;
+        A.aliceExtraValueTime += A.aliceEusd * delta;
+        A.bobValueTime += A.bobUsd * delta;
+        A.bobExtraValueTime += A.bobEusd * delta;
+        A.carolValueTime += A.carolUsd * delta;
+        A.carolExtraValueTime += A.carolEusd * delta;
 
         // top up extras
         uint256 extraReward = 200_000_000;
@@ -680,22 +680,20 @@ contract PromotionVaultTest is Test, Constants, ForkFixture {
         _warpAndPush(delta);
 
         // S6: t6 -> end
-        {
-            uint256 aliceUsd = (aliceM0a * prices[0]) / PRICE_SCALE + (aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
-            uint256 aliceEusd = (aliceM0a * prices[0]) / PRICE_SCALE;
-            uint256 bobUsd = (bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-            uint256 bobEusd = (bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
-            uint256 carolUsd = (carolM0a * prices[0]) / PRICE_SCALE + (carolM1a * prices[1]) / PRICE_SCALE;
-            uint256 carolEusd = (carolM0a * prices[0]) / PRICE_SCALE;
-            totalValueTime += (aliceUsd + bobUsd + carolUsd) * delta;
-            totalExtraValueTime += (aliceEusd + bobEusd + carolEusd) * delta;
-            aliceValueTime += aliceUsd * delta;
-            aliceExtraValueTime += aliceEusd * delta;
-            bobValueTime += bobUsd * delta;
-            bobExtraValueTime += bobEusd * delta;
-            carolValueTime += carolUsd * delta;
-            carolExtraValueTime += carolEusd * delta;
-        }
+        A.aliceUsd = (A.aliceM0a * prices[0]) / PRICE_SCALE + (A.aliceM1b * (PRICE_SCALE - prices[1])) / PRICE_SCALE;
+        A.aliceEusd = (A.aliceM0a * prices[0]) / PRICE_SCALE;
+        A.bobUsd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+        A.bobEusd = (A.bobM0b * (PRICE_SCALE - prices[0])) / PRICE_SCALE;
+        A.carolUsd = (A.carolM0a * prices[0]) / PRICE_SCALE + (A.carolM1a * prices[1]) / PRICE_SCALE;
+        A.carolEusd = (A.carolM0a * prices[0]) / PRICE_SCALE;
+        A.totalValueTime += (A.aliceUsd + A.bobUsd + A.carolUsd) * delta;
+        A.totalExtraValueTime += (A.aliceEusd + A.bobEusd + A.carolEusd) * delta;
+        A.aliceValueTime += A.aliceUsd * delta;
+        A.aliceExtraValueTime += A.aliceEusd * delta;
+        A.bobValueTime += A.bobUsd * delta;
+        A.bobExtraValueTime += A.bobEusd * delta;
+        A.carolValueTime += A.carolUsd * delta;
+        A.carolExtraValueTime += A.carolEusd * delta;
 
         // finalize and claim
         vault.finalizeCampaign();
@@ -705,13 +703,13 @@ contract PromotionVaultTest is Test, Constants, ForkFixture {
         assertEq(extra, EXTRA_REWARD + extraReward);
         uint256 actualValueTime = vault.totalValueTime();
         uint256 actualExtraValueTime = vault.totalExtraValueTime();
-        assertApproxEqRel(totalValueTime, actualValueTime, 0.0001e18); // 0.01%
-        assertApproxEqRel(totalExtraValueTime, actualExtraValueTime, 0.0001e18); // 0.01%
+        assertApproxEqRel(A.totalValueTime, actualValueTime, 0.0001e18); // 0.01%
+        assertApproxEqRel(A.totalExtraValueTime, actualExtraValueTime, 0.0001e18); // 0.01%
 
         // Expected payouts
-        uint256 expAlice = (aliceValueTime * baseDist) / totalValueTime + (aliceExtraValueTime * extra) / totalExtraValueTime;
-        uint256 expBob = (bobValueTime * baseDist) / totalValueTime + (bobExtraValueTime * extra) / totalExtraValueTime;
-        uint256 expCarol = (carolValueTime * baseDist) / totalValueTime + (carolExtraValueTime * extra) / totalExtraValueTime;
+        uint256 expAlice = (A.aliceValueTime * baseDist) / A.totalValueTime + (A.aliceExtraValueTime * extra) / A.totalExtraValueTime;
+        uint256 expBob = (A.bobValueTime * baseDist) / A.totalValueTime + (A.bobExtraValueTime * extra) / A.totalExtraValueTime;
+        uint256 expCarol = (A.carolValueTime * baseDist) / A.totalValueTime + (A.carolExtraValueTime * extra) / A.totalExtraValueTime;
 
         uint256 aBefore = usdc.balanceOf(alice);
         uint256 bBefore = usdc.balanceOf(bob);
@@ -723,41 +721,36 @@ contract PromotionVaultTest is Test, Constants, ForkFixture {
         vm.prank(carol);
         vault.claimRewards();
 
-        uint256 aAfter = usdc.balanceOf(alice);
-        uint256 bAfter = usdc.balanceOf(bob);
-        uint256 cAfter = usdc.balanceOf(carol);
+        uint256 aPaid = usdc.balanceOf(alice) - aBefore;
+        uint256 bPaid = usdc.balanceOf(bob) - bBefore;
+        uint256 cPaid = usdc.balanceOf(carol) - cBefore;
 
-        uint256 aPaid = aAfter - aBefore;
-        uint256 bPaid = bAfter - bBefore;
-        uint256 cPaid = cAfter - cBefore;
-
-        uint256 totalPaid = aPaid + bPaid + cPaid;
-        assertApproxEqAbs(totalPaid, baseDist + extra, 3);
+        assertApproxEqAbs(aPaid + bPaid + cPaid, baseDist + extra, 3);
         // Compare each user's payout to simulated expected payout (allow small rounding tolerance)
         assertApproxEqRel(aPaid, expAlice, 0.00025e18); // allow small rounding drift across segments (0.025%)
         assertApproxEqRel(bPaid, expBob, 0.00025e18);
         assertApproxEqRel(cPaid, expCarol, 0.00025e18);
 
-        // // ---------- Withdraw all tokens after claiming ----------
-        // // Alice: market 0 A
-        // if (aliceM0a > 0) {
-        //     _withdraw(alice, 0, true, aliceM0a);
-        // }
-        // // Alice: market 1 B
-        // if (aliceM1b > 0) {
-        //     _withdraw(alice, 1, false, aliceM1b);
-        // }
-        // // Bob: market 0 B
-        // if (bobM0b > 0) {
-        //     _withdraw(bob, 0, false, bobM0b);
-        // }
-        // // Carol: market 0 A
-        // if (carolM0a > 0) {
-        //     _withdraw(carol, 0, true, carolM0a);
-        // }
-        // // Carol: market 1 A
-        // if (carolM1a > 0) {
-        //     _withdraw(carol, 1, true, carolM1a);
-        // }
+        // ---------- Withdraw all tokens after claiming ----------
+        // Alice: market 0 A
+        if (A.aliceM0a > 0) {
+            _withdraw(alice, 0, true, A.aliceM0a);
+        }
+        // Alice: market 1 B
+        if (A.aliceM1b > 0) {
+            _withdraw(alice, 1, false, A.aliceM1b);
+        }
+        // Bob: market 0 B
+        if (A.bobM0b > 0) {
+            _withdraw(bob, 0, false, A.bobM0b);
+        }
+        // Carol: market 0 A
+        if (A.carolM0a > 0) {
+            _withdraw(carol, 0, true, A.carolM0a);
+        }
+        // Carol: market 1 A
+        if (A.carolM1a > 0) {
+            _withdraw(carol, 1, true, A.carolM1a);
+        }
     }
 }
