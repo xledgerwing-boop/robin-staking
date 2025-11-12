@@ -7,11 +7,11 @@ import { Pausable } from '@openzeppelin/contracts/utils/Pausable.sol';
 import { IConditionalTokens } from '../src/interfaces/IConditionalTokens.sol';
 import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import { PromotionVault } from '../src/PromotionVault.sol';
-import { Constants } from './helpers/Constants.t.sol';
+import { PromotionConstants } from './helpers/PromotionConstants.sol';
 import { ForkFixture } from './helpers/ForkFixture.t.sol';
 import { INegRiskAdapter } from '../src/interfaces/INegRiskAdapter.sol';
 
-contract PromotionVaultTest is Test, Constants, ForkFixture {
+contract PromotionVaultTest is Test, PromotionConstants, ForkFixture {
     // actors
     address internal owner;
     address internal alice;
