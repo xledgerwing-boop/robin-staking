@@ -86,7 +86,7 @@ export async function fetchWalletPositionsPage(
     params.set('offset', String(offset));
     params.set('sortBy', 'CURRENT');
     params.set('sortDirection', 'DESC');
-    params.set('sizeThreshold', '1');
+    params.set('sizeThreshold', '0.1');
     params.set('redeemable', 'false');
     if ((opts.title ?? '').trim()) params.set('title', (opts.title ?? '').trim());
 

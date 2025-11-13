@@ -29,7 +29,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
                 polymarketMarket = await fetchMarketByConditionId(result.conditionId);
                 if (polymarketMarket) {
                     // Update the slug in the database
-                    await db(MARKETS_TABLE).where('id', result.id).update({ slug: polymarketMarket.slug });
+                    await db(MARKETS_TABLE)
+                        .where('id', result.id)
+                        .update({ slug: polymarketMarket.slug, question: polymarketMarket.question, image: polymarketMarket.image });
                     return NextResponse.redirect(new URL(`/market/${polymarketMarket.slug}`, request.url), 308);
                 }
             } else throw e;

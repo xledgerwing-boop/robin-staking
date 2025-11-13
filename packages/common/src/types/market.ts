@@ -81,7 +81,7 @@ export interface PolymarketMarket {
     startDate?: string;
     image?: string;
     outcomes: string;
-    outcomePrices: string;
+    outcomePrices?: string;
     clobTokenIds: string;
     negRisk?: boolean;
     eventId: string;
@@ -96,14 +96,14 @@ export interface PolymarketMarketWithEvent extends PolymarketMarket {
 export interface ParsedPolymarketMarket extends Omit<PolymarketMarket, 'outcomes' | 'clobTokenIds' | 'outcomePrices' | 'endDate'> {
     outcomes: string[];
     clobTokenIds: bigint[];
-    outcomePrices: string[];
+    outcomePrices?: string[];
     winningPosition?: Outcome;
     endDate?: number;
 }
 
 export function parsePolymarketMarket(market: PolymarketMarket): ParsedPolymarketMarket {
-    const outcomePrices = JSON.parse(market.outcomePrices) as string[];
-    const winningIndex = market.closed ? outcomePrices.findIndex(price => price == '1') ?? -1 : undefined; //-1 means both outcomes are winning
+    const outcomePrices = market.outcomePrices ? (JSON.parse(market.outcomePrices) as string[]) : undefined;
+    const winningIndex = market.closed && outcomePrices ? outcomePrices.findIndex(price => price == '1') ?? -1 : undefined; //-1 means both outcomes are winning
     return {
         ...market,
         outcomes: JSON.parse(market.outcomes),

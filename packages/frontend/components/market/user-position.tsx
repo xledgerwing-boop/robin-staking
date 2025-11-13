@@ -28,8 +28,8 @@ export default function UserPosition({ market, polymarketMarket }: { market: Mar
     } = useVaultUserInfo(market.contractAddress as `0x${string}`, proxyAddress as `0x${string}`, market);
 
     const { vaultUserYes, vaultUserNo, userResultingApyBps, earningsPerDay } = calculateUserInfo(
-        Number(polymarketMarket.outcomePrices[0]),
-        Number(polymarketMarket.outcomePrices[1])
+        Number(polymarketMarket.outcomePrices?.[0]),
+        Number(polymarketMarket.outcomePrices?.[1])
     );
 
     const loading = vaultUserBalancesLoading || tokenUserBalancesLoading || vaultCurrentApyLoading || currentYieldLoading;

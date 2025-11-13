@@ -26,8 +26,8 @@ export default function MarketHeader({ market, polymarketMarket }: { market: Mar
     );
 
     const { currentYesApyBps, currentNoApyBps } = calculateUserInfo(
-        Number(polymarketMarket.outcomePrices[0]),
-        Number(polymarketMarket.outcomePrices[1])
+        Number(polymarketMarket.outcomePrices?.[0]),
+        Number(polymarketMarket.outcomePrices?.[1])
     );
 
     return (

@@ -86,7 +86,18 @@ export function useVaultUserInfo(vaultAddress: `0x${string}`, userAddress: `0x${
         return { currentYesApyBps, currentNoApyBps };
     };
 
-    const calculateUserInfo = (yesPriceNum: number, noPriceNum: number) => {
+    const calculateUserInfo = (yesPriceNum?: number, noPriceNum?: number) => {
+        if (!yesPriceNum || !noPriceNum)
+            return {
+                tokenUserYes: 0n,
+                tokenUserNo: 0n,
+                vaultUserYes: 0n,
+                vaultUserNo: 0n,
+                currentYesApyBps: 0n,
+                currentNoApyBps: 0n,
+                userResultingApyBps: 0n,
+                earningsPerDay: 0n,
+            };
         const { vaultUserYes, tokenUserYes, vaultUserNo, tokenUserNo } = getUserBalances();
 
         const yesPrice = BigInt(Math.round(Number(yesPriceNum) * UNDERYLING_PRECISION)) || 0n;
@@ -114,7 +125,8 @@ export function useVaultUserInfo(vaultAddress: `0x${string}`, userAddress: `0x${
         };
     };
 
-    const calculateExpectedYield = (amount: string, side: Outcome, yesPriceNum: number, noPriceNum: number) => {
+    const calculateExpectedYield = (amount: string, side: Outcome, yesPriceNum?: number, noPriceNum?: number) => {
+        if (!yesPriceNum || !noPriceNum) return 0n;
         const numAmount = parseUnits(amount, UNDERYLING_DECIMALS) || 0n;
 
         const yesPrice = BigInt(Math.round(Number(yesPriceNum) * UNDERYLING_PRECISION)) || 0n;

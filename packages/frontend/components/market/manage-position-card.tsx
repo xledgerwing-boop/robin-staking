@@ -75,15 +75,15 @@ export default function ManagePositionCard({ market, polymarketMarket, onAction 
     const { updateQueryParams } = useUpdateQueryParams();
 
     const { currentNoApyBps, currentYesApyBps } = calculateUserInfo(
-        Number(polymarketMarket.outcomePrices[0]),
-        Number(polymarketMarket.outcomePrices[1])
+        Number(polymarketMarket.outcomePrices?.[0]),
+        Number(polymarketMarket.outcomePrices?.[1])
     );
 
     const expectedYield = calculateExpectedYield(
         stakeAmount,
         side,
-        Number(polymarketMarket.outcomePrices[0]),
-        Number(polymarketMarket.outcomePrices[1])
+        Number(polymarketMarket.outcomePrices?.[0]),
+        Number(polymarketMarket.outcomePrices?.[1])
     );
 
     const loadQueryParams = () => {
