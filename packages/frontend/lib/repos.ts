@@ -116,9 +116,9 @@ export async function queryMarkets(db: Knex, q: MarketsQuery): Promise<{ rows: M
         builder.limit(pageSize).offset((page - 1) * pageSize);
     }
 
-    let [rows, countRow] = await Promise.all([builder, countBuilder]);
+    const [rows, countRow] = await Promise.all([builder, countBuilder]);
     //cheap trick to filter duplicates
-    rows = rows.filter((row, index, self) => index === self.findIndex(t => t.conditionId === row.conditionId));
+    const filteredRows = rows.filter((row, index, self) => index === self.findIndex(t => t.conditionId === row.conditionId));
     const count = Number(countRow?.[0]?.count ?? 0);
-    return { rows, count };
+    return { rows: filteredRows, count };
 }
