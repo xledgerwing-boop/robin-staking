@@ -3,37 +3,33 @@
 import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader, PlusCircle, MinusCircle, TrendingUp } from 'lucide-react';
-
-type Activity = { id: string; label: 'Deposit' | 'Withdraw' | 'Claim'; ts: string };
+import { USED_CONTRACTS } from '@robin-pm-staking/common/constants';
+import { PromoVaultEvent } from '@robin-pm-staking/common/types/promo-events';
+import { PromoActivity, PromoActivityRow, PromoActivityRowToActivity } from '@robin-pm-staking/common/types/promo-activity';
+import { formatDistanceToNow } from 'date-fns';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
+import { toast } from 'sonner';
 
 export default function Activities() {
-    const [activities, setActivities] = useState<Activity[]>([]);
+    const activitiesMap = useRef<Map<string, PromoActivity>>(new Map());
+    const [activities, setActivities] = useState<PromoActivity[]>([]);
     const [fetchingMore, setFetchingMore] = useState(false);
     const feedRef = useRef<HTMLDivElement>(null);
+    const [lastTimestamp, setLastTimestamp] = useState<number | null>(null);
+    const [hasMore, setHasMore] = useState(true);
+    const [showUserActivityOnly, setShowUserActivityOnly] = useState(false);
+    const { proxyAddress } = useProxyAccount();
 
     useEffect(() => {
-        setActivities(
-            Array.from({ length: 30 }).map((_, i) => ({
-                id: `act-${i}`,
-                label: i % 3 === 0 ? 'Deposit' : i % 3 === 1 ? 'Withdraw' : 'Claim',
-                ts: new Date(Date.now() - i * 60_000).toLocaleString(),
-            }))
-        );
-    }, []);
+        fetchHistoricalActivities();
+    }, [lastTimestamp]);
 
     const handleFetchMore = () => {
         if (fetchingMore) return;
         setFetchingMore(true);
-        setTimeout(() => {
-            const next = activities.length;
-            const more: Activity[] = Array.from({ length: 20 }).map((_, i) => ({
-                id: `act-${next + i}`,
-                label: (next + i) % 3 === 0 ? 'Deposit' : (next + i) % 3 === 1 ? 'Withdraw' : 'Claim',
-                ts: new Date(Date.now() - (next + i) * 60_000).toLocaleString(),
-            }));
-            setActivities(prev => [...prev, ...more]);
-            setFetchingMore(false);
-        }, 600);
+        fetchHistoricalActivities().finally(() => setFetchingMore(false));
     };
 
     useEffect(() => {
@@ -48,10 +44,94 @@ export default function Activities() {
         return () => el.removeEventListener('scroll', onScroll);
     }, [activities, fetchingMore]);
 
+    // Poll every 4s for new activities
+    useEffect(() => {
+        const interval = setInterval(() => {
+            fetchNewActivities();
+        }, 4000);
+        return () => clearInterval(interval);
+    }, [lastTimestamp]);
+
+    function formatTitle(type: PromoVaultEvent) {
+        return type.toString().replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+    }
+
+    function renderIcon(type: PromoVaultEvent) {
+        if (type === PromoVaultEvent.Deposit || type === PromoVaultEvent.MarketAdded) return <PlusCircle className="w-4 h-4 text-primary" />;
+        if (type === PromoVaultEvent.Withdraw || type === PromoVaultEvent.MarketEnded) return <MinusCircle className="w-4 h-4 text-primary" />;
+        return <TrendingUp className="w-4 h-4 text-primary" />;
+    }
+
+    // Fetch new activities (for polling)
+    const fetchNewActivities = async () => {
+        const vaultAddress = USED_CONTRACTS.PROMOTION_VAULT;
+        try {
+            const urlParams = new URLSearchParams({ vaultAddress: vaultAddress });
+            if (lastTimestamp) urlParams.set('since', lastTimestamp.toString());
+            if (showUserActivityOnly && proxyAddress) urlParams.set('userAddress', proxyAddress.toLowerCase());
+
+            const res = await fetch(`/api/promo/activities?${urlParams}`);
+            if (!res.ok) throw new Error('Failed to fetch new activities');
+            const newActivities: PromoActivity[] = ((await res.json()) as PromoActivityRow[]).map(PromoActivityRowToActivity);
+
+            if (newActivities.length > 0) {
+                setActivities(prev => [...newActivities, ...prev]);
+                setLastTimestamp(newActivities[0]?.timestamp ?? null);
+            }
+        } catch (error) {
+            console.error('Error fetching new activities:', error);
+            toast.error('Failed to fetch activities');
+        }
+    };
+
+    // Fetch historical activities (for infinite scroll)
+    const fetchHistoricalActivities = async () => {
+        const vaultAddress = USED_CONTRACTS.PROMOTION_VAULT;
+        try {
+            const urlParams = new URLSearchParams({ vaultAddress: vaultAddress });
+            if (activities.length > 0) urlParams.set('skip', activities.length.toString());
+            if (showUserActivityOnly && proxyAddress) urlParams.set('userAddress', proxyAddress.toLowerCase());
+
+            const res = await fetch(`/api/promo/activities?${urlParams}`);
+            if (!res.ok) throw new Error('Failed to fetch historical activities');
+            const newActivities: PromoActivity[] = ((await res.json()) as PromoActivityRow[]).map(PromoActivityRowToActivity);
+
+            if (newActivities.length > 0) {
+                newActivities.forEach(activity => {
+                    activitiesMap.current.set(activity.id, activity);
+                });
+                const sortedActivities = [...activitiesMap.current.values()].sort((a, b) => b.timestamp - a.timestamp);
+                setActivities(sortedActivities);
+                setLastTimestamp(sortedActivities[0]?.timestamp ?? null);
+                setHasMore(newActivities.length === 10);
+            } else {
+                setHasMore(false);
+            }
+        } catch (error) {
+            console.error('Error fetching historical activities:', error);
+            toast.error('Failed to fetch activities');
+        }
+    };
+
+    useEffect(() => {
+        setActivities([]);
+        activitiesMap.current.clear();
+        setLastTimestamp(null);
+        setHasMore(true);
+    }, [showUserActivityOnly]);
+
     return (
         <Card>
             <CardHeader>
-                <CardTitle className="text-xl">Activity</CardTitle>
+                <div className="flex items-center justify-between">
+                    <CardTitle className="text-xl">Activity</CardTitle>
+                    <div className="flex items-center space-x-2">
+                        <Switch id="promo-user-activity" checked={showUserActivityOnly} onCheckedChange={setShowUserActivityOnly} />
+                        <Label htmlFor="promo-user-activity" className="text-sm">
+                            My activity only
+                        </Label>
+                    </div>
+                </div>
             </CardHeader>
             <CardContent>
                 <div className="relative">
@@ -60,21 +140,22 @@ export default function Activities() {
                             {activities.map(a => (
                                 <div key={a.id} className="flex items-center justify-between p-3 rounded-lg border">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                                            {a.label === 'Deposit' ? (
-                                                <PlusCircle className="w-4 h-4 text-primary" />
-                                            ) : a.label === 'Withdraw' ? (
-                                                <MinusCircle className="w-4 h-4 text-primary" />
-                                            ) : (
-                                                <TrendingUp className="w-4 h-4 text-primary" />
-                                            )}
-                                        </div>
+                                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">{renderIcon(a.type)}</div>
                                         <div className="text-sm">
-                                            <div className="font-medium">{a.label}</div>
-                                            <div className="text-muted-foreground">{a.ts}</div>
+                                            <div className="font-medium">{formatTitle(a.type)}</div>
+                                            <div className="text-muted-foreground">
+                                                {formatDistanceToNow(new Date(a.timestamp * 1000), { addSuffix: true })}
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="text-sm text-muted-foreground">View</div>
+                                    <a
+                                        href={`${USED_CONTRACTS.EXPLORER_URL}/tx/${a.transactionHash}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-sm text-muted-foreground hover:underline"
+                                    >
+                                        View
+                                    </a>
                                 </div>
                             ))}
                             {fetchingMore && (
@@ -82,6 +163,7 @@ export default function Activities() {
                                     <Loader className="w-4 h-4 animate-spin" />
                                 </div>
                             )}
+                            {!fetchingMore && activities.length === 0 && <p className="text-center text-muted-foreground py-4">No activity yet.</p>}
                         </div>
                     </div>
                     <div
