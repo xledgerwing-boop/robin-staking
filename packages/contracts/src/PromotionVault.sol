@@ -583,6 +583,11 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
         }
     }
 
+    function campaignRewardSize() external view returns (uint256 total, uint256 extra) {
+        total = usdc.balanceOf(address(this));
+        extra = total > baseRewardPool ? (total - baseRewardPool) : 0;
+    }
+
     // View: estimate user's earnings so far (as if the campaign ended right now).
     // Returns:
     // - total: base + extra payout now

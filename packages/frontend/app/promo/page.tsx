@@ -2,15 +2,12 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
-import { TrendingUp, DollarSign, User, Info, ChevronDown, Loader, ArrowUpRight, PlusCircle, MinusCircle } from 'lucide-react';
+import { TrendingUp, DollarSign, User, ChevronDown, Loader, ArrowUpRight, PlusCircle, MinusCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
-import { Separator } from '@/components/ui/separator';
+import { useAccount } from 'wagmi';
 import AmountSlider from '@robin-pm-staking/common/components/amount-slider';
 import OutcomeToken from '@robin-pm-staking/common/components/outcome-token';
 import { Outcome } from '@robin-pm-staking/common/types/market';
@@ -79,6 +76,7 @@ function calcValue(amount: number, price: number): number {
 }
 
 export default function PromoVaultPage() {
+    const { isConnected } = useAccount();
     // Top metrics (mocked)
     const [tvlUsd, setTvlUsd] = useState<number>(0);
     const [apyPct, setApyPct] = useState<number>(12.34);
@@ -244,23 +242,8 @@ export default function PromoVaultPage() {
                     </Card>
                 </div>
 
-                {/* How it works */}
-                <Card className="mb-8">
-                    <CardHeader>
-                        <CardTitle className="text-xl flex items-center gap-2">
-                            <Info className="w-5 h-5 text-primary" />
-                            How the vault works
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3 text-sm text-muted-foreground">
-                        <p>
-                            - Stake your Polymarket outcome tokens into the vault during the campaign to earn USDC over time, proportional to your
-                            stake value and duration.
-                        </p>
-                        <p>- Eligible markets earn additional rewards. Your rewards can be claimed after the campaign finalization.</p>
-                        <p>- Prices are updated periodically; rewards accrue based on time-weighted USD value (USD-seconds).</p>
-                    </CardContent>
-                </Card>
+                {/* Potential stake and earnings */}
+                <PotentialEarnings apyPct={apyPct} connected={isConnected} />
 
                 {/* TVL cap progress */}
                 <Card className="mb-8">
@@ -291,7 +274,7 @@ export default function PromoVaultPage() {
                         <CardTitle className="text-xl">Manage Across Markets</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <Tabs value={tab} onValueChange={v => setTab(v as 'deposit' | 'withdraw')}>
+                        <Tabs className="max-w-[800px] mx-auto" value={tab} onValueChange={v => setTab(v as 'deposit' | 'withdraw')}>
                             <TabsList className="grid w-full grid-cols-2">
                                 <TabsTrigger value="deposit">Deposit</TabsTrigger>
                                 <TabsTrigger value="withdraw">Withdraw</TabsTrigger>
@@ -602,7 +585,120 @@ export default function PromoVaultPage() {
                         </div>
                     </CardContent>
                 </Card>
+                {/* FAQ */}
+                <Card className="mt-8">
+                    <CardHeader>
+                        <CardTitle className="text-xl">FAQ</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-2">
+                            {FAQS.map((f, idx) => (
+                                <FaqItem key={idx} question={f.q} answer={f.a} />
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
         </div>
+    );
+}
+
+const FAQS: Array<{ q: string; a: React.ReactNode }> = [
+    {
+        q: 'What tokens can I stake?',
+        a: 'You can stake Polymarket outcome tokens (YES/NO) from participating markets that are added to this vault.',
+    },
+    {
+        q: 'How are earnings calculated?',
+        a: 'Earnings accrue based on the time-weighted USD value (USD-seconds) of your staked tokens. APY reflects current conditions and is subject to change as prices and TVL update.',
+    },
+    {
+        q: 'When can I claim?',
+        a: 'Rewards can be claimed after the campaign is finalized. Your payout is proportional to your accumulated USD-seconds at the end.',
+    },
+    {
+        q: 'What happens if a market is not eligible?',
+        a: 'Non-eligible markets still accrue base rewards; only eligible markets also accrue extra rewards when available.',
+    },
+];
+
+function FaqItem({ question, answer }: { question: string; answer: React.ReactNode }) {
+    const [open, setOpen] = useState(false);
+    return (
+        <div className="border rounded-md">
+            <button type="button" className="w-full flex items-center justify-between px-4 py-3 text-left" onClick={() => setOpen(o => !o)}>
+                <span className="font-medium">{question}</span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+            </button>
+            {open && <div className="px-4 pb-4 text-sm text-muted-foreground">{answer}</div>}
+        </div>
+    );
+}
+
+function PotentialEarnings({ apyPct, connected }: { apyPct: number; connected: boolean }) {
+    // Mock: derive stakeable from wallet totals; replace with wallet reads
+    const walletTotals = useMemo(() => {
+        const totalTokens = MOCK_MARKETS.reduce((acc, m) => acc + (m.walletAmount || 0), 0);
+        const totalUsd = MOCK_MARKETS.reduce((acc, m) => acc + calcValue(m.walletAmount || 0, m.priceUsd), 0);
+        return { totalTokens, totalUsd };
+    }, []);
+
+    const campaignEnd = useMemo(() => new Date(Date.now() + 60 * 24 * 3600 * 1000), []);
+    const timeLeftYears = useMemo(() => {
+        const ms = campaignEnd.getTime() - Date.now();
+        return Math.max(0, ms) / (365 * 24 * 3600 * 1000);
+    }, [campaignEnd]);
+
+    const stakeUsd = connected ? walletTotals.totalUsd : 0;
+    const stakeTokens = connected ? walletTotals.totalTokens / 1_000_000 : 0;
+    const potentialYieldUsd = connected ? stakeUsd * (apyPct / 100) * timeLeftYears : 0;
+
+    const endLabel = useMemo(() => campaignEnd.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }), [campaignEnd]);
+
+    return (
+        <Card className="mb-8">
+            <CardHeader>
+                <CardTitle className="text-xl">Your potential earnings</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                    {/* Stakeable volume */}
+                    <div className="flex-1 text-center">
+                        <div className="text-sm text-muted-foreground mb-1">You can stake up to</div>
+                        <div className="text-3xl md:text-4xl font-extrabold">
+                            <ValueState value={`$${formatUsd(stakeUsd, 2)}`} loading={false} error={false} />
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                            <ValueState value={`${formatUsd(stakeTokens, 2)} tokens`} loading={false} error={false} />
+                        </div>
+                    </div>
+
+                    {/* Times sign */}
+                    <div className="text-3xl font-extrabold select-none">×</div>
+
+                    {/* APY */}
+                    <div className="flex-1 text-center">
+                        <div className="text-sm text-muted-foreground mb-1">APY</div>
+                        <div className="text-3xl md:text-4xl font-extrabold">
+                            <ValueState value={`${apyPct.toFixed(2)}%`} loading={false} error={false} />
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">annualized</div>
+                    </div>
+
+                    {/* Equals sign */}
+                    <div className="text-3xl font-extrabold select-none">=</div>
+
+                    {/* Potential yield by end date */}
+                    <div className="flex-1 text-center">
+                        <div className="text-sm text-muted-foreground mb-1">Potential yield</div>
+                        <div className="text-3xl md:text-4xl font-extrabold">
+                            <ValueState value={`$${formatUsd(potentialYieldUsd, 2)}`} loading={false} error={false} />
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">by {endLabel}</div>
+                    </div>
+                </div>
+                {!connected && <div className="mt-4 text-center text-sm text-muted-foreground">Connect wallet to see potential earnings</div>}
+            </CardContent>
+        </Card>
     );
 }
