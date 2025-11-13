@@ -7,9 +7,18 @@
 const fs = require('fs');
 const path = require('path');
 
-const targetPath = path.resolve(__dirname, '..', 'src', 'types', 'contracts.ts');
-
 try {
+    const targetPath = path.resolve(__dirname, '..', 'src', 'types', 'contracts.ts');
+    replaceImports(targetPath);
+
+    const targetPathPromo = path.resolve(__dirname, '..', 'src', 'types', 'contracts-promo.ts');
+    replaceImports(targetPathPromo);
+} catch (err) {
+    console.error('[fix-wagmi-imports] Failed:', err);
+    process.exit(1);
+}
+
+function replaceImports(targetPath) {
     if (!fs.existsSync(targetPath)) {
         process.exit(0);
     }
@@ -31,8 +40,4 @@ try {
     );
 
     fs.writeFileSync(targetPath, replaced, 'utf8');
-} catch (err) {
-    console.error('[fix-wagmi-imports] Failed:', err);
-    process.exit(1);
 }
-
