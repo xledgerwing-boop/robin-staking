@@ -73,9 +73,9 @@ export async function queryMarkets(db: Knex, q: MarketsQuery): Promise<{ rows: M
         builder.andWhere(`${MARKETS_TABLE}.eventSlug`, q.eventSlug);
     }
 
-    builder.distinct();
+    // builder.distinct();
 
-    const countBuilder = builder.clone().count<{ count: string }[]>({ count: `${MARKETS_TABLE}.id` });
+    const countBuilder = builder.clone().countDistinct<{ count: string }[]>({ count: `${MARKETS_TABLE}.id` });
 
     builder.select(`${MARKETS_TABLE}.*`);
 
