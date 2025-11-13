@@ -10,6 +10,7 @@
         "deploy:manager": "dotenv -- bash -c 'forge clean && forge script script/DeployManagerAndVaultImpl.s.sol:DeployManagerAndVaultImpl --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY'",
         "send-usdc": "dotenv -- ./sh-scripts.sh send-usdc",
         "check-usdc": "dotenv -- ./sh-scripts.sh check-balance",
-        "mint-pol-positions": "dotenv -- ./sh-scripts.sh mint-polymarket-positions"
+        "mint-pol-positions": "dotenv -- ./sh-scripts.sh mint-polymarket-positions",
+        "test-promotion-vault": "dotenv -- ./sh-scripts.sh test-promotion-vault"
     }
 }
