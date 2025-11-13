@@ -32,14 +32,26 @@ async function main() {
 
         let indexer: StreamsIndexer;
 
-        startWebhookServer(webhookPort, dbService, async (data: any) => {
-            // Handle streams-specific webhooks if it's a streams indexer
-            if (indexerType === IndexerType.STREAMS && indexer instanceof StreamsIndexer) {
-                await (indexer as StreamsIndexer).processWebhook(data);
-            } else {
-                console.log('Webhook received for', indexerType, 'indexer:', data.length);
+        startWebhookServer(
+            webhookPort,
+            dbService,
+            async (data: any) => {
+                // Handle streams-specific webhooks if it's a streams indexer
+                if (indexerType === IndexerType.STREAMS && indexer instanceof StreamsIndexer) {
+                    await (indexer as StreamsIndexer).processWebhook(data);
+                } else {
+                    console.log('Webhook received for', indexerType, 'indexer:', data.length);
+                }
+            },
+            async (data: any) => {
+                // Handle promo vault webhooks
+                if (indexerType === IndexerType.STREAMS && indexer instanceof StreamsIndexer) {
+                    await (indexer as StreamsIndexer).processPromoWebhook(data);
+                } else {
+                    console.log('Promo webhook received for', indexerType, 'indexer:', data.length);
+                }
             }
-        });
+        );
 
         if (indexerType === IndexerType.STREAMS) {
             if (!RPC_URL || !RPC_CHAIN_ID || !Number(RPC_CHAIN_ID) || !MANAGER_ADDRESS || !QUICKNODE_SECURITY_TOKEN) {
@@ -79,7 +91,7 @@ async function main() {
 
 main();
 
-function startWebhookServer(port: number, dbService: DBService, callback: (data: any) => Promise<void>) {
+function startWebhookServer(port: number, dbService: DBService, callback: (data: any) => Promise<void>, promoCallback: (data: any) => Promise<void>) {
     // Set up Express server for webhooks
     app = express();
     app.use(express.json({ limit: '10mb' }));
@@ -126,6 +138,47 @@ function startWebhookServer(port: number, dbService: DBService, callback: (data:
             res.status(500).json({
                 success: false,
                 message: 'Error processing webhook',
+                error: error instanceof Error ? error.message : 'Unknown error',
+            });
+        }
+    });
+
+    // Webhook endpoint for PromotionVault events
+    app.post('/webhook/promo-logs', async (req: Request, res: Response) => {
+        if (!QUICKNODE_SECURITY_TOKEN) {
+            throw new Error('QUICKNODE_SECURITY_TOKEN is required');
+        }
+
+        const secretKey = QUICKNODE_SECURITY_TOKEN;
+        const nonce = req.headers['x-qn-nonce'] as string;
+        const timestamp = req.headers['x-qn-timestamp'] as string;
+        const givenSignature = req.headers['x-qn-signature'] as string;
+
+        if (!nonce || !timestamp || !givenSignature) {
+            console.error('Missing required headers');
+            return res.status(400).send('Missing required headers');
+        }
+
+        try {
+            const payloadString = JSON.stringify(req.body);
+            const isValid = verifySignature(secretKey, payloadString, nonce, timestamp, givenSignature);
+
+            if (isValid) {
+                console.log('\n✅ Signature verified successfully');
+            } else {
+                console.log('\n❌ Signature verification failed');
+                return res.status(401).send('Invalid signature');
+            }
+
+            // Process webhook data with StreamsIndexer promo handler
+            await promoCallback(req.body);
+
+            res.status(200).json({ success: true, message: 'Promo webhook processed successfully' });
+        } catch (error) {
+            logger.error('Error processing promo webhook:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Error processing promo webhook',
                 error: error instanceof Error ? error.message : 'Unknown error',
             });
         }

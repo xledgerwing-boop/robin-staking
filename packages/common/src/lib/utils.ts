@@ -2,6 +2,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { formatUnits as viemFormatUnits } from 'viem';
 import { twMerge } from 'tailwind-merge';
 import { VaultEventInfo } from '../types/conract-events';
+import { PromoVaultEventInfo } from 'src/types/promo-events';
 
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -23,7 +24,7 @@ export function formatUnits(value: bigint, decimals: number, maxDecimals: number
     return viemFormatUnits(quantizedValue, decimals);
 }
 
-export function eventInfoToDb(info: VaultEventInfo): string {
+export function eventInfoToDb(info: VaultEventInfo | PromoVaultEventInfo): string {
     const dbInfo: Record<string, string> = {};
     for (const key in info) {
         if (typeof info[key as keyof typeof info] === 'bigint') {
@@ -35,11 +36,11 @@ export function eventInfoToDb(info: VaultEventInfo): string {
     return JSON.stringify(dbInfo);
 }
 
-export function eventInfoFromDb(dbInfo: Record<string, string | bigint | boolean | number>): VaultEventInfo {
+export function eventInfoFromDb(dbInfo: Record<string, string | bigint | boolean | number>): VaultEventInfo | PromoVaultEventInfo {
     for (const key in dbInfo) {
         if (dbInfo[key] && typeof dbInfo[key] === 'string' && dbInfo[key].startsWith('bigint:')) {
             dbInfo[key] = BigInt(dbInfo[key].substring(7));
         }
     }
-    return dbInfo as VaultEventInfo;
+    return dbInfo as VaultEventInfo | PromoVaultEventInfo;
 }

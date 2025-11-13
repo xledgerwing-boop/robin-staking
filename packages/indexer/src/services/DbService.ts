@@ -1,8 +1,9 @@
 import knex, { Knex } from 'knex';
 import { knexSnakeCaseMappers } from 'objection';
 import { ActivityRow } from '@robin-pm-staking/common/types/activity';
+import { PromoActivityRow } from '@robin-pm-staking/common/types/promo-activity';
 import { MarketRow } from '@robin-pm-staking/common/types/market';
-import { ensureSchema, USER_POSITIONS_TABLE } from '@robin-pm-staking/common/lib/repos';
+import { ensureSchema, USER_POSITIONS_TABLE, PROMO_ACTIVITIES_TABLE } from '@robin-pm-staking/common/lib/repos';
 import { UserPositionRow } from '@robin-pm-staking/common/types/position';
 
 export class DBService {
@@ -43,6 +44,14 @@ export class DBService {
 
     public async getActivity(id: string): Promise<ActivityRow | undefined> {
         return await this.knex('activities').where('id', id).first();
+    }
+
+    public async insertPromoActivity(activity: PromoActivityRow) {
+        await this.knex(PROMO_ACTIVITIES_TABLE).insert(activity).onConflict('id').ignore();
+    }
+
+    public async getPromoActivity(id: string): Promise<PromoActivityRow | undefined> {
+        return await this.knex(PROMO_ACTIVITIES_TABLE).where('id', id).first();
     }
 
     public async adjustUserPosition(

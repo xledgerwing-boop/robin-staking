@@ -385,7 +385,7 @@ export const promotionVaultAbi = [
             { name: 'basePaid', internalType: 'uint256', type: 'uint256', indexed: false },
             { name: 'extraPaid', internalType: 'uint256', type: 'uint256', indexed: false },
         ],
-        name: 'ClaimEvent',
+        name: 'Claim',
     },
     {
         type: 'event',
@@ -396,7 +396,7 @@ export const promotionVaultAbi = [
             { name: 'isA', internalType: 'bool', type: 'bool', indexed: false },
             { name: 'amount', internalType: 'uint256', type: 'uint256', indexed: false },
         ],
-        name: 'DepositEvent',
+        name: 'Deposit',
     },
     {
         type: 'event',
@@ -454,7 +454,7 @@ export const promotionVaultAbi = [
             { name: 'isA', internalType: 'bool', type: 'bool', indexed: false },
             { name: 'amount', internalType: 'uint256', type: 'uint256', indexed: false },
         ],
-        name: 'WithdrawEvent',
+        name: 'Withdraw',
     },
     { type: 'error', inputs: [], name: 'AlreadyStarted' },
     { type: 'error', inputs: [], name: 'CampaignNotActive' },
@@ -941,17 +941,14 @@ export const useWatchPromotionVaultCampaignStartedEvent = /*#__PURE__*/ createUs
 })
 
 /**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link promotionVaultAbi}__ and `eventName` set to `"ClaimEvent"`
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link promotionVaultAbi}__ and `eventName` set to `"Claim"`
  */
-export const useWatchPromotionVaultClaimEventEvent = /*#__PURE__*/ createUseWatchContractEvent({ abi: promotionVaultAbi, eventName: 'ClaimEvent' })
+export const useWatchPromotionVaultClaimEvent = /*#__PURE__*/ createUseWatchContractEvent({ abi: promotionVaultAbi, eventName: 'Claim' })
 
 /**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link promotionVaultAbi}__ and `eventName` set to `"DepositEvent"`
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link promotionVaultAbi}__ and `eventName` set to `"Deposit"`
  */
-export const useWatchPromotionVaultDepositEventEvent = /*#__PURE__*/ createUseWatchContractEvent({
-    abi: promotionVaultAbi,
-    eventName: 'DepositEvent',
-})
+export const useWatchPromotionVaultDepositEvent = /*#__PURE__*/ createUseWatchContractEvent({ abi: promotionVaultAbi, eventName: 'Deposit' })
 
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link promotionVaultAbi}__ and `eventName` set to `"LeftoversSwept"`
@@ -1006,9 +1003,6 @@ export const useWatchPromotionVaultTvlCapUpdatedEvent = /*#__PURE__*/ createUseW
 export const useWatchPromotionVaultUnpausedEvent = /*#__PURE__*/ createUseWatchContractEvent({ abi: promotionVaultAbi, eventName: 'Unpaused' })
 
 /**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link promotionVaultAbi}__ and `eventName` set to `"WithdrawEvent"`
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link promotionVaultAbi}__ and `eventName` set to `"Withdraw"`
  */
-export const useWatchPromotionVaultWithdrawEventEvent = /*#__PURE__*/ createUseWatchContractEvent({
-    abi: promotionVaultAbi,
-    eventName: 'WithdrawEvent',
-})
+export const useWatchPromotionVaultWithdrawEvent = /*#__PURE__*/ createUseWatchContractEvent({ abi: promotionVaultAbi, eventName: 'Withdraw' })

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader, PlusCircle, MinusCircle, TrendingUp } from 'lucide-react';
 
-type Activity = { id: string; label: 'DepositEvent' | 'WithdrawEvent' | 'ClaimEvent'; ts: string };
+type Activity = { id: string; label: 'Deposit' | 'Withdraw' | 'Claim'; ts: string };
 
 export default function Activities() {
     const [activities, setActivities] = useState<Activity[]>([]);
@@ -15,7 +15,7 @@ export default function Activities() {
         setActivities(
             Array.from({ length: 30 }).map((_, i) => ({
                 id: `act-${i}`,
-                label: i % 3 === 0 ? 'DepositEvent' : i % 3 === 1 ? 'WithdrawEvent' : 'ClaimEvent',
+                label: i % 3 === 0 ? 'Deposit' : i % 3 === 1 ? 'Withdraw' : 'Claim',
                 ts: new Date(Date.now() - i * 60_000).toLocaleString(),
             }))
         );
@@ -28,7 +28,7 @@ export default function Activities() {
             const next = activities.length;
             const more: Activity[] = Array.from({ length: 20 }).map((_, i) => ({
                 id: `act-${next + i}`,
-                label: (next + i) % 3 === 0 ? 'DepositEvent' : (next + i) % 3 === 1 ? 'WithdrawEvent' : 'ClaimEvent',
+                label: (next + i) % 3 === 0 ? 'Deposit' : (next + i) % 3 === 1 ? 'Withdraw' : 'Claim',
                 ts: new Date(Date.now() - (next + i) * 60_000).toLocaleString(),
             }));
             setActivities(prev => [...prev, ...more]);
@@ -61,9 +61,9 @@ export default function Activities() {
                                 <div key={a.id} className="flex items-center justify-between p-3 rounded-lg border">
                                     <div className="flex items-center gap-3">
                                         <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                                            {a.label === 'DepositEvent' ? (
+                                            {a.label === 'Deposit' ? (
                                                 <PlusCircle className="w-4 h-4 text-primary" />
-                                            ) : a.label === 'WithdrawEvent' ? (
+                                            ) : a.label === 'Withdraw' ? (
                                                 <MinusCircle className="w-4 h-4 text-primary" />
                                             ) : (
                                                 <TrendingUp className="w-4 h-4 text-primary" />

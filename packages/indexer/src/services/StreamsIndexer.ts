@@ -1,6 +1,7 @@
 import { ethers } from 'ethers';
 import { logger } from '../utils/logger';
 import { robinVaultManagerAbi, polymarketAaveStakingVaultAbi } from '@robin-pm-staking/common/types/contracts';
+import { promotionVaultAbi } from '@robin-pm-staking/common/types/contracts-promo';
 import { EventService, LogInfo } from './EventService';
 import {
     DepositedEvent,
@@ -17,20 +18,26 @@ import {
     YieldUnlockProgressEvent,
     YieldUnlockStartedEvent,
 } from '@robin-pm-staking/common/types/conract-events';
+import { PromoEventService } from './PromoEventService';
+import { PromoVaultEvent, PromoVaultEventInfo } from '@robin-pm-staking/common/types/promo-events';
 
 export class StreamsIndexer {
     private provider: ethers.JsonRpcProvider;
     private manager: ethers.Contract;
     private vaultInterface: ethers.Interface;
+    private promoVaultInterface: ethers.Interface;
     private eventService: EventService;
+    private promoEventService: PromoEventService;
 
     constructor(rpcUrl: string, chainId: number, managerAddress: string, postgresUri: string) {
         this.provider = new ethers.JsonRpcProvider(rpcUrl, ethers.Network.from(chainId), {
             staticNetwork: true,
         });
         this.eventService = new EventService(postgresUri);
+        this.promoEventService = new PromoEventService(postgresUri);
         this.manager = new ethers.Contract(managerAddress, robinVaultManagerAbi, this.provider);
         this.vaultInterface = new ethers.Interface(polymarketAaveStakingVaultAbi);
+        this.promoVaultInterface = new ethers.Interface(promotionVaultAbi);
     }
 
     public async start(): Promise<void> {
@@ -60,6 +67,20 @@ export class StreamsIndexer {
         }
     }
 
+    public async processPromoWebhook(webhookData: LogInfo[]): Promise<void> {
+        try {
+            logger.info(`Processing promo webhook data: ${webhookData.length}`);
+            for (const log of webhookData) {
+                await this.processPromoWebhookLog(log);
+            }
+            logger.info('Promo webhook processing completed successfully');
+        } catch (error) {
+            logger.error('Error processing promo webhook:', error);
+            logger.info('Promo webhook data:', webhookData);
+            throw error;
+        }
+    }
+
     private async processWebhookLog(log: LogInfo): Promise<void> {
         const logAddress = log.address.toLowerCase();
         try {
@@ -71,6 +92,15 @@ export class StreamsIndexer {
             }
         } catch (error) {
             logger.error('Error processing webhook log:', error);
+            throw error;
+        }
+    }
+
+    private async processPromoWebhookLog(log: LogInfo): Promise<void> {
+        try {
+            await this.handlePromoVaultEvent(log);
+        } catch (error) {
+            logger.error('Error processing promo webhook log:', error);
             throw error;
         }
     }
@@ -174,5 +204,93 @@ export class StreamsIndexer {
         }
 
         await this.eventService.handleMarketEvent(event, info, parsedEvent);
+    }
+
+    private async handlePromoVaultEvent(event: LogInfo) {
+        const parsedEvent = this.promoVaultInterface.parseLog(event);
+        if (!parsedEvent) {
+            throw new Error(`Failed to parse promo vault log ${event.transactionHash}`);
+        }
+        const eventName = parsedEvent.name as PromoVaultEvent;
+        const args = parsedEvent.args;
+        let info: PromoVaultEventInfo;
+
+        switch (eventName) {
+            case PromoVaultEvent.CampaignStarted:
+                info = {
+                    starter: args[0].toLowerCase(),
+                    baseFunded: args[1],
+                    startTs: args[2],
+                    endTs: args[3],
+                };
+                break;
+            case PromoVaultEvent.PricesUpdated:
+                info = {
+                    timestamp: args[0],
+                };
+                break;
+            case PromoVaultEvent.Deposit:
+                info = {
+                    user: args[0].toLowerCase(),
+                    marketIndex: args[1],
+                    isA: args[2],
+                    amount: args[3],
+                };
+                break;
+            case PromoVaultEvent.Withdraw:
+                info = {
+                    user: args[0].toLowerCase(),
+                    marketIndex: args[1],
+                    isA: args[2],
+                    amount: args[3],
+                };
+                break;
+            case PromoVaultEvent.Claim:
+                info = {
+                    user: args[0].toLowerCase(),
+                    basePaid: args[1],
+                    extraPaid: args[2],
+                };
+                break;
+            case PromoVaultEvent.MarketAdded:
+                info = {
+                    index: args[0],
+                    tokenIdA: args[1],
+                    tokenIdB: args[2],
+                    extraEligible: args[3],
+                };
+                break;
+            case PromoVaultEvent.MarketEnded:
+                info = {
+                    index: args[0],
+                };
+                break;
+            case PromoVaultEvent.CampaignFinalized:
+                info = {
+                    timestamp: args[0],
+                    totalValueTime: args[1],
+                    totalExtraValueTime: args[2],
+                    baseDistributed: args[3],
+                    extraPool: args[4],
+                };
+                break;
+            case PromoVaultEvent.TvlCapUpdated:
+                info = {
+                    oldCapUsd: args[0],
+                    newCapUsd: args[1],
+                };
+                break;
+            case PromoVaultEvent.LeftoversSwept:
+                info = {
+                    to: args[0].toLowerCase(),
+                    amount: args[1],
+                };
+                break;
+            default:
+                logger.warn(`Unknown promo event: ${eventName}`);
+                return;
+        }
+
+        await this.promoEventService.handlePromoEvent(event, info, parsedEvent);
     }
 }

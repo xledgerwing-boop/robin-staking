@@ -80,9 +80,9 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
     // ---------- Events ----------
     event CampaignStarted(address indexed starter, uint256 baseFunded, uint256 startTs, uint256 endTs);
     event PricesUpdated(uint256 timestamp);
-    event DepositEvent(address indexed user, uint256 indexed marketIndex, bool isA, uint256 amount);
-    event WithdrawEvent(address indexed user, uint256 indexed marketIndex, bool isA, uint256 amount);
-    event ClaimEvent(address indexed user, uint256 basePaid, uint256 extraPaid);
+    event Deposit(address indexed user, uint256 indexed marketIndex, bool isA, uint256 amount);
+    event Withdraw(address indexed user, uint256 indexed marketIndex, bool isA, uint256 amount);
+    event Claim(address indexed user, uint256 basePaid, uint256 extraPaid);
     event MarketAdded(uint256 index, uint256 tokenIdA, uint256 tokenIdB, bool extraEligible);
     event MarketEnded(uint256 index);
     event CampaignFinalized(uint256 timestamp, uint256 totalValueTime, uint256 totalExtraValueTime, uint256 baseDistributed, uint256 extraPool);
@@ -330,7 +330,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
         }
 
         // TVL cap is checked before token transfers to fail early
-        emit DepositEvent(msg.sender, marketIndex, isA, amount);
+        emit Deposit(msg.sender, marketIndex, isA, amount);
     }
 
     // withdraw tokens (no immediate UsdC reward). Stops earning further after withdraw.
@@ -385,7 +385,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
             ctf.safeTransferFrom(address(this), msg.sender, m.tokenIdB, amount, '');
         }
 
-        emit WithdrawEvent(msg.sender, marketIndex, isA, amount);
+        emit Withdraw(msg.sender, marketIndex, isA, amount);
     }
 
     // Batch deposit across multiple markets/sides. Reverts atomically if any item fails.
@@ -550,7 +550,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
         uint256 totalPayout = baseScaled + extraShare;
         usdc.safeTransfer(msg.sender, totalPayout);
 
-        emit ClaimEvent(msg.sender, baseScaled, extraShare);
+        emit Claim(msg.sender, baseScaled, extraShare);
     }
 
     // ---------- Views ----------

@@ -143,14 +143,14 @@ contract PromotionVaultTest is Test, PromotionConstants, ForkFixture {
         ctf.setApprovalForAll(address(vault), true); // not required since user is from, but harmless
         vm.prank(user);
         vm.expectEmit(true, true, true, true, address(vault));
-        emit PromotionVault.DepositEvent(user, marketIndex, isA, amount);
+        emit PromotionVault.Deposit(user, marketIndex, isA, amount);
         vault.deposit(marketIndex, isA, amount);
     }
 
     function _withdraw(address user, uint256 marketIndex, bool isA, uint256 amount) internal {
         vm.prank(user);
         vm.expectEmit(true, true, true, true, address(vault));
-        emit PromotionVault.WithdrawEvent(user, marketIndex, isA, amount);
+        emit PromotionVault.Withdraw(user, marketIndex, isA, amount);
         vault.withdraw(marketIndex, isA, amount);
     }
 
@@ -160,7 +160,7 @@ contract PromotionVaultTest is Test, PromotionConstants, ForkFixture {
         // Expect events for each item, in order
         for (uint256 i = 0; i < idxs.length; i++) {
             vm.expectEmit(true, true, true, true, address(vault));
-            emit PromotionVault.DepositEvent(user, idxs[i], sides[i], amts[i]);
+            emit PromotionVault.Deposit(user, idxs[i], sides[i], amts[i]);
         }
         vm.prank(user);
         vault.batchDeposit(idxs, sides, amts);
@@ -170,7 +170,7 @@ contract PromotionVaultTest is Test, PromotionConstants, ForkFixture {
         // Expect events for each item, in order
         for (uint256 i = 0; i < idxs.length; i++) {
             vm.expectEmit(true, true, true, true, address(vault));
-            emit PromotionVault.WithdrawEvent(user, idxs[i], sides[i], amts[i]);
+            emit PromotionVault.Withdraw(user, idxs[i], sides[i], amts[i]);
         }
         vm.prank(user);
         vault.batchWithdraw(idxs, sides, amts);

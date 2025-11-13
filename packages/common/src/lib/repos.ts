@@ -6,6 +6,7 @@ import { fetchEventAndMarketsByEventSlug, fetchEventsByEventSlugs, fetchMarketBy
 export const EVENTS_TABLE = 'events';
 export const MARKETS_TABLE = 'markets';
 export const ACTIVITIES_TABLE = 'activities';
+export const PROMO_ACTIVITIES_TABLE = 'promo_activities';
 export const USER_POSITIONS_TABLE = 'user_positions';
 
 export async function ensureSchema(db: Knex): Promise<void> {
@@ -57,6 +58,21 @@ export async function ensureSchema(db: Knex): Promise<void> {
         await db.schema.createTable(ACTIVITIES_TABLE, (table: Knex.CreateTableBuilder) => {
             table.string('id').primary();
             table.string('vaultAddress').references('contractAddress').inTable(MARKETS_TABLE);
+            table.string('transactionHash');
+            table.bigint('timestamp');
+            table.string('type');
+            table.string('userAddress').nullable();
+            table.string('position').nullable();
+            table.jsonb('info');
+            table.bigint('blockNumber').notNullable();
+        });
+    }
+
+    const hasPromoActivities = await db.schema.hasTable(PROMO_ACTIVITIES_TABLE);
+    if (!hasPromoActivities) {
+        await db.schema.createTable(PROMO_ACTIVITIES_TABLE, (table: Knex.CreateTableBuilder) => {
+            table.string('id').primary();
+            table.string('vaultAddress'); // not FK-bound to markets
             table.string('transactionHash');
             table.bigint('timestamp');
             table.string('type');
