@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import {
     Market,
     MarketRow,
@@ -28,7 +28,7 @@ import { MarketFeedbackCta } from '@/components/market/market-feedback-cta';
 export default function MarketDetailPage() {
     const params = useParams();
     const marketSlug = params.slug as string;
-
+    const router = useRouter();
     const [market, setMarket] = useState<Market | null>(null);
     const [polymarketMarket, setPolymarketMarket] = useState<ParsedPolymarketMarket | null>(null);
     const [marketLoading, setMarketLoading] = useState(true);
@@ -38,6 +38,10 @@ export default function MarketDetailPage() {
         try {
             const market = await fetch(`/api/markets/${marketSlug}`);
             if (!market.ok) throw new Error('Failed to fetch market');
+            if (market.redirected) {
+                router.push(`${market.url}`);
+                return;
+            }
             const marketData = (await market.json()) as { market: MarketRow; polymarketMarket: PolymarketMarketWithEvent } | null;
             const m = marketData ? MarketRowToMarket(marketData.market) : null;
             const p = marketData ? parsePolymarketMarket(marketData.polymarketMarket) : null;

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { queryMarketBySlug } from '@/lib/repos';
-import { fetchMarketBySlug } from '@robin-pm-staking/common/lib/polymarket';
+import { fetchMarketByConditionId, fetchMarketBySlug } from '@robin-pm-staking/common/lib/polymarket';
 import { rateLimit } from '@/lib/rate-limit';
-import { getAndSaveEventAndMarkets } from '@robin-pm-staking/common/lib/repos';
+import { getAndSaveEventAndMarkets, MARKETS_TABLE } from '@robin-pm-staking/common/lib/repos';
+import { PolymarketMarketWithEvent } from '@robin-pm-staking/common/types/market';
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
     const ip = request.headers.get('x-forwarded-for') || 'unknown';
@@ -19,7 +20,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     try {
         let result = await queryMarketBySlug(db, slug);
-        const polymarketMarket = await fetchMarketBySlug(slug);
+        let polymarketMarket: PolymarketMarketWithEvent | null = null;
+        try {
+            polymarketMarket = await fetchMarketBySlug(slug);
+        } catch (e) {
+            if (result) {
+                // We do have the market already but we can't find it on Polymarket -> it's likely that Polymarket changed the slug.
+                polymarketMarket = await fetchMarketByConditionId(result.conditionId);
+                if (polymarketMarket) {
+                    // Update the slug in the database
+                    await db(MARKETS_TABLE).where('id', result.id).update({ slug: polymarketMarket.slug });
+                    return NextResponse.redirect(new URL(`/market/${polymarketMarket.slug}`, request.url), 308);
+                }
+            } else throw e;
+        }
 
         if (!result && polymarketMarket) {
             await getAndSaveEventAndMarkets(db, polymarketMarket.events[0].slug);
