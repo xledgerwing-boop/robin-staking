@@ -603,13 +603,13 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
     // Returns:
     // - totalTokens: sum of ERC-1155 amounts across active market A and B tokens (6 decimals)
     // - totalUsd   : USD value at current prices (6 decimals)
-    function viewUserStakeableValue(address account) external view returns (uint256 totalTokens, uint256 totalUsd) {
+    function viewUserStakeableValue(address account) external view returns (uint256 totalTokens, uint256 totalUsd, uint256 eligibleUsd) {
         // count active markets
         uint256 activeCount = 0;
         for (uint256 i = 0; i < markets.length; i++) {
             if (markets[i].active) activeCount++;
         }
-        if (activeCount == 0) return (0, 0);
+        if (activeCount == 0) return (0, 0, 0);
 
         uint256 pairCount = activeCount * 2;
         address[] memory accounts = new address[](pairCount);
@@ -640,11 +640,10 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
             totalTokens += balA + balB;
             uint256 pA = m.priceA;
             uint256 pB = PRICE_SCALE - pA;
-            if (balA > 0) {
-                totalUsd += (balA * pA) / PRICE_SCALE;
-            }
-            if (balB > 0) {
-                totalUsd += (balB * pB) / PRICE_SCALE;
+            uint256 mVal = (balA > 0 ? (balA * pA) / PRICE_SCALE : 0) + (balB > 0 ? (balB * pB) / PRICE_SCALE : 0);
+            totalUsd += mVal;
+            if (m.extraEligible) {
+                eligibleUsd += mVal;
             }
             k += 2;
         }

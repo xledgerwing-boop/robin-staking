@@ -24,6 +24,17 @@ export function formatUnits(value: bigint, decimals: number, maxDecimals: number
     return viemFormatUnits(quantizedValue, decimals);
 }
 
+export function formatUnitsLocale(
+    value: bigint,
+    decimals: number,
+    maxDecimals: number = 2,
+    locales: Intl.LocalesArgument = 'en-US',
+    options: Intl.NumberFormatOptions = { maximumFractionDigits: maxDecimals }
+) {
+    const str = formatUnits(value, decimals, maxDecimals);
+    return Number(str).toLocaleString(locales, options);
+}
+
 export function eventInfoToDb(info: VaultEventInfo | PromoVaultEventInfo): string {
     const dbInfo: Record<string, string> = {};
     for (const key in info) {

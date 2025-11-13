@@ -4,49 +4,25 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ValueState } from '@/components/value-state';
 import { TrendingUp, DollarSign, User } from 'lucide-react';
 import { UNDERYLING_DECIMALS, USED_CONTRACTS } from '@robin-pm-staking/common/src/constants';
-import {
-    useReadPromotionVaultTotalValueUsd,
-    useReadPromotionVaultViewCurrentApyBps,
-    useReadPromotionVaultViewUserCurrentValues,
-    useReadPromotionVaultViewUserEstimatedEarnings,
-} from '@robin-pm-staking/common/src/types/contracts-promo';
 import { useProxyAccount } from '@robin-pm-staking/common/src/hooks/use-proxy-account';
 import { formatUnits } from '@robin-pm-staking/common/lib/utils';
+import { usePromotionVaultInfo } from '@/hooks/use-promotion-vault-info';
+import { usePromotionVaultUserInfo } from '@/hooks/use-promotion-vault-user-info';
 
 export default function TopMetrics() {
     const VAULT = USED_CONTRACTS.PROMOTION_VAULT as `0x${string}`;
     const { proxyAddress, isConnected } = useProxyAccount();
 
-    const { data: tvl, isLoading: tvlLoading, error: tvlError } = useReadPromotionVaultTotalValueUsd({ address: VAULT, args: [] });
+    const { totalValueUsd, totalValueUsdLoading, totalValueUsdError, apyBps, apyBpsLoading, apyBpsError } = usePromotionVaultInfo(VAULT);
 
     const {
-        data: userValues,
-        isLoading: userValuesLoading,
-        error: userValuesError,
-    } = useReadPromotionVaultViewUserCurrentValues({
-        address: VAULT,
-        args: [proxyAddress as `0x${string}`],
-        query: { enabled: isConnected && !!proxyAddress },
-    });
-
-    const {
-        data: userEarnings,
-        isLoading: userEarnLoading,
-        error: userEarnError,
-    } = useReadPromotionVaultViewUserEstimatedEarnings({
-        address: VAULT,
-        args: [proxyAddress as `0x${string}`],
-        query: { enabled: isConnected && !!proxyAddress },
-    });
-
-    const {
-        data: apyBps,
-        isLoading: apyBpsLoading,
-        error: apyBpsError,
-    } = useReadPromotionVaultViewCurrentApyBps({
-        address: VAULT,
-        args: [],
-    });
+        userCurrentValues,
+        userCurrentValuesLoading,
+        userCurrentValuesError,
+        userEstimatedEarnings,
+        userEstimatedEarningsLoading,
+        userEstimatedEarningsError,
+    } = usePromotionVaultUserInfo(VAULT, proxyAddress as `0x${string}`);
 
     return (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -59,7 +35,11 @@ export default function TopMetrics() {
                         <div>
                             <p className="text-sm text-muted-foreground">Total TVL</p>
                             <div className="text-2xl font-bold text-right">
-                                <ValueState value={`$${formatUnits(tvl ?? 0n, UNDERYLING_DECIMALS, 0)}`} loading={tvlLoading} error={!!tvlError} />
+                                <ValueState
+                                    value={`$${formatUnits(totalValueUsd ?? 0n, UNDERYLING_DECIMALS, 0)}`}
+                                    loading={totalValueUsdLoading}
+                                    error={!!totalValueUsdError}
+                                />
                             </div>
                         </div>
                     </div>
@@ -91,12 +71,12 @@ export default function TopMetrics() {
                             <User className="w-6 h-6 text-primary" />
                         </div>
                         <div>
-                            <p className="text-sm text-muted-foreground">My Staked Value</p>
+                            <p className="text-sm text-muted-foreground">My TVL</p>
                             <div className="text-2xl font-bold text-right">
                                 <ValueState
-                                    value={isConnected ? `$${formatUnits(userValues?.[0] ?? 0n, UNDERYLING_DECIMALS, 0)}` : '—'}
-                                    loading={userValuesLoading}
-                                    error={!!userValuesError}
+                                    value={isConnected ? `$${formatUnits(userCurrentValues?.[0] ?? 0n, UNDERYLING_DECIMALS, 0)}` : '—'}
+                                    loading={userCurrentValuesLoading}
+                                    error={!!userCurrentValuesError}
                                 />
                             </div>
                         </div>
@@ -110,12 +90,12 @@ export default function TopMetrics() {
                             <TrendingUp className="w-6 h-6 text-primary" />
                         </div>
                         <div>
-                            <p className="text-sm text-muted-foreground">My Earned</p>
+                            <p className="text-sm text-muted-foreground">My Earnings</p>
                             <div className="text-2xl font-bold text-right">
                                 <ValueState
-                                    value={isConnected ? `$${formatUnits(userEarnings?.[0] ?? 0n, UNDERYLING_DECIMALS, 0)}` : '—'}
-                                    loading={userEarnLoading}
-                                    error={!!userEarnError}
+                                    value={isConnected ? `$${formatUnits(userEstimatedEarnings?.[0] ?? 0n, UNDERYLING_DECIMALS, 0)}` : '—'}
+                                    loading={userEstimatedEarningsLoading}
+                                    error={!!userEstimatedEarningsError}
                                 />
                             </div>
                         </div>

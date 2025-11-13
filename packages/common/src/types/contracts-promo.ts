@@ -340,6 +340,7 @@ export const promotionVaultAbi = [
         outputs: [
             { name: 'totalTokens', internalType: 'uint256', type: 'uint256' },
             { name: 'totalUsd', internalType: 'uint256', type: 'uint256' },
+            { name: 'eligibleUsd', internalType: 'uint256', type: 'uint256' },
         ],
         stateMutability: 'view',
     },
