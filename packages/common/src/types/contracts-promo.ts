@@ -98,6 +98,16 @@ export const promotionVaultAbi = [
     {
         type: 'function',
         inputs: [],
+        name: 'campaignRewardSize',
+        outputs: [
+            { name: 'total', internalType: 'uint256', type: 'uint256' },
+            { name: 'extra', internalType: 'uint256', type: 'uint256' },
+        ],
+        stateMutability: 'view',
+    },
+    {
+        type: 'function',
+        inputs: [],
         name: 'campaignStartTimestamp',
         outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
         stateMutability: 'view',
@@ -297,6 +307,13 @@ export const promotionVaultAbi = [
     },
     {
         type: 'function',
+        inputs: [],
+        name: 'viewCurrentApyBps',
+        outputs: [{ name: 'apyBps', internalType: 'uint256', type: 'uint256' }],
+        stateMutability: 'view',
+    },
+    {
+        type: 'function',
         inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
         name: 'viewUserCurrentValues',
         outputs: [
@@ -313,6 +330,16 @@ export const promotionVaultAbi = [
             { name: 'total', internalType: 'uint256', type: 'uint256' },
             { name: 'base', internalType: 'uint256', type: 'uint256' },
             { name: 'extra', internalType: 'uint256', type: 'uint256' },
+        ],
+        stateMutability: 'view',
+    },
+    {
+        type: 'function',
+        inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
+        name: 'viewUserStakeableValue',
+        outputs: [
+            { name: 'totalTokens', internalType: 'uint256', type: 'uint256' },
+            { name: 'totalUsd', internalType: 'uint256', type: 'uint256' },
         ],
         stateMutability: 'view',
     },
@@ -516,6 +543,14 @@ export const useReadPromotionVaultCampaignFinalized = /*#__PURE__*/ createUseRea
 })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"campaignRewardSize"`
+ */
+export const useReadPromotionVaultCampaignRewardSize = /*#__PURE__*/ createUseReadContract({
+    abi: promotionVaultAbi,
+    functionName: 'campaignRewardSize',
+})
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"campaignStartTimestamp"`
  */
 export const useReadPromotionVaultCampaignStartTimestamp = /*#__PURE__*/ createUseReadContract({
@@ -635,6 +670,14 @@ export const useReadPromotionVaultUserMarketBalances = /*#__PURE__*/ createUseRe
 export const useReadPromotionVaultUsers = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'users' })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"viewCurrentApyBps"`
+ */
+export const useReadPromotionVaultViewCurrentApyBps = /*#__PURE__*/ createUseReadContract({
+    abi: promotionVaultAbi,
+    functionName: 'viewCurrentApyBps',
+})
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"viewUserCurrentValues"`
  */
 export const useReadPromotionVaultViewUserCurrentValues = /*#__PURE__*/ createUseReadContract({
@@ -648,6 +691,14 @@ export const useReadPromotionVaultViewUserCurrentValues = /*#__PURE__*/ createUs
 export const useReadPromotionVaultViewUserEstimatedEarnings = /*#__PURE__*/ createUseReadContract({
     abi: promotionVaultAbi,
     functionName: 'viewUserEstimatedEarnings',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"viewUserStakeableValue"`
+ */
+export const useReadPromotionVaultViewUserStakeableValue = /*#__PURE__*/ createUseReadContract({
+    abi: promotionVaultAbi,
+    functionName: 'viewUserStakeableValue',
 })
 
 /**

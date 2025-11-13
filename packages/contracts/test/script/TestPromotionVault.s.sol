@@ -18,9 +18,9 @@ contract TestPromotionVault is Script, PromotionConstants {
     function run() external {
         // Env
         address target = vm.envAddress('TARGET'); // user to receive positions
-        uint256 tvlCapUsd = 1_000_000e6;
-        uint256 baseRewardUsd = 100_000e6;
-        uint256 duration = 60 days;
+        uint256 tvlCapUsd = 100_000e6;
+        uint256 baseRewardUsd = 500e6;
+        uint256 duration = 30 days;
 
         // Broadcast as deployer (from --private-key)
         vm.startBroadcast();

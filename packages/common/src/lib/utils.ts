@@ -1,7 +1,6 @@
 import { clsx, type ClassValue } from 'clsx';
 import { formatUnits as viemFormatUnits } from 'viem';
 import { twMerge } from 'tailwind-merge';
-import { UNDERYLING_DECIMALS } from '../constants';
 import { VaultEventInfo } from '../types/conract-events';
 
 export function cn(...inputs: ClassValue[]) {
@@ -14,11 +13,14 @@ export function getErrorMessage(error: unknown) {
 }
 
 export function formatUnits(value: bigint, decimals: number, maxDecimals: number = 2) {
-    const decimalDiff = UNDERYLING_DECIMALS - maxDecimals;
-    const precision = BigInt(10 ** decimalDiff);
-    if (value !== 0n && maxDecimals === 0 && value < BigInt(10 ** decimals)) return '<1';
-    if (value !== 0n && value / precision === 0n) return '<0.' + '0'.repeat(maxDecimals - 1) + '1';
-    return viemFormatUnits((value / precision) * precision, decimals);
+    const clampedMaxDecimals = Math.max(0, Math.min(maxDecimals, decimals));
+    const decimalDiff = decimals - clampedMaxDecimals;
+    const precision = 10n ** BigInt(decimalDiff);
+    const oneUnit = 10n ** BigInt(decimals);
+    if (value !== 0n && clampedMaxDecimals === 0 && value < oneUnit) return '<1';
+    if (value !== 0n && value < precision) return '<0.' + '0'.repeat(clampedMaxDecimals - 1) + '1';
+    const quantizedValue = (value / precision) * precision;
+    return viemFormatUnits(quantizedValue, decimals);
 }
 
 export function eventInfoToDb(info: VaultEventInfo): string {

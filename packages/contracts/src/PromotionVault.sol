@@ -583,6 +583,73 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
         }
     }
 
+    // Current APY view (basis points, 1e4 = 100%)
+    // APY = (baseRewardPool / effectiveTVL) * (secondsPerYear / campaignDuration) * 100%
+    // effectiveTVL uses current totalValueUsd; if zero, assumes tvlCapUsd.
+    function viewCurrentApyBps() external view returns (uint256 apyBps) {
+        uint256 startTs = campaignStartTimestamp;
+        uint256 endTs = campaignEndTimestamp;
+        if (endTs <= startTs) return 0;
+        uint256 duration = endTs - startTs;
+        uint256 effTvl = totalValueUsd > 0 ? totalValueUsd : tvlCapUsd;
+        if (effTvl == 0 || baseRewardPool == 0) return 0;
+        // 365 days
+        uint256 secondsPerYear = 365 days;
+        // scale to bps
+        apyBps = (baseRewardPool * secondsPerYear * 10_000) / duration / effTvl;
+    }
+
+    // Computes how much a user could currently stake (value and tokens) across all active markets.
+    // Returns:
+    // - totalTokens: sum of ERC-1155 amounts across active market A and B tokens (6 decimals)
+    // - totalUsd   : USD value at current prices (6 decimals)
+    function viewUserStakeableValue(address account) external view returns (uint256 totalTokens, uint256 totalUsd) {
+        // count active markets
+        uint256 activeCount = 0;
+        for (uint256 i = 0; i < markets.length; i++) {
+            if (markets[i].active) activeCount++;
+        }
+        if (activeCount == 0) return (0, 0);
+
+        uint256 pairCount = activeCount * 2;
+        address[] memory accounts = new address[](pairCount);
+        uint256[] memory ids = new uint256[](pairCount);
+
+        // fill batch arrays
+        uint256 k = 0;
+        for (uint256 i = 0; i < markets.length; i++) {
+            Market storage m = markets[i];
+            if (!m.active) continue;
+            accounts[k] = account;
+            ids[k] = m.tokenIdA;
+            k++;
+            accounts[k] = account;
+            ids[k] = m.tokenIdB;
+            k++;
+        }
+
+        uint256[] memory balances = ctf.balanceOfBatch(accounts, ids);
+
+        // compute totals aligning with current prices
+        k = 0;
+        for (uint256 i = 0; i < markets.length; i++) {
+            Market storage m = markets[i];
+            if (!m.active) continue;
+            uint256 balA = balances[k];
+            uint256 balB = balances[k + 1];
+            totalTokens += balA + balB;
+            uint256 pA = m.priceA;
+            uint256 pB = PRICE_SCALE - pA;
+            if (balA > 0) {
+                totalUsd += (balA * pA) / PRICE_SCALE;
+            }
+            if (balB > 0) {
+                totalUsd += (balB * pB) / PRICE_SCALE;
+            }
+            k += 2;
+        }
+    }
+
     function campaignRewardSize() external view returns (uint256 total, uint256 extra) {
         total = usdc.balanceOf(address(this));
         extra = total > baseRewardPool ? (total - baseRewardPool) : 0;
