@@ -28,11 +28,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
                 // We do have the market already but we can't find it on Polymarket -> it's likely that Polymarket changed the slug.
                 polymarketMarket = await fetchMarketByConditionId(result.conditionId);
                 if (polymarketMarket) {
-                    // Update the slug in the database
+                    //Update the slug in the database
                     await db(MARKETS_TABLE)
                         .where('id', result.id)
                         .update({ slug: polymarketMarket.slug, question: polymarketMarket.question, image: polymarketMarket.image });
-                    return NextResponse.redirect(new URL(`/market/${polymarketMarket.slug}`, request.url), 308);
+                    return NextResponse.redirect(
+                        new URL(`/market/${polymarketMarket.slug}`, request.headers.get('referer') ?? process.env.SERVICE_URL_FRONTEND),
+                        308
+                    );
                 }
             } else throw e;
         }

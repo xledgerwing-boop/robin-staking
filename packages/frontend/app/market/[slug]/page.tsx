@@ -39,7 +39,7 @@ export default function MarketDetailPage() {
             const market = await fetch(`/api/markets/${marketSlug}`);
             if (!market.ok) throw new Error('Failed to fetch market');
             if (market.redirected) {
-                router.push(`${market.url}`);
+                router.replace(`${market.url}`);
                 return;
             }
             const marketData = (await market.json()) as { market: MarketRow; polymarketMarket: PolymarketMarketWithEvent } | null;
