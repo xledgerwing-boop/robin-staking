@@ -737,4 +737,106 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
         }
         total = base + extra;
     }
+
+    // Return market indices and the user's external (wallet) balances per market (A+B) for
+    // markets that are currently active AND whose combined wallet balance is greater than `threshold`.
+    function viewUserActiveWalletBalancesAboveThreshold(
+        address account,
+        uint256 threshold
+    ) external view returns (uint256[] memory marketIndices, uint256[] memory walletABalances, uint256[] memory walletBBalances) {
+        // count active markets
+        uint256 activeCount = 0;
+        for (uint256 i = 0; i < markets.length; i++) {
+            if (markets[i].active) activeCount++;
+        }
+        if (activeCount == 0) {
+            return (new uint256[](0), new uint256[](0), new uint256[](0));
+        }
+
+        // batch query wallet balances for active markets
+        uint256 pairCount = activeCount * 2;
+        address[] memory accounts = new address[](pairCount);
+        uint256[] memory ids = new uint256[](pairCount);
+        uint256 k = 0;
+        for (uint256 i = 0; i < markets.length; i++) {
+            Market storage m = markets[i];
+            if (!m.active) continue;
+            accounts[k] = account;
+            ids[k] = m.tokenIdA;
+            k++;
+            accounts[k] = account;
+            ids[k] = m.tokenIdB;
+            k++;
+        }
+        uint256[] memory balances = ctf.balanceOfBatch(accounts, ids);
+
+        // first pass: count how many markets exceed threshold
+        k = 0;
+        uint256 matchCount = 0;
+        for (uint256 i = 0; i < markets.length; i++) {
+            Market storage m = markets[i];
+            if (!m.active) continue;
+            uint256 balA = balances[k];
+            uint256 balB = balances[k + 1];
+            uint256 sum = balA + balB;
+            if (sum > threshold) {
+                matchCount++;
+            }
+            k += 2;
+        }
+        if (matchCount == 0) {
+            return (new uint256[](0), new uint256[](0), new uint256[](0));
+        }
+
+        // second pass: fill results
+        marketIndices = new uint256[](matchCount);
+        walletABalances = new uint256[](matchCount);
+        walletBBalances = new uint256[](matchCount);
+        k = 0;
+        uint256 out = 0;
+        for (uint256 i = 0; i < markets.length; i++) {
+            Market storage m = markets[i];
+            if (!m.active) continue;
+            uint256 balA = balances[k];
+            uint256 balB = balances[k + 1];
+            uint256 sum = balA + balB;
+            if (sum > threshold) {
+                marketIndices[out] = i;
+                walletABalances[out] = balA;
+                walletBBalances[out] = balB;
+                out++;
+            }
+            k += 2;
+        }
+    }
+
+    // Return market indices and the user's staked balances for any market (active or inactive)
+    // where the user currently has a non-zero staked balance in the vault.
+    function viewUserStakedMarkets(
+        address account
+    ) external view returns (uint256[] memory marketIndices, uint256[] memory stakedABalances, uint256[] memory stakedBBalances) {
+        User storage u = users[account];
+        // first pass: count
+        uint256 count = 0;
+        for (uint256 i = 0; i < markets.length; i++) {
+            if (u.amountsA[i] > 0 || u.amountsB[i] > 0) count++;
+        }
+        if (count == 0) {
+            return (new uint256[](0), new uint256[](0), new uint256[](0));
+        }
+        // second pass: fill
+        marketIndices = new uint256[](count);
+        stakedABalances = new uint256[](count);
+        stakedBBalances = new uint256[](count);
+        uint256 out = 0;
+        for (uint256 i = 0; i < markets.length; i++) {
+            uint256 balA = u.amountsA[i];
+            uint256 balB = u.amountsB[i];
+            if (balA == 0 && balB == 0) continue;
+            marketIndices[out] = i;
+            stakedABalances[out] = balA;
+            stakedBBalances[out] = balB;
+            out++;
+        }
+    }
 }

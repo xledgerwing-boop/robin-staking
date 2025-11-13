@@ -2,7 +2,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { formatUnits as viemFormatUnits } from 'viem';
 import { twMerge } from 'tailwind-merge';
 import { VaultEventInfo } from '../types/conract-events';
-import { PromoVaultEventInfo } from 'src/types/promo-events';
+import { PromoVaultEventInfo } from '../types/promo-events';
 
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));

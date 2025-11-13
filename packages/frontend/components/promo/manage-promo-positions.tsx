@@ -10,7 +10,7 @@ import AmountSlider from '@robin-pm-staking/common/components/amount-slider';
 import OutcomeToken from '@robin-pm-staking/common/components/outcome-token';
 import { MOCK_MARKETS, calcValue, formatUsd } from './utils';
 
-export default function Manage() {
+export default function ManagePromoPositions() {
     const [tab, setTab] = useState<'deposit' | 'withdraw'>('deposit');
     const [detailsOpen, setDetailsOpen] = useState<boolean>(false);
     const [depositDraft, setDepositDraft] = useState<Record<string, number>>(() => {
