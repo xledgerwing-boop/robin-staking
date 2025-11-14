@@ -3,7 +3,7 @@ import { knexSnakeCaseMappers } from 'objection';
 import { ActivityRow } from '@robin-pm-staking/common/types/activity';
 import { PromoActivityRow } from '@robin-pm-staking/common/types/promo-activity';
 import { MarketRow } from '@robin-pm-staking/common/types/market';
-import { ensureSchema, USER_POSITIONS_TABLE, PROMO_ACTIVITIES_TABLE } from '@robin-pm-staking/common/lib/repos';
+import { ensureSchema, USER_POSITIONS_TABLE, PROMO_ACTIVITIES_TABLE, PROMO_INTERESTS_TABLE } from '@robin-pm-staking/common/lib/repos';
 import { UserPositionRow } from '@robin-pm-staking/common/types/position';
 
 export class DBService {
@@ -103,5 +103,22 @@ export class DBService {
 
     public async setupDatabase() {
         await ensureSchema(this.knex);
+    }
+
+    // Decrease user's registered interest (remainingUsd) when deposit occurs
+    public async updateUserPromoInterest(params: {
+        vaultAddress: string;
+        userAddress: string;
+        totalTokens: bigint;
+        totalUsd: bigint;
+        eligibleUsd: bigint;
+    }) {
+        const { vaultAddress, userAddress, totalTokens, totalUsd, eligibleUsd } = params;
+        await this.knex(PROMO_INTERESTS_TABLE).where({ vaultAddress: vaultAddress.toLowerCase(), userAddress: userAddress.toLowerCase() }).update({
+            totalTokens: totalTokens.toString(),
+            totalUsd: totalUsd.toString(),
+            eligibleUsd: eligibleUsd.toString(),
+            updatedAt: Date.now().toString(),
+        });
     }
 }

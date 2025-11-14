@@ -7,6 +7,7 @@ export const EVENTS_TABLE = 'events';
 export const MARKETS_TABLE = 'markets';
 export const ACTIVITIES_TABLE = 'activities';
 export const PROMO_ACTIVITIES_TABLE = 'promo_activities';
+export const PROMO_INTERESTS_TABLE = 'promo_interests';
 export const USER_POSITIONS_TABLE = 'user_positions';
 
 export async function ensureSchema(db: Knex): Promise<void> {
@@ -113,6 +114,22 @@ export async function ensureSchema(db: Knex): Promise<void> {
             table.string('position').nullable();
             table.jsonb('info');
             table.bigint('blockNumber').notNullable();
+        });
+    }
+
+    // Table for capturing user interest when TVL cap is reached
+    const hasPromoInterests = await db.schema.hasTable(PROMO_INTERESTS_TABLE);
+    if (!hasPromoInterests) {
+        await db.schema.createTable(PROMO_INTERESTS_TABLE, (table: Knex.CreateTableBuilder) => {
+            table.string('id').primary();
+            table.string('vaultAddress').notNullable().index();
+            table.string('userAddress').notNullable().index(); // proxy address
+            table.decimal('totalTokens', 78, 0).notNullable().defaultTo(0);
+            table.decimal('totalUsd', 78, 0).notNullable().defaultTo(0);
+            table.decimal('eligibleUsd', 78, 0).notNullable().defaultTo(0);
+            table.bigint('createdAt').notNullable();
+            table.bigint('updatedAt').notNullable();
+            table.unique(['vaultAddress', 'userAddress']);
         });
     }
 

@@ -27,6 +27,9 @@ export type PromoDepositEvent = {
     marketIndex: bigint;
     isA: boolean;
     amount: bigint;
+    totalTokens: bigint;
+    totalUsd: bigint;
+    eligibleUsd: bigint;
 };
 
 export type PromoWithdrawEvent = {

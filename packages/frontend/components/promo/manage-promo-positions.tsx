@@ -56,7 +56,7 @@ export default function ManagePromoPositions() {
     const { proxyAddress, isConnected, isConnecting } = useProxyAccount();
     const vaultAddress = USED_CONTRACTS.PROMOTION_VAULT as `0x${string}`;
     const invalidateQueries = useInvalidateQueries();
-    const { totalValueUsdQueryKey, apyBpsQueryKey } = usePromotionVaultInfo(vaultAddress);
+    let { totalValueUsd, tvlCapUsd, totalValueUsdQueryKey, apyBpsQueryKey } = usePromotionVaultInfo(vaultAddress);
     const { userCurrentValuesQueryKey, userStakeableValueQueryKey } = usePromotionVaultUserInfo(
         vaultAddress,
         (proxyAddress || null) as `0x${string}` | null
@@ -216,30 +216,7 @@ export default function ManagePromoPositions() {
         return { totalTokens };
     }, [withdrawDraftYes, withdrawDraftNo]);
 
-    const depositCapacity = useMemo(() => {
-        let total = 0n;
-        Object.values(markets).forEach(m => {
-            total += (m.walletA || 0n) + (m.walletB || 0n);
-        });
-        return total;
-    }, [markets]);
-    const withdrawCapacity = useMemo(() => {
-        let total = 0n;
-        Object.values(markets).forEach(m => {
-            total += (m.stakedA || 0n) + (m.stakedB || 0n);
-        });
-        return total;
-    }, [markets]);
-    const depositFillPercent = useMemo(() => {
-        if (depositCapacity === 0n) return 0;
-        const pct = Number((depositSummary.totalTokens * 100n) / depositCapacity);
-        return Math.max(0, Math.min(100, pct));
-    }, [depositSummary.totalTokens, depositCapacity]);
-    const withdrawFillPercent = useMemo(() => {
-        if (withdrawCapacity === 0n) return 0;
-        const pct = Number((withdrawSummary.totalTokens * 100n) / withdrawCapacity);
-        return Math.max(0, Math.min(100, pct));
-    }, [withdrawSummary.totalTokens, withdrawCapacity]);
+    const capReached = useMemo(() => (totalValueUsd ?? 0n) >= (tvlCapUsd ?? 0n) && (tvlCapUsd ?? 0n) > 0n, [totalValueUsd, tvlCapUsd]);
 
     const onStakeEverything = async () => {
         try {
@@ -427,7 +404,8 @@ export default function ManagePromoPositions() {
                     </TabsList>
 
                     <TabsContent value="deposit" className="space-y-4 pt-4">
-                        <Button className="relative w-full overflow-hidden h-12" onClick={onStakeEverything} disabled={stakeLoading}>
+                        {capReached && <div className="text-xs text-secondary -mt-2">Cap reached — deposits are temporarily disabled</div>}
+                        <Button className="relative w-full overflow-hidden h-12" onClick={onStakeEverything} disabled={stakeLoading || capReached}>
                             <span className="flex items-center justify-center">
                                 {stakeLoading ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <ArrowUpRight className="w-4 h-4 mr-2" />}
                                 {`Stake ${formatUnitsViem(depositSummary.totalTokens, UNDERYLING_DECIMALS)} tokens`}

@@ -20,10 +20,12 @@ import {
 } from '@robin-pm-staking/common/types/conract-events';
 import { PromoEventService } from './PromoEventService';
 import { PromoVaultEvent, PromoVaultEventInfo } from '@robin-pm-staking/common/types/promo-events';
+import { USED_CONTRACTS } from '@robin-pm-staking/common/constants';
 
 export class StreamsIndexer {
     private provider: ethers.JsonRpcProvider;
     private manager: ethers.Contract;
+    private promoVault: ethers.Contract;
     private vaultInterface: ethers.Interface;
     private promoVaultInterface: ethers.Interface;
     private eventService: EventService;
@@ -36,6 +38,7 @@ export class StreamsIndexer {
         this.eventService = new EventService(postgresUri);
         this.promoEventService = new PromoEventService(postgresUri);
         this.manager = new ethers.Contract(managerAddress, robinVaultManagerAbi, this.provider);
+        this.promoVault = new ethers.Contract(USED_CONTRACTS.PROMOTION_VAULT, promotionVaultAbi, this.provider);
         this.vaultInterface = new ethers.Interface(polymarketAaveStakingVaultAbi);
         this.promoVaultInterface = new ethers.Interface(promotionVaultAbi);
     }
@@ -230,11 +233,16 @@ export class StreamsIndexer {
                 };
                 break;
             case PromoVaultEvent.Deposit:
+                const user = args[0].toLowerCase();
+                const [totalTokens, totalUsd, eligibleUsd] = await this.promoVault.viewUserStakeableValue(user);
                 info = {
-                    user: args[0].toLowerCase(),
+                    user,
                     marketIndex: args[1],
                     isA: args[2],
                     amount: args[3],
+                    totalTokens,
+                    totalUsd,
+                    eligibleUsd,
                 };
                 break;
             case PromoVaultEvent.Withdraw:

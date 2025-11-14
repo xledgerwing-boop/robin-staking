@@ -37,7 +37,20 @@ export class PromoEventService {
         };
 
         if (activity.type === PromoVaultEvent.Deposit) {
-            activity.userAddress = (logData as PromoDepositEvent).user.toLowerCase();
+            const d = logData as PromoDepositEvent;
+            activity.userAddress = d.user.toLowerCase();
+            // Optionally adjust promo interest (remainingUsd) for this user if present
+            try {
+                await this.dbService.updateUserPromoInterest({
+                    vaultAddress: vaultAddress,
+                    userAddress: d.user.toLowerCase(),
+                    totalTokens: d.totalTokens,
+                    totalUsd: d.totalUsd,
+                    eligibleUsd: d.eligibleUsd,
+                });
+            } catch (e) {
+                logger.warn('Failed to update user promo interest on deposit', e);
+            }
         } else if (activity.type === PromoVaultEvent.Withdraw) {
             activity.userAddress = (logData as PromoWithdrawEvent).user.toLowerCase();
         } else if (activity.type === PromoVaultEvent.Claim) {
