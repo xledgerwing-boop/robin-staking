@@ -1,11 +1,19 @@
 import { ethers } from 'ethers';
 import { DBService } from './DbService';
 import { PromoActivityRow, PromoActivityType } from '@robin-pm-staking/common/types/promo-activity';
-import { ClaimEvent, PromoDepositEvent, PromoVaultEventInfo, PromoWithdrawEvent } from '@robin-pm-staking/common/types/promo-events';
+import {
+    ClaimEvent,
+    PromoDepositEvent,
+    PromoVaultEventInfo,
+    PromoWithdrawEvent,
+    PromoVaultEvent,
+    MarketAddedEvent,
+    MarketEndedEvent,
+} from '@robin-pm-staking/common/types/promo-events';
 import { LogInfo } from './EventService';
 import { logger } from '../utils/logger';
-import { PromoVaultEvent } from '@robin-pm-staking/common/types/promo-events';
 import { eventInfoToDb } from '@robin-pm-staking/common/lib/utils';
+import { getAndSaveEventAndMarkets } from '@robin-pm-staking/common/lib/repos';
 
 export class PromoEventService {
     private dbService: DBService;
@@ -34,6 +42,25 @@ export class PromoEventService {
             activity.userAddress = (logData as PromoWithdrawEvent).user.toLowerCase();
         } else if (activity.type === PromoVaultEvent.Claim) {
             activity.userAddress = (logData as ClaimEvent).user.toLowerCase();
+        } else if (activity.type === PromoVaultEvent.MarketAdded) {
+            const d = logData as MarketAddedEvent;
+            // Ensure market exists by conditionId (may not be in DB yet)
+            const conditionId = d.conditionId.toLowerCase();
+            const existingMarket = await this.dbService.getMarket(conditionId);
+            if (!existingMarket) {
+                await getAndSaveEventAndMarkets(this.dbService.knex, undefined, conditionId);
+            }
+            await this.dbService.updateMarket(conditionId, {
+                promotionIndex: Number(d.index),
+                eligible: d.extraEligible,
+                promoStartedAt: Number.parseInt(logInfo.timestamp).toString(),
+            });
+        } else if (activity.type === PromoVaultEvent.MarketEnded) {
+            const d = logData as MarketEndedEvent;
+            await this.dbService.updateMarketPromotionOnEnded({
+                index: Number(d.index),
+                endedAt: BigInt(logInfo.timestamp),
+            });
         }
 
         const existing = await this.dbService.getPromoActivity(activity.id);

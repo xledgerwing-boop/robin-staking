@@ -3,7 +3,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useConfig, useWaitForTransactionReceipt } from 'wagmi';
 import { CreateUseWriteContractReturnType } from 'wagmi/codegen';
-import { Abi, ContractFunctionName, WaitForTransactionReceiptErrorType, encodeFunctionData, zeroAddress, padHex, concatHex } from 'viem';
+import {
+    Abi,
+    ContractFunctionName,
+    WaitForTransactionReceiptErrorType,
+    encodeFunctionData,
+    zeroAddress,
+    padHex,
+    concatHex,
+    custom,
+    http,
+} from 'viem';
 import { WriteContractData } from 'wagmi/query';
 import { useProxyAccount } from './use-proxy-account';
 import { useWriteGnosisSafeL2ExecTransaction } from '../types/contracts';
@@ -34,10 +44,7 @@ export default function useProxyContractInteraction<
 ): {
     error: WaitForTransactionReceiptErrorType | null;
     write: (args: WriteArgs<TAbi, TFunctionName, TContext> & { hookIndex: number }) => Promise<WriteContractData>;
-    batch: (
-        items: (BatchItem<TAbi, TFunctionName, TContext> & { hookIndex: number })[],
-        atomic?: boolean
-    ) => Promise<TransactionResult | WriteContractData[]>;
+    batch: (items: (BatchItem<TAbi, TFunctionName, TContext> & { hookIndex: number })[]) => Promise<TransactionResult | WriteContractData>;
     isLoading: boolean;
     promise: React.RefObject<Promise<boolean> | null>;
 } {
@@ -67,8 +74,16 @@ export default function useProxyContractInteraction<
 
     useEffect(() => {
         const init = async () => {
-            if (connector && proxyAddress) {
-                Safe.init({ provider: (await connector.getProvider()) as Eip1193Provider, safeAddress: proxyAddress }).then(safe => {
+            if (connector && proxyAddress && typeof connector.getProvider === 'function') {
+                const localTransport = process.env.NEXT_PUBLIC_LOCAL_TRANSPORT_ENABLED === 'true';
+                let provider: Eip1193Provider | undefined = undefined;
+                if (localTransport) {
+                    provider = http('http://127.0.0.1:8545')({});
+                    //provider = custom((window as any).ethereum)({});
+                } else {
+                    provider = (await connector.getProvider()) as Eip1193Provider;
+                }
+                Safe.init({ provider, safeAddress: proxyAddress }).then(safe => {
                     protocolKit.current = safe;
                 });
             }
@@ -111,9 +126,8 @@ export default function useProxyContractInteraction<
     };
 
     const batch = async (
-        items: (BatchItem<TAbi, TFunctionName, TContext> & { hookIndex: number })[],
-        atomic: boolean = true
-    ): Promise<TransactionResult | WriteContractData[]> => {
+        items: (BatchItem<TAbi, TFunctionName, TContext> & { hookIndex: number })[]
+    ): Promise<TransactionResult | WriteContractData> => {
         if (!proxyAddress) throw new Error('Missing proxyAddress (Safe).');
         if (!owner) throw new Error('Missing connected owner address.');
         if (!protocolKit.current) throw new Error('Missing protocolKit.');
@@ -131,28 +145,30 @@ export default function useProxyContractInteraction<
             const data = encodeFunctionData({ abi, functionName: fn as any, args: (fnArgs || []) as any });
             return { to, value: msgValue.toString(), data };
         });
-        if (atomic) {
-            try {
-                setBatchRunning(true);
-                const safeTx = await protocolKit.current.createTransaction({ transactions: txs });
-                const executeTxResponse = await protocolKit.current.executeTransaction(safeTx);
-                await waitForTransactionReceipt(config, { hash: executeTxResponse.hash as `0x${string}` });
-                return executeTxResponse;
-            } finally {
-                setBatchRunning(false);
-            }
+        try {
+            setBatchRunning(true);
+            const safeTx = await protocolKit.current.createTransaction({ transactions: txs });
+            // return await safeWriteContract({
+            //     address: proxyAddress as `0x${string}`,
+            //     args: [
+            //         safeTx.data.to as `0x${string}`,
+            //         BigInt(safeTx.data.value),
+            //         safeTx.data.data as `0x${string}`,
+            //         OPERATION_CALL,
+            //         0n,
+            //         0n,
+            //         0n,
+            //         zeroAddress,
+            //         zeroAddress,
+            //         safeTx.encodedSignatures() as `0x${string}`,
+            //     ],
+            // });
+            const executeTxResponse = await protocolKit.current.executeTransaction(safeTx);
+            await waitForTransactionReceipt(config, { hash: executeTxResponse.hash as `0x${string}` });
+            return executeTxResponse;
+        } finally {
+            setBatchRunning(false);
         }
-
-        const signatures = buildPrevalidatedSig(owner as `0x${string}`);
-        const results: WriteContractData[] = [];
-        for (const { to, value, data } of txs) {
-            const res = await safeWriteContract({
-                address: proxyAddress as `0x${string}`,
-                args: [to, BigInt(value), data, OPERATION_CALL, 0n, 0n, 0n, zeroAddress, zeroAddress, signatures],
-            });
-            results.push(res);
-        }
-        return results;
     };
 
     return { error, write, batch, isLoading, promise: promiseRef };

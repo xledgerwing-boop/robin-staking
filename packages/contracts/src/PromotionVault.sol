@@ -83,7 +83,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
     event Deposit(address indexed user, uint256 indexed marketIndex, bool isA, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed marketIndex, bool isA, uint256 amount);
     event Claim(address indexed user, uint256 basePaid, uint256 extraPaid);
-    event MarketAdded(uint256 index, uint256 tokenIdA, uint256 tokenIdB, bool extraEligible);
+    event MarketAdded(uint256 index, bytes32 conditionId, uint256 tokenIdA, uint256 tokenIdB, bool extraEligible);
     event MarketEnded(uint256 index);
     event CampaignFinalized(uint256 timestamp, uint256 totalValueTime, uint256 totalExtraValueTime, uint256 baseDistributed, uint256 extraPool);
     event TvlCapUpdated(uint256 oldCapUsd, uint256 newCapUsd);
@@ -143,7 +143,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
                 rewardPerAmountB: 0
             })
         );
-        emit MarketAdded(markets.length - 1, tokenIdA, tokenIdB, extraEligible);
+        emit MarketAdded(markets.length - 1, conditionId, tokenIdA, tokenIdB, extraEligible);
     }
 
     function setTvlCap(uint256 _capUsd) external onlyOwner {
@@ -776,10 +776,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
         for (uint256 i = 0; i < markets.length; i++) {
             Market storage m = markets[i];
             if (!m.active) continue;
-            uint256 balA = balances[k];
-            uint256 balB = balances[k + 1];
-            uint256 sum = balA + balB;
-            if (sum > threshold) {
+            if (balances[k] > threshold || balances[k + 1] > threshold) {
                 matchCount++;
             }
             k += 2;
@@ -799,8 +796,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
             if (!m.active) continue;
             uint256 balA = balances[k];
             uint256 balB = balances[k + 1];
-            uint256 sum = balA + balB;
-            if (sum > threshold) {
+            if (balA > threshold || balB > threshold) {
                 marketIndices[out] = i;
                 walletABalances[out] = balA;
                 walletBBalances[out] = balB;

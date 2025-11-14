@@ -48,9 +48,42 @@ export async function ensureSchema(db: Knex): Promise<void> {
             table.string('creator').nullable();
             table.bigint('vaultCreatedBlockNumber').nullable();
             table.bigint('vaultCreatedAt').nullable();
+            // Promotion columns
+            table.integer('promotionIndex').nullable();
+            table.boolean('eligible').nullable();
+            table.bigint('promoStartedAt').nullable();
+            table.bigint('promoEndedAt').nullable();
             table.bigint('createdAt');
             table.bigint('updatedAt');
         });
+    }
+
+    // Ensure promotion columns exist on existing table
+    if (hasMarkets) {
+        const hasPromotionIndex = await db.schema.hasColumn(MARKETS_TABLE, 'promotionIndex');
+        if (!hasPromotionIndex) {
+            await db.schema.alterTable(MARKETS_TABLE, table => {
+                table.integer('promotionIndex').nullable().index();
+            });
+        }
+        const hasEligible = await db.schema.hasColumn(MARKETS_TABLE, 'eligible');
+        if (!hasEligible) {
+            await db.schema.alterTable(MARKETS_TABLE, table => {
+                table.boolean('eligible').nullable();
+            });
+        }
+        const hasPromoStartedAt = await db.schema.hasColumn(MARKETS_TABLE, 'promoStartedAt');
+        if (!hasPromoStartedAt) {
+            await db.schema.alterTable(MARKETS_TABLE, table => {
+                table.bigint('promoStartedAt').nullable();
+            });
+        }
+        const hasPromoEndedAt = await db.schema.hasColumn(MARKETS_TABLE, 'promoEndedAt');
+        if (!hasPromoEndedAt) {
+            await db.schema.alterTable(MARKETS_TABLE, table => {
+                table.bigint('promoEndedAt').nullable();
+            });
+        }
     }
 
     const hasActivities = await db.schema.hasTable(ACTIVITIES_TABLE);

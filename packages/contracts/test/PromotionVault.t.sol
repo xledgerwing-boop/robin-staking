@@ -77,11 +77,11 @@ contract PromotionVaultTest is Test, PromotionConstants, ForkFixture {
         // add two markets while paused
         // market 0: eligible = true
         vm.expectEmit(true, true, true, true, address(vault));
-        emit PromotionVault.MarketAdded(0, M0.yesPositionId, M0.noPositionId, M0.extraEligible);
+        emit PromotionVault.MarketAdded(0, M0.conditionId, M0.yesPositionId, M0.noPositionId, M0.extraEligible);
         vault.addMarket(M0.conditionId, 600_000, M0.extraEligible, M0.collateral); // A = $0.60, B = $0.40
         // market 1: eligible = false
         vm.expectEmit(true, true, true, true, address(vault));
-        emit PromotionVault.MarketAdded(1, M1.yesPositionId, M1.noPositionId, M1.extraEligible);
+        emit PromotionVault.MarketAdded(1, M1.conditionId, M1.yesPositionId, M1.noPositionId, M1.extraEligible);
         vault.addMarket(M1.conditionId, 300_000, M1.extraEligible, M1.collateral); // A = $0.30, B = $0.70
 
         // record prices vector
@@ -383,7 +383,7 @@ contract PromotionVaultTest is Test, PromotionConstants, ForkFixture {
         vm.expectEmit(true, true, true, true, address(vault));
         emit PromotionVault.MarketEnded(1);
         vm.expectEmit(true, true, true, true, address(vault));
-        emit PromotionVault.MarketAdded(2, NEW_M.yesPositionId, NEW_M.noPositionId, NEW_M.extraEligible);
+        emit PromotionVault.MarketAdded(2, NEW_M.conditionId, NEW_M.yesPositionId, NEW_M.noPositionId, NEW_M.extraEligible);
         vault.endAndReplaceMarket(1, NEW_M.conditionId, 500_000, NEW_M.extraEligible, NEW_M.collateral);
         // deposit into ended market shoul d revert
         _mintOutcome(bob, M1, 100_000);

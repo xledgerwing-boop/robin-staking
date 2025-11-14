@@ -47,9 +47,9 @@ export function usePromotionVaultInfo(vaultAddress: `0x${string}`) {
 
     const {
         data: campaignEndTimestamp,
-        isLoading: endLoading,
-        error: endError,
-        queryKey: endQueryKey,
+        isLoading: campaignEndTimestampLoading,
+        error: campaignEndTimestampError,
+        queryKey: campaignEndTimestampQueryKey,
     } = useReadPromotionVaultCampaignEndTimestamp({
         address: vaultAddress,
         args: [],
@@ -73,8 +73,8 @@ export function usePromotionVaultInfo(vaultAddress: `0x${string}`) {
         apyBpsQueryKey,
 
         campaignEndTimestamp,
-        endLoading,
-        endError,
-        endQueryKey,
+        campaignEndTimestampLoading,
+        campaignEndTimestampError,
+        campaignEndTimestampQueryKey,
     };
 }

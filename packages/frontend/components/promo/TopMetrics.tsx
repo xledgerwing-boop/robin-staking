@@ -36,7 +36,7 @@ export default function TopMetrics() {
                             <p className="text-sm text-muted-foreground">Total TVL</p>
                             <div className="text-2xl font-bold text-right">
                                 <ValueState
-                                    value={`$${formatUnits(totalValueUsd ?? 0n, UNDERYLING_DECIMALS, 0)}`}
+                                    value={totalValueUsd == null ? undefined : `$${formatUnits(totalValueUsd, UNDERYLING_DECIMALS, 0)}`}
                                     loading={totalValueUsdLoading}
                                     error={!!totalValueUsdError}
                                 />
@@ -55,7 +55,7 @@ export default function TopMetrics() {
                             <p className="text-sm text-muted-foreground">Current APY</p>
                             <div className="text-2xl font-bold text-right">
                                 <ValueState
-                                    value={apyBps == null ? '—' : `${formatUnits(apyBps, 4 - 2, 1)}%`}
+                                    value={apyBps == null ? undefined : `${formatUnits(apyBps, 4 - 2, 1)}%`}
                                     loading={apyBpsLoading}
                                     error={!!apyBpsError}
                                 />
@@ -74,7 +74,7 @@ export default function TopMetrics() {
                             <p className="text-sm text-muted-foreground">My TVL</p>
                             <div className="text-2xl font-bold text-right">
                                 <ValueState
-                                    value={isConnected ? `$${formatUnits(userCurrentValues?.[0] ?? 0n, UNDERYLING_DECIMALS, 0)}` : '—'}
+                                    value={userCurrentValues == null ? undefined : `$${formatUnits(userCurrentValues[0], UNDERYLING_DECIMALS, 0)}`}
                                     loading={userCurrentValuesLoading}
                                     error={!!userCurrentValuesError}
                                 />
@@ -93,7 +93,11 @@ export default function TopMetrics() {
                             <p className="text-sm text-muted-foreground">My Earnings</p>
                             <div className="text-2xl font-bold text-right">
                                 <ValueState
-                                    value={isConnected ? `$${formatUnits(userEstimatedEarnings?.[0] ?? 0n, UNDERYLING_DECIMALS, 0)}` : '—'}
+                                    value={
+                                        userEstimatedEarnings == null
+                                            ? undefined
+                                            : `$${formatUnits(userEstimatedEarnings[0], UNDERYLING_DECIMALS, 0)}`
+                                    }
                                     loading={userEstimatedEarningsLoading}
                                     error={!!userEstimatedEarningsError}
                                 />

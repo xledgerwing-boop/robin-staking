@@ -38,6 +38,15 @@ export class DBService {
         await this.knex('markets').where('conditionId', conditionId).update(updateData);
     }
 
+    public async updateMarketPromotionOnEnded(params: { index: number; endedAt: bigint }) {
+        const { index, endedAt } = params;
+        const now = Date.now().toString();
+        await this.knex('markets').where('promotionIndex', index).update({
+            promoEndedAt: endedAt.toString(),
+            updatedAt: now,
+        });
+    }
+
     public async insertActivity(activity: ActivityRow) {
         await this.knex('activities').insert(activity).onConflict('id').ignore();
     }

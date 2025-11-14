@@ -25,6 +25,11 @@ export interface MarketRow {
     creator?: string;
     vaultCreatedBlockNumber?: string;
     vaultCreatedAt?: string;
+    // Promotion fields (nullable)
+    promotionIndex?: number;
+    eligible?: boolean;
+    promoStartedAt?: string; // bigint as string
+    promoEndedAt?: string; // bigint as string
 }
 
 export interface Market {
@@ -52,6 +57,11 @@ export interface Market {
     creator?: string;
     vaultCreatedBlockNumber?: number;
     vaultCreatedAt?: number;
+    // Promotion fields (nullable)
+    promotionIndex?: number;
+    eligible?: boolean;
+    promoStartedAt?: number;
+    promoEndedAt?: number;
 }
 
 export function MarketRowToMarket(row: MarketRow): Market {
@@ -69,6 +79,8 @@ export function MarketRowToMarket(row: MarketRow): Market {
         matchedTokens: BigInt(row.matchedTokens),
         vaultCreatedBlockNumber: row.vaultCreatedBlockNumber ? Number.parseInt(row.vaultCreatedBlockNumber) : undefined,
         vaultCreatedAt: row.vaultCreatedAt ? Number.parseInt(row.vaultCreatedAt) : undefined,
+        promoStartedAt: row.promoStartedAt ? Number.parseInt(row.promoStartedAt) : undefined,
+        promoEndedAt: row.promoEndedAt ? Number.parseInt(row.promoEndedAt) : undefined,
     };
 }
 

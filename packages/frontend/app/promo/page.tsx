@@ -1,3 +1,5 @@
+'use client';
+
 import TopMetrics from '@/components/promo/TopMetrics';
 import PotentialEarnings from '@/components/promo/PotentialEarnings';
 import VaultCapacity from '@/components/promo/VaultCapacity';

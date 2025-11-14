@@ -44,6 +44,7 @@ export type ClaimEvent = {
 
 export type MarketAddedEvent = {
     index: bigint;
+    conditionId: `0x${string}`;
     tokenIdA: bigint;
     tokenIdB: bigint;
     extraEligible: boolean;
