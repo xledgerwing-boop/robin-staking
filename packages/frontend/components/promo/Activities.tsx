@@ -121,60 +121,53 @@ export default function Activities() {
     }, [showUserActivityOnly]);
 
     return (
-        <Card>
-            <CardHeader>
-                <div className="flex items-center justify-between">
-                    <CardTitle className="text-xl">Activity</CardTitle>
-                    <div className="flex items-center space-x-2">
-                        <Switch id="promo-user-activity" checked={showUserActivityOnly} onCheckedChange={setShowUserActivityOnly} />
-                        <Label htmlFor="promo-user-activity" className="text-sm">
-                            My activity only
-                        </Label>
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent>
-                <div className="relative">
-                    <div ref={feedRef} className="max-h-96 overflow-y-auto pr-2">
-                        <div className="space-y-3">
-                            {activities.map(a => (
-                                <div key={a.id} className="flex items-center justify-between p-3 rounded-lg border">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">{renderIcon(a.type)}</div>
-                                        <div className="text-sm">
-                                            <div className="font-medium">{formatTitle(a.type)}</div>
-                                            <div className="text-muted-foreground">
-                                                {formatDistanceToNow(new Date(a.timestamp * 1000), { addSuffix: true })}
-                                            </div>
+        <div>
+            <div className="flex items-center space-x-2">
+                <Switch id="promo-user-activity" checked={showUserActivityOnly} onCheckedChange={setShowUserActivityOnly} />
+                <Label htmlFor="promo-user-activity" className="text-sm">
+                    My activity only
+                </Label>
+            </div>
+            <div className="relative">
+                <div ref={feedRef} className="max-h-96 overflow-y-auto pr-2">
+                    <div className="space-y-3">
+                        {activities.map(a => (
+                            <div key={a.id} className="flex items-center justify-between p-3 rounded-lg border">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">{renderIcon(a.type)}</div>
+                                    <div className="text-sm">
+                                        <div className="font-medium">{formatTitle(a.type)}</div>
+                                        <div className="text-muted-foreground">
+                                            {formatDistanceToNow(new Date(a.timestamp * 1000), { addSuffix: true })}
                                         </div>
                                     </div>
-                                    <a
-                                        href={`${USED_CONTRACTS.EXPLORER_URL}/tx/${a.transactionHash}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-sm text-muted-foreground hover:underline"
-                                    >
-                                        View
-                                    </a>
                                 </div>
-                            ))}
-                            {fetchingMore && (
-                                <div className="w-full flex items-center justify-center py-3">
-                                    <Loader className="w-4 h-4 animate-spin" />
-                                </div>
-                            )}
-                            {!fetchingMore && activities.length === 0 && <p className="text-center text-muted-foreground py-4">No activity yet.</p>}
-                        </div>
+                                <a
+                                    href={`${USED_CONTRACTS.EXPLORER_URL}/tx/${a.transactionHash}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-muted-foreground hover:underline"
+                                >
+                                    View
+                                </a>
+                            </div>
+                        ))}
+                        {fetchingMore && (
+                            <div className="w-full flex items-center justify-center py-3">
+                                <Loader className="w-4 h-4 animate-spin" />
+                            </div>
+                        )}
+                        {!fetchingMore && activities.length === 0 && <p className="text-center text-muted-foreground py-4">No activity yet.</p>}
                     </div>
-                    <div
-                        className="pointer-events-none absolute bottom-0 left-0 right-0 h-12"
-                        style={{
-                            background:
-                                'linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(var(--background), 0.6) 40%, rgba(var(--background), 1) 100%)',
-                        }}
-                    />
                 </div>
-            </CardContent>
-        </Card>
+                <div
+                    className="pointer-events-none absolute bottom-0 left-0 right-0 h-12"
+                    style={{
+                        background:
+                            'linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(var(--background), 0.6) 40%, rgba(var(--background), 1) 100%)',
+                    }}
+                />
+            </div>
+        </div>
     );
 }

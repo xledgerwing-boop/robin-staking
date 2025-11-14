@@ -16,27 +16,22 @@ export default function VaultCapacity() {
     const capPctBps = useMemo(() => (tvlCapUsd ? ((totalValueUsd ?? 0n) * 10_000n * 100n) / (tvlCapUsd ?? 1n) : 0n), [totalValueUsd, tvlCapUsd]);
 
     return (
-        <Card className="mb-8">
-            <CardHeader>
-                <CardTitle className="text-xl">Vault Capacity</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-muted-foreground">TVL Cap</span>
-                    <span className="text-sm font-medium">
-                        ${formatUnitsLocale(totalValueUsd ?? 0n, UNDERYLING_DECIMALS, 0)} / $
-                        {formatUnitsLocale(tvlCapUsd ?? 0n, UNDERYLING_DECIMALS, 0)} ({formatUnits(capPctBps, 4, 0)}%)
-                    </span>
+        <div className="">
+            <Progress value={Number(capPctBps / 10_000n)} className="h-8" />
+            <div className="flex items-center justify-between mb-2 mt-1">
+                <span className="text-sm text-muted-foreground">TVL Cap</span>
+                <span className="text-sm font-medium">
+                    ${formatUnitsLocale(totalValueUsd ?? 0n, UNDERYLING_DECIMALS, 0)} / ${formatUnitsLocale(tvlCapUsd ?? 0n, UNDERYLING_DECIMALS, 0)}{' '}
+                    ({formatUnits(capPctBps, 4, 0)}%)
+                </span>
+            </div>
+            {capReached && (
+                <div className="mt-3">
+                    <Button className="w-full" variant="outline">
+                        Register Interest
+                    </Button>
                 </div>
-                <Progress value={Number(capPctBps / 10_000n)} />
-                {capReached && (
-                    <div className="mt-3">
-                        <Button className="w-full" variant="outline">
-                            Register Interest
-                        </Button>
-                    </div>
-                )}
-            </CardContent>
-        </Card>
+            )}
+        </div>
     );
 }

@@ -1,11 +1,9 @@
 'use client';
 
-import { Card, CardContent } from '@/components/ui/card';
 import { ValueState } from '@/components/value-state';
-import { TrendingUp, DollarSign, User } from 'lucide-react';
 import { UNDERYLING_DECIMALS, USED_CONTRACTS } from '@robin-pm-staking/common/src/constants';
 import { useProxyAccount } from '@robin-pm-staking/common/src/hooks/use-proxy-account';
-import { formatUnits } from '@robin-pm-staking/common/lib/utils';
+import { formatUnits, formatUnitsLocale } from '@robin-pm-staking/common/lib/utils';
 import { usePromotionVaultInfo } from '@/hooks/use-promotion-vault-info';
 import { usePromotionVaultUserInfo } from '@/hooks/use-promotion-vault-user-info';
 
@@ -26,86 +24,46 @@ export default function TopMetrics() {
 
     return (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <Card>
-                <CardContent className="p-3 sm:p-6 md:p-6">
-                    <div className="flex items-center w-full h-full justify-between space-x-2">
-                        <div className="text-center p-2 md:p-4 bg-muted/50 rounded-lg">
-                            <DollarSign className="w-6 h-6 text-primary" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-muted-foreground">Total TVL</p>
-                            <div className="text-2xl font-bold text-right">
-                                <ValueState
-                                    value={totalValueUsd == null ? undefined : `$${formatUnits(totalValueUsd, UNDERYLING_DECIMALS, 0)}`}
-                                    loading={totalValueUsdLoading}
-                                    error={!!totalValueUsdError}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardContent className="p-3 sm:p-6 md:p-6">
-                    <div className="flex items-center w-full h-full justify-between space-x-2">
-                        <div className="text-center p-2 md:p-4 bg-muted/50 rounded-lg">
-                            <TrendingUp className="w-6 h-6 text-primary" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-muted-foreground">Current APY</p>
-                            <div className="text-2xl font-bold text-right">
-                                <ValueState
-                                    value={apyBps == null ? undefined : `${formatUnits(apyBps, 4 - 2, 1)}%`}
-                                    loading={apyBpsLoading}
-                                    error={!!apyBpsError}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardContent className="p-3 sm:p-6 md:p-6">
-                    <div className="flex items-center w-full h-full justify-between space-x-2">
-                        <div className="text-center p-2 md:p-4 bg-muted/50 rounded-lg">
-                            <User className="w-6 h-6 text-primary" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-muted-foreground">My TVL</p>
-                            <div className="text-2xl font-bold text-right">
-                                <ValueState
-                                    value={userCurrentValues == null ? undefined : `$${formatUnits(userCurrentValues[0], UNDERYLING_DECIMALS, 0)}`}
-                                    loading={userCurrentValuesLoading}
-                                    error={!!userCurrentValuesError}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardContent className="p-3 sm:p-6 md:p-6">
-                    <div className="flex items-center w-full h-full justify-between space-x-2">
-                        <div className="text-center p-2 md:p-4 bg-muted/50 rounded-lg">
-                            <TrendingUp className="w-6 h-6 text-primary" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-muted-foreground">My Earnings</p>
-                            <div className="text-2xl font-bold text-right">
-                                <ValueState
-                                    value={
-                                        userEstimatedEarnings == null
-                                            ? undefined
-                                            : `$${formatUnits(userEstimatedEarnings[0], UNDERYLING_DECIMALS, 0)}`
-                                    }
-                                    loading={userEstimatedEarningsLoading}
-                                    error={!!userEstimatedEarningsError}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
+            <div>
+                <p className="text-sm text-muted-foreground text-center">Total TVL</p>
+                <div className="text-2xl font-bold text-center">
+                    <ValueState
+                        value={totalValueUsd == null ? undefined : `$${formatUnitsLocale(totalValueUsd, UNDERYLING_DECIMALS, 0)}`}
+                        loading={totalValueUsdLoading}
+                        error={!!totalValueUsdError}
+                    />
+                </div>
+            </div>
+            <div>
+                <p className="text-sm text-muted-foreground text-center">Current APY</p>
+                <div className="text-2xl font-bold text-center">
+                    <ValueState
+                        value={apyBps == null ? undefined : `${formatUnits(apyBps, 4 - 2, 1)}%`}
+                        loading={apyBpsLoading}
+                        error={!!apyBpsError}
+                    />
+                </div>
+            </div>
+            <div>
+                <p className="text-sm text-muted-foreground text-center">My TVL</p>
+                <div className="text-2xl font-bold text-center">
+                    <ValueState
+                        value={userCurrentValues == null ? undefined : `$${formatUnitsLocale(userCurrentValues[0], UNDERYLING_DECIMALS, 0)}`}
+                        loading={userCurrentValuesLoading}
+                        error={!!userCurrentValuesError}
+                    />
+                </div>
+            </div>
+            <div>
+                <p className="text-sm text-muted-foreground text-center">My Earnings</p>
+                <div className="text-2xl font-bold text-center">
+                    <ValueState
+                        value={userEstimatedEarnings == null ? undefined : `$${formatUnitsLocale(userEstimatedEarnings[0], UNDERYLING_DECIMALS, 0)}`}
+                        loading={userEstimatedEarningsLoading}
+                        error={!!userEstimatedEarningsError}
+                    />
+                </div>
+            </div>
         </div>
     );
 }

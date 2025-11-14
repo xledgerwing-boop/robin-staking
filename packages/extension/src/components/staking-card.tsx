@@ -304,7 +304,7 @@ function HoldingsSummaryRow({ market, vaultAddress, side }: { market: ParsedPoly
     } = useVaultUserInfo(vaultAddress as `0x${string}`, proxyAddress as `0x${string}`, market);
 
     const { tokenUserYes, tokenUserNo, vaultUserYes, vaultUserNo, currentYesApyBps, currentNoApyBps, userResultingApyBps, earningsPerDay } =
-        calculateUserInfo(Number(market.outcomePrices[0]), Number(market.outcomePrices[1]));
+        calculateUserInfo(Number(market.outcomePrices?.[0]), Number(market.outcomePrices?.[1]));
 
     const loading = vaultUserBalancesLoading || tokenUserBalancesLoading || vaultCurrentApyLoading || currentYieldLoading;
 
@@ -529,7 +529,7 @@ function StakeWithdrawTabs({
 
     const { tokenUserYes, tokenUserNo, vaultUserYes, vaultUserNo } = getUserBalances();
 
-    const expectedYield = calculateExpectedYield(stakeAmount, side, Number(market.outcomePrices[0]), Number(market.outcomePrices[1]));
+    const expectedYield = calculateExpectedYield(stakeAmount, side, Number(market.outcomePrices?.[0]), Number(market.outcomePrices?.[1]));
 
     const stakeAmountParsed = parseUnits(stakeAmount, UNDERYLING_DECIMALS);
     const withdrawAmountParsed = parseUnits(withdrawAmount, UNDERYLING_DECIMALS);

@@ -41,24 +41,21 @@ export default function PotentialEarnings() {
         totalUsd == null || effectiveApyBps == null ? undefined : (totalUsd * effectiveApyBps * timeLeftSec) / (10_000n * secondsPerYear);
 
     return (
-        <Card className="mb-8">
-            <CardHeader>
-                <CardTitle className="text-xl">Your potential earnings</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="pmx-gradient-border mb-4">
+            <div className="pmx-gradient-inner p-4">
+                <div className="flex items-center justify-between gap-6">
                     <div className="flex-1 text-center">
-                        <div className="text-sm text-muted-foreground mb-1">You can stake up to</div>
-                        <div className="text-3xl md:text-4xl font-extrabold">
+                        <div className="text-sm text-muted-foreground mb-1">Stake up to</div>
+                        <div className="text-lg md:text-xl font-extrabold">
                             <ValueState
-                                value={totalUsd == null ? undefined : `$${formatUnitsLocale(totalUsd, UNDERYLING_DECIMALS, 2)}`}
+                                value={totalUsd == null ? undefined : `$${formatUnitsLocale(totalUsd, UNDERYLING_DECIMALS, 0)}`}
                                 loading={userStakeableValueLoading}
                                 error={!!userStakeableValueError}
                             />
                         </div>
                         <div className="text-xs text-muted-foreground mt-1">
                             <ValueState
-                                value={totalTokens == null ? undefined : `${formatUnitsLocale(totalTokens, UNDERYLING_DECIMALS, 2)} tokens`}
+                                value={totalTokens == null ? undefined : `${formatUnitsLocale(totalTokens, UNDERYLING_DECIMALS, 0)} tokens`}
                                 loading={userStakeableValueLoading}
                                 error={!!userStakeableValueError}
                             />
@@ -67,9 +64,9 @@ export default function PotentialEarnings() {
                     <div className="text-3xl font-extrabold select-none">×</div>
                     <div className="flex-1 text-center">
                         <div className="text-sm text-muted-foreground mb-1">APY</div>
-                        <div className="text-3xl md:text-4xl font-extrabold">
+                        <div className="text-lg md:text-xl font-extrabold">
                             <ValueState
-                                value={effectiveApyBps == null ? undefined : `${formatUnits(effectiveApyBps * 100n, 4, 2)}%`}
+                                value={effectiveApyBps == null ? undefined : `${formatUnits(effectiveApyBps * 100n, 4, 0)}%`}
                                 loading={apyBpsLoading || userStakeableValueLoading}
                                 error={!!apyBpsError || !!userStakeableValueError}
                             />
@@ -79,9 +76,9 @@ export default function PotentialEarnings() {
                     <div className="text-3xl font-extrabold select-none">=</div>
                     <div className="flex-1 text-center">
                         <div className="text-sm text-muted-foreground mb-1">Potential yield</div>
-                        <div className="text-3xl md:text-4xl font-extrabold">
+                        <div className="text-lg md:text-xl font-extrabold">
                             <ValueState
-                                value={potentialYield == null ? undefined : `$${formatUnitsLocale(potentialYield, UNDERYLING_DECIMALS, 2)}`}
+                                value={potentialYield == null ? undefined : `$${formatUnitsLocale(potentialYield, UNDERYLING_DECIMALS, 0)}`}
                                 loading={apyBpsLoading || userStakeableValueLoading}
                                 error={!!apyBpsError || !!userStakeableValueError}
                             />
@@ -102,7 +99,7 @@ export default function PotentialEarnings() {
                 {!isConnected && !isConnecting && (
                     <div className="mt-4 text-center text-md text-secondary">Connect wallet to see potential earnings</div>
                 )}
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     );
 }

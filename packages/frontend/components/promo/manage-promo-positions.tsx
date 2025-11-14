@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { ChevronDown, ArrowUpRight, Loader } from 'lucide-react';
+import { ArrowUpRight, Loader } from 'lucide-react';
 import AmountSlider from '@robin-pm-staking/common/components/amount-slider';
 import { Outcome } from '@robin-pm-staking/common/types/market';
 import { USED_CONTRACTS, UNDERYLING_DECIMALS } from '@robin-pm-staking/common/constants';
@@ -21,9 +21,10 @@ import {
 } from '@robin-pm-staking/common/src/types/contracts-promo';
 import useInvalidateQueries from '@robin-pm-staking/common/hooks/use-invalidate-queries';
 import { toast } from 'sonner';
-import { getErrorMessage } from '@robin-pm-staking/common/lib/utils';
+import { formatUnits, getErrorMessage } from '@robin-pm-staking/common/lib/utils';
 import { usePromotionVaultInfo } from '@/hooks/use-promotion-vault-info';
 import { usePromotionVaultUserInfo } from '@/hooks/use-promotion-vault-user-info';
+import OutcomeToken from '@robin-pm-staking/common/components/outcome-token';
 
 type PromoMarket = {
     index: number;
@@ -40,12 +41,17 @@ type PromoMarket = {
 
 export default function ManagePromoPositions() {
     const [tab, setTab] = useState<'deposit' | 'withdraw'>('deposit');
-    const [detailsOpen, setDetailsOpen] = useState<boolean>(false);
+    // Details list is always shown now (with scroll & fade), so no toggle state needed
     const [markets, setMarkets] = useState<Record<number, PromoMarket>>({});
     const [depositDraftYes, setDepositDraftYes] = useState<Record<number, string>>({});
     const [depositDraftNo, setDepositDraftNo] = useState<Record<number, string>>({});
     const [withdrawDraftYes, setWithdrawDraftYes] = useState<Record<number, string>>({});
     const [withdrawDraftNo, setWithdrawDraftNo] = useState<Record<number, string>>({});
+    const depositListRef = useRef<HTMLDivElement | null>(null);
+    const withdrawListRef = useRef<HTMLDivElement | null>(null);
+    const [depositShowFade, setDepositShowFade] = useState<boolean>(false);
+    const [withdrawShowFade, setWithdrawShowFade] = useState<boolean>(false);
+    const [metadataLoading, setMetadataLoading] = useState<boolean>(false);
 
     const { proxyAddress, isConnected, isConnecting } = useProxyAccount();
     const vaultAddress = USED_CONTRACTS.PROMOTION_VAULT as `0x${string}`;
@@ -74,20 +80,23 @@ export default function ManagePromoPositions() {
     } = useProxyContractInteraction([useWritePromotionVaultBatchWithdraw]);
 
     // Read wallet balances above threshold 0 and staked markets
-    const { data: walletRes } = useReadPromotionVaultViewUserActiveWalletBalancesAboveThreshold({
+    const {
+        data: walletRes,
+        isLoading: walletLoading,
+        queryKey: walletQueryKey,
+    } = useReadPromotionVaultViewUserActiveWalletBalancesAboveThreshold({
         address: vaultAddress,
         args: [proxyAddress as `0x${string}`, 0n],
-        query: { enabled: tab === 'deposit' },
+        query: { enabled: isConnected && tab === 'deposit' },
     });
-    const { data: stakedRes, queryKey: stakedQueryKey } = useReadPromotionVaultViewUserStakedMarkets({
+    const {
+        data: stakedRes,
+        isLoading: stakedLoading,
+        queryKey: stakedQueryKey,
+    } = useReadPromotionVaultViewUserStakedMarkets({
         address: vaultAddress,
         args: [proxyAddress as `0x${string}`],
-        query: { enabled: tab === 'withdraw' },
-    });
-    const { queryKey: walletQueryKey } = useReadPromotionVaultViewUserActiveWalletBalancesAboveThreshold({
-        address: vaultAddress,
-        args: [proxyAddress as `0x${string}`, 0n],
-        query: { enabled: false },
+        query: { enabled: isConnected && tab === 'withdraw' },
     });
 
     // Build market map and fetch metadata by promo indices
@@ -105,9 +114,11 @@ export default function ManagePromoPositions() {
                 setDepositDraftNo({});
                 setWithdrawDraftYes({});
                 setWithdrawDraftNo({});
+                setMetadataLoading(false);
                 return;
             }
             const indices = Array.from(indicesSet.values());
+            setMetadataLoading(true);
             const resp = await fetch(`/api/promo/markets/by-index?indices=${indices.join(',')}`);
             const json = await resp.json();
             const list = (json.markets || []) as Array<{
@@ -170,6 +181,7 @@ export default function ManagePromoPositions() {
                 setWithdrawDraftYes(withYes);
                 setWithdrawDraftNo(withNo);
             }
+            setMetadataLoading(false);
         };
         load();
     }, [walletRes, stakedRes, tab]);
@@ -203,6 +215,31 @@ export default function ManagePromoPositions() {
         });
         return { totalTokens };
     }, [withdrawDraftYes, withdrawDraftNo]);
+
+    const depositCapacity = useMemo(() => {
+        let total = 0n;
+        Object.values(markets).forEach(m => {
+            total += (m.walletA || 0n) + (m.walletB || 0n);
+        });
+        return total;
+    }, [markets]);
+    const withdrawCapacity = useMemo(() => {
+        let total = 0n;
+        Object.values(markets).forEach(m => {
+            total += (m.stakedA || 0n) + (m.stakedB || 0n);
+        });
+        return total;
+    }, [markets]);
+    const depositFillPercent = useMemo(() => {
+        if (depositCapacity === 0n) return 0;
+        const pct = Number((depositSummary.totalTokens * 100n) / depositCapacity);
+        return Math.max(0, Math.min(100, pct));
+    }, [depositSummary.totalTokens, depositCapacity]);
+    const withdrawFillPercent = useMemo(() => {
+        if (withdrawCapacity === 0n) return 0;
+        const pct = Number((withdrawSummary.totalTokens * 100n) / withdrawCapacity);
+        return Math.max(0, Math.min(100, pct));
+    }, [withdrawSummary.totalTokens, withdrawCapacity]);
 
     const onStakeEverything = async () => {
         try {
@@ -288,6 +325,43 @@ export default function ManagePromoPositions() {
     const marketList = useMemo(() => Object.values(markets).sort((a, b) => a.index - b.index), [markets]);
     const inactiveWithdrawList = useMemo(() => marketList.filter(m => m.ended), [marketList]);
     const activeWithdrawList = useMemo(() => marketList.filter(m => !m.ended), [marketList]);
+    const depositListLoading = tab === 'deposit' && (walletLoading || metadataLoading);
+    const withdrawListLoading = tab === 'withdraw' && (stakedLoading || metadataLoading);
+
+    // Update fade visibility on scroll/resize; hide fade at end or when list can't scroll
+    useEffect(() => {
+        const update = (el: HTMLDivElement | null, setter: (v: boolean) => void) => {
+            if (!el) {
+                setter(false);
+                return;
+            }
+            const canScroll = el.scrollHeight > el.clientHeight + 1;
+            if (!canScroll) {
+                setter(false);
+                return;
+            }
+            const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+            setter(!atBottom);
+        };
+        const depEl = depositListRef.current;
+        const withEl = withdrawListRef.current;
+        const onDepositScroll = () => update(depEl, setDepositShowFade);
+        const onWithdrawScroll = () => update(withEl, setWithdrawShowFade);
+        depEl?.addEventListener('scroll', onDepositScroll);
+        withEl?.addEventListener('scroll', onWithdrawScroll);
+        update(depEl, setDepositShowFade);
+        update(withEl, setWithdrawShowFade);
+        const onResize = () => {
+            update(depEl, setDepositShowFade);
+            update(withEl, setWithdrawShowFade);
+        };
+        window.addEventListener('resize', onResize);
+        return () => {
+            depEl?.removeEventListener('scroll', onDepositScroll);
+            withEl?.removeEventListener('scroll', onWithdrawScroll);
+            window.removeEventListener('resize', onResize);
+        };
+    }, [marketList.length, inactiveWithdrawList.length, activeWithdrawList.length, tab]);
 
     const selectAllDepositable = () => {
         const depYes: Record<number, string> = {};
@@ -343,417 +417,265 @@ export default function ManagePromoPositions() {
     return (
         <Card className="mb-8">
             <CardHeader>
-                <CardTitle className="text-xl">Manage Across Markets</CardTitle>
+                <CardTitle className="text-xl text-muted-foreground">My Portfolio</CardTitle>
             </CardHeader>
             <CardContent>
-                <Tabs className="max-w-[900px] mx-auto" value={tab} onValueChange={v => setTab(v as 'deposit' | 'withdraw')}>
+                <Tabs value={tab} onValueChange={v => setTab(v as 'deposit' | 'withdraw')}>
                     <TabsList className="grid w-full grid-cols-2">
                         <TabsTrigger value="deposit">Deposit</TabsTrigger>
                         <TabsTrigger value="withdraw">Withdraw</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="deposit" className="space-y-4 pt-4">
-                        <div className="p-4 bg-muted/50 rounded-lg space-y-2">
-                            <div className="flex items-center justify-between">
-                                <div className="text-sm text-muted-foreground">Total deposit amount</div>
-                                <div className="text-sm font-medium">{formatUnitsViem(depositSummary.totalTokens, UNDERYLING_DECIMALS)} tokens</div>
-                            </div>
-                            <Button className="w-full" onClick={onStakeEverything} disabled={stakeLoading}>
+                        <Button className="relative w-full overflow-hidden h-12" onClick={onStakeEverything} disabled={stakeLoading}>
+                            <span className="flex items-center justify-center">
                                 {stakeLoading ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <ArrowUpRight className="w-4 h-4 mr-2" />}
-                                Stake Everything
-                            </Button>
-                        </div>
+                                {`Stake ${formatUnitsViem(depositSummary.totalTokens, UNDERYLING_DECIMALS)} tokens`}
+                            </span>
+                        </Button>
 
-                        <button
-                            type="button"
-                            className="w-full flex items-center justify-center gap-2 text-sm text-muted-foreground"
-                            onClick={() => setDetailsOpen(o => !o)}
-                        >
-                            <ChevronDown className={`w-4 h-4 transition-transform ${detailsOpen ? 'rotate-180' : ''}`} />
-                            {detailsOpen ? 'Hide details' : 'Show details'}
-                        </button>
-
-                        {detailsOpen && (
-                            <div className="space-y-4">
+                        <div className="space-y-4">
+                            {marketList.length != 0 && (
                                 <div className="flex items-center justify-end gap-2">
-                                    <Button variant="outline" size="sm" onClick={selectAllDepositable} disabled={stakeLoading}>
-                                        Select all
-                                    </Button>
                                     <Button variant="outline" size="sm" onClick={deselectAllDepositable} disabled={stakeLoading}>
                                         Deselect all
                                     </Button>
-                                </div>
-                                {marketList.map(m => {
-                                    const yesSymbol = m.outcomes?.[0] || 'YES';
-                                    const noSymbol = m.outcomes?.[1] || 'NO';
-                                    return (
-                                        <Card key={`dep-${m.index}`} className="border-muted">
-                                            <CardContent className="pt-4">
-                                                <div className="flex items-start gap-3">
-                                                    <div className="w-16 h-16 relative shrink-0 rounded-md overflow-hidden bg-muted">
-                                                        <Image src={m.image || '/placeholder.png'} alt="market" fill className="object-cover" />
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <div className="flex items-center justify-between gap-2">
-                                                            <div className="font-medium">{m.title}</div>
-                                                            <div className="text-xs text-muted-foreground">
-                                                                {m.eligible ? (
-                                                                    <span className="text-primary font-medium">Eligible +4% APY</span>
-                                                                ) : (
-                                                                    'Standard APY'
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
-                                                            <div className="md:col-span-2 space-y-3">
-                                                                <div>
-                                                                    <div className="flex items-center justify-between">
-                                                                        <div className="text-xs text-muted-foreground">
-                                                                            Wallet YES: {formatUnitsViem(m.walletA, UNDERYLING_DECIMALS)} tokens
-                                                                        </div>
-                                                                        <Button
-                                                                            variant="outline"
-                                                                            size="sm"
-                                                                            className="h-7 text-xs"
-                                                                            onClick={() =>
-                                                                                setDepositDraftYes(prev => ({
-                                                                                    ...prev,
-                                                                                    [m.index]: formatUnitsViem(m.walletA, UNDERYLING_DECIMALS),
-                                                                                }))
-                                                                            }
-                                                                        >
-                                                                            Max
-                                                                        </Button>
-                                                                    </div>
-                                                                    <div className="text-xs mb-1">
-                                                                        Selected: {depositDraftYes[m.index] || '0'} {yesSymbol}
-                                                                    </div>
-                                                                    <AmountSlider
-                                                                        className="py-1"
-                                                                        amount={depositDraftYes[m.index] || '0'}
-                                                                        max={m.walletA}
-                                                                        onAmountChange={v =>
-                                                                            setDepositDraftYes(prev => ({
-                                                                                ...prev,
-                                                                                [m.index]: v,
-                                                                            }))
-                                                                        }
-                                                                        showMax={false}
-                                                                        disabled={false}
-                                                                    />
-                                                                </div>
-                                                                <div>
-                                                                    <div className="flex items-center justify-between">
-                                                                        <div className="text-xs text-muted-foreground">
-                                                                            Wallet NO: {formatUnitsViem(m.walletB, UNDERYLING_DECIMALS)} tokens
-                                                                        </div>
-                                                                        <Button
-                                                                            variant="outline"
-                                                                            size="sm"
-                                                                            className="h-7 text-xs"
-                                                                            onClick={() =>
-                                                                                setDepositDraftNo(prev => ({
-                                                                                    ...prev,
-                                                                                    [m.index]: formatUnitsViem(m.walletB, UNDERYLING_DECIMALS),
-                                                                                }))
-                                                                            }
-                                                                        >
-                                                                            Max
-                                                                        </Button>
-                                                                    </div>
-                                                                    <div className="text-xs mb-1">
-                                                                        Selected: {depositDraftNo[m.index] || '0'} {noSymbol}
-                                                                    </div>
-                                                                    <AmountSlider
-                                                                        className="py-1"
-                                                                        amount={depositDraftNo[m.index] || '0'}
-                                                                        max={m.walletB}
-                                                                        onAmountChange={v =>
-                                                                            setDepositDraftNo(prev => ({
-                                                                                ...prev,
-                                                                                [m.index]: v,
-                                                                            }))
-                                                                        }
-                                                                        showMax={false}
-                                                                        disabled={false}
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </TabsContent>
-
-                    <TabsContent value="withdraw" className="space-y-4 pt-4">
-                        <div className="p-4 bg-muted/50 rounded-lg space-y-2">
-                            <div className="flex items-center justify-between">
-                                <div className="text-sm text-muted-foreground">Total withdraw amount</div>
-                                <div className="text-sm font-medium">{formatUnitsViem(withdrawSummary.totalTokens, UNDERYLING_DECIMALS)} tokens</div>
-                            </div>
-                            <Button className="w-full" variant="secondary" onClick={onWithdrawEverything} disabled={withdrawLoading}>
-                                {withdrawLoading ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <ArrowUpRight className="w-4 h-4 mr-2" />}
-                                Withdraw Everything
-                            </Button>
-                        </div>
-
-                        <button
-                            type="button"
-                            className="w-full flex items-center justify-center gap-2 text-sm text-muted-foreground"
-                            onClick={() => setDetailsOpen(o => !o)}
-                        >
-                            <ChevronDown className={`w-4 h-4 transition-transform ${detailsOpen ? 'rotate-180' : ''}`} />
-                            {detailsOpen ? 'Hide details' : 'Show details'}
-                        </button>
-
-                        {detailsOpen && (
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-end gap-2">
-                                    <Button variant="outline" size="sm" onClick={selectAllWithdrawable} disabled={withdrawLoading}>
+                                    <Button variant="outline" size="sm" onClick={selectAllDepositable} disabled={stakeLoading}>
                                         Select all
                                     </Button>
-                                    <Button variant="outline" size="sm" onClick={deselectAllWithdrawable} disabled={withdrawLoading}>
-                                        Deselect all
-                                    </Button>
                                 </div>
-                                {inactiveWithdrawList.length > 0 && (
-                                    <div className="space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <div className="text-sm font-medium">Inactive markets</div>
-                                            <Button variant="outline" size="sm" onClick={selectAllInactiveWithdrawable} disabled={withdrawLoading}>
-                                                Select all inactive
-                                            </Button>
+                            )}
+                            <div className="relative">
+                                <div
+                                    ref={depositListRef}
+                                    className="no-scrollbar max-h-[550px] overflow-y-auto pr-1 space-y-4"
+                                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as any}
+                                >
+                                    {depositListLoading ? (
+                                        <div className="py-8 flex items-center justify-center text-muted-foreground">
+                                            <Loader className="w-5 h-5 animate-spin" />
                                         </div>
-                                        {inactiveWithdrawList.map(m => {
+                                    ) : marketList.length === 0 ? (
+                                        <div className="text-sm text-muted-foreground text-center py-8">No eligible positions</div>
+                                    ) : (
+                                        marketList.map(m => {
                                             const yesSymbol = m.outcomes?.[0] || 'YES';
                                             const noSymbol = m.outcomes?.[1] || 'NO';
                                             return (
-                                                <Card key={`with-inactive-${m.index}`} className="border-muted">
-                                                    <CardContent className="pt-4">
-                                                        <div className="flex items-start gap-3">
-                                                            <div className="w-16 h-16 relative shrink-0 rounded-md overflow-hidden bg-muted">
-                                                                <Image
-                                                                    src={m.image || '/placeholder.png'}
-                                                                    alt="market"
-                                                                    fill
-                                                                    className="object-cover"
-                                                                />
-                                                            </div>
-                                                            <div className="flex-1">
-                                                                <div className="flex items-center justify-between gap-2">
-                                                                    <div className="font-medium">{m.title}</div>
-                                                                    <div className="text-xs text-muted-foreground">
-                                                                        {m.eligible ? (
-                                                                            <span className="text-primary font-medium">Eligible +4% APY</span>
-                                                                        ) : (
-                                                                            'Standard APY'
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
-                                                                    <div className="md:col-span-2 space-y-3">
-                                                                        <div>
-                                                                            <div className="flex items-center justify-between">
-                                                                                <div className="text-xs text-muted-foreground">
-                                                                                    In Vault YES: {formatUnitsViem(m.stakedA, UNDERYLING_DECIMALS)}{' '}
-                                                                                    tokens
-                                                                                </div>
-                                                                                <Button
-                                                                                    variant="outline"
-                                                                                    size="sm"
-                                                                                    className="h-7 text-xs"
-                                                                                    onClick={() =>
-                                                                                        setWithdrawDraftYes(prev => ({
-                                                                                            ...prev,
-                                                                                            [m.index]: formatUnitsViem(
-                                                                                                m.stakedA,
-                                                                                                UNDERYLING_DECIMALS
-                                                                                            ),
-                                                                                        }))
-                                                                                    }
-                                                                                >
-                                                                                    Max
-                                                                                </Button>
-                                                                            </div>
-                                                                            <div className="text-xs mb-1">
-                                                                                Selected: {withdrawDraftYes[m.index] || '0'} {yesSymbol}
-                                                                            </div>
-                                                                            <AmountSlider
-                                                                                className="py-1"
-                                                                                amount={withdrawDraftYes[m.index] || '0'}
-                                                                                max={m.stakedA}
-                                                                                onAmountChange={v =>
-                                                                                    setWithdrawDraftYes(prev => ({
-                                                                                        ...prev,
-                                                                                        [m.index]: v,
-                                                                                    }))
-                                                                                }
-                                                                                showMax={false}
-                                                                                disabled={false}
-                                                                            />
-                                                                        </div>
-                                                                        <div>
-                                                                            <div className="flex items-center justify-between">
-                                                                                <div className="text-xs text-muted-foreground">
-                                                                                    In Vault NO: {formatUnitsViem(m.stakedB, UNDERYLING_DECIMALS)}{' '}
-                                                                                    tokens
-                                                                                </div>
-                                                                                <Button
-                                                                                    variant="outline"
-                                                                                    size="sm"
-                                                                                    className="h-7 text-xs"
-                                                                                    onClick={() =>
-                                                                                        setWithdrawDraftNo(prev => ({
-                                                                                            ...prev,
-                                                                                            [m.index]: formatUnitsViem(
-                                                                                                m.stakedB,
-                                                                                                UNDERYLING_DECIMALS
-                                                                                            ),
-                                                                                        }))
-                                                                                    }
-                                                                                >
-                                                                                    Max
-                                                                                </Button>
-                                                                            </div>
-                                                                            <div className="text-xs mb-1">
-                                                                                Selected: {withdrawDraftNo[m.index] || '0'} {noSymbol}
-                                                                            </div>
-                                                                            <AmountSlider
-                                                                                className="py-1"
-                                                                                amount={withdrawDraftNo[m.index] || '0'}
-                                                                                max={m.stakedB}
-                                                                                onAmountChange={v =>
-                                                                                    setWithdrawDraftNo(prev => ({
-                                                                                        ...prev,
-                                                                                        [m.index]: v,
-                                                                                    }))
-                                                                                }
-                                                                                showMax={false}
-                                                                                disabled={false}
-                                                                            />
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </CardContent>
-                                                </Card>
+                                                <MarketSlidersCard
+                                                    key={`dep-${m.index}`}
+                                                    market={m}
+                                                    yesMax={m.walletA}
+                                                    noMax={m.walletB}
+                                                    yesSymbol={yesSymbol}
+                                                    noSymbol={noSymbol}
+                                                    draftYes={depositDraftYes[m.index] || '0'}
+                                                    draftNo={depositDraftNo[m.index] || '0'}
+                                                    onChangeYes={v =>
+                                                        setDepositDraftYes(prev => ({
+                                                            ...prev,
+                                                            [m.index]: v,
+                                                        }))
+                                                    }
+                                                    onChangeNo={v =>
+                                                        setDepositDraftNo(prev => ({
+                                                            ...prev,
+                                                            [m.index]: v,
+                                                        }))
+                                                    }
+                                                />
                                             );
-                                        })}
-                                    </div>
+                                        })
+                                    )}
+                                </div>
+                                {depositShowFade && (
+                                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background via-background/95 to-transparent" />
                                 )}
-                                {activeWithdrawList.map(m => {
-                                    const yesSymbol = m.outcomes?.[0] || 'YES';
-                                    const noSymbol = m.outcomes?.[1] || 'NO';
-                                    return (
-                                        <Card key={`with-${m.index}`} className="border-muted">
-                                            <CardContent className="pt-4">
-                                                <div className="flex items-start gap-3">
-                                                    <div className="w-16 h-16 relative shrink-0 rounded-md overflow-hidden bg-muted">
-                                                        <Image src={m.image || '/placeholder.png'} alt="market" fill className="object-cover" />
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <div className="flex items-center justify-between gap-2">
-                                                            <div className="font-medium">{m.title}</div>
-                                                            <div className="text-xs text-muted-foreground">
-                                                                {m.eligible ? (
-                                                                    <span className="text-primary font-medium">Eligible +4% APY</span>
-                                                                ) : (
-                                                                    'Standard APY'
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
-                                                            <div className="md:col-span-2 space-y-3">
-                                                                <div>
-                                                                    <div className="flex items-center justify-between">
-                                                                        <div className="text-xs text-muted-foreground">
-                                                                            In Vault YES: {formatUnitsViem(m.stakedA, UNDERYLING_DECIMALS)} tokens
-                                                                        </div>
-                                                                        <Button
-                                                                            variant="outline"
-                                                                            size="sm"
-                                                                            className="h-7 text-xs"
-                                                                            onClick={() =>
-                                                                                setWithdrawDraftYes(prev => ({
-                                                                                    ...prev,
-                                                                                    [m.index]: formatUnitsViem(m.stakedA, UNDERYLING_DECIMALS),
-                                                                                }))
-                                                                            }
-                                                                        >
-                                                                            Max
-                                                                        </Button>
-                                                                    </div>
-                                                                    <div className="text-xs mb-1">
-                                                                        Selected: {withdrawDraftYes[m.index] || '0'} {yesSymbol}
-                                                                    </div>
-                                                                    <AmountSlider
-                                                                        className="py-1"
-                                                                        amount={withdrawDraftYes[m.index] || '0'}
-                                                                        max={m.stakedA}
-                                                                        onAmountChange={v =>
-                                                                            setWithdrawDraftYes(prev => ({
-                                                                                ...prev,
-                                                                                [m.index]: v,
-                                                                            }))
-                                                                        }
-                                                                        showMax={false}
-                                                                        disabled={false}
-                                                                    />
-                                                                </div>
-                                                                <div>
-                                                                    <div className="flex items-center justify-between">
-                                                                        <div className="text-xs text-muted-foreground">
-                                                                            In Vault NO: {formatUnitsViem(m.stakedB, UNDERYLING_DECIMALS)} tokens
-                                                                        </div>
-                                                                        <Button
-                                                                            variant="outline"
-                                                                            size="sm"
-                                                                            className="h-7 text-xs"
-                                                                            onClick={() =>
-                                                                                setWithdrawDraftNo(prev => ({
-                                                                                    ...prev,
-                                                                                    [m.index]: formatUnitsViem(m.stakedB, UNDERYLING_DECIMALS),
-                                                                                }))
-                                                                            }
-                                                                        >
-                                                                            Max
-                                                                        </Button>
-                                                                    </div>
-                                                                    <div className="text-xs mb-1">
-                                                                        Selected: {withdrawDraftNo[m.index] || '0'} {noSymbol}
-                                                                    </div>
-                                                                    <AmountSlider
-                                                                        className="py-1"
-                                                                        amount={withdrawDraftNo[m.index] || '0'}
-                                                                        max={m.stakedB}
-                                                                        onAmountChange={v =>
-                                                                            setWithdrawDraftNo(prev => ({
-                                                                                ...prev,
-                                                                                [m.index]: v,
-                                                                            }))
-                                                                        }
-                                                                        showMax={false}
-                                                                        disabled={false}
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    );
-                                })}
                             </div>
-                        )}
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="withdraw" className="space-y-4 pt-4">
+                        <Button
+                            className="relative w-full overflow-hidden h-12"
+                            variant="secondary"
+                            onClick={onWithdrawEverything}
+                            disabled={withdrawLoading}
+                        >
+                            <span className="flex items-center justify-center">
+                                {withdrawLoading ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <ArrowUpRight className="w-4 h-4 mr-2" />}
+                                {`Withdraw ${formatUnitsViem(withdrawSummary.totalTokens, UNDERYLING_DECIMALS)} tokens`}
+                            </span>
+                        </Button>
+
+                        <div className="space-y-4">
+                            {(inactiveWithdrawList.length > 0 || activeWithdrawList.length > 0) && (
+                                <div className="flex items-center justify-end gap-2">
+                                    <Button variant="outline" size="sm" onClick={deselectAllWithdrawable} disabled={withdrawLoading}>
+                                        Deselect all
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={selectAllWithdrawable} disabled={withdrawLoading}>
+                                        Select all
+                                    </Button>
+                                </div>
+                            )}
+                            <div className="relative">
+                                <div
+                                    ref={withdrawListRef}
+                                    className="no-scrollbar max-h-[550px] overflow-y-auto pr-1 space-y-4 pb-4"
+                                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as any}
+                                >
+                                    {withdrawListLoading ? (
+                                        <div className="py-8 flex items-center justify-center text-muted-foreground">
+                                            <Loader className="w-5 h-5 animate-spin" />
+                                        </div>
+                                    ) : inactiveWithdrawList.length === 0 && activeWithdrawList.length === 0 ? (
+                                        <div className="text-sm text-muted-foreground text-center">No eligible positions</div>
+                                    ) : (
+                                        <>
+                                            {inactiveWithdrawList.length > 0 && (
+                                                <div className="space-y-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="text-sm font-medium">Inactive markets</div>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={selectAllInactiveWithdrawable}
+                                                            disabled={withdrawLoading}
+                                                        >
+                                                            Select all inactive
+                                                        </Button>
+                                                    </div>
+                                                    {inactiveWithdrawList.map(m => {
+                                                        const yesSymbol = m.outcomes?.[0] || 'YES';
+                                                        const noSymbol = m.outcomes?.[1] || 'NO';
+                                                        return (
+                                                            <MarketSlidersCard
+                                                                key={`with-inactive-${m.index}`}
+                                                                market={m}
+                                                                yesMax={m.stakedA}
+                                                                noMax={m.stakedB}
+                                                                yesSymbol={yesSymbol}
+                                                                noSymbol={noSymbol}
+                                                                draftYes={withdrawDraftYes[m.index] || '0'}
+                                                                draftNo={withdrawDraftNo[m.index] || '0'}
+                                                                onChangeYes={v =>
+                                                                    setWithdrawDraftYes(prev => ({
+                                                                        ...prev,
+                                                                        [m.index]: v,
+                                                                    }))
+                                                                }
+                                                                onChangeNo={v =>
+                                                                    setWithdrawDraftNo(prev => ({
+                                                                        ...prev,
+                                                                        [m.index]: v,
+                                                                    }))
+                                                                }
+                                                            />
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                            {activeWithdrawList.map(m => {
+                                                const yesSymbol = m.outcomes?.[0] || 'YES';
+                                                const noSymbol = m.outcomes?.[1] || 'NO';
+                                                return (
+                                                    <MarketSlidersCard
+                                                        key={`with-${m.index}`}
+                                                        market={m}
+                                                        yesMax={m.stakedA}
+                                                        noMax={m.stakedB}
+                                                        yesSymbol={yesSymbol}
+                                                        noSymbol={noSymbol}
+                                                        draftYes={withdrawDraftYes[m.index] || '0'}
+                                                        draftNo={withdrawDraftNo[m.index] || '0'}
+                                                        onChangeYes={v =>
+                                                            setWithdrawDraftYes(prev => ({
+                                                                ...prev,
+                                                                [m.index]: v,
+                                                            }))
+                                                        }
+                                                        onChangeNo={v =>
+                                                            setWithdrawDraftNo(prev => ({
+                                                                ...prev,
+                                                                [m.index]: v,
+                                                            }))
+                                                        }
+                                                    />
+                                                );
+                                            })}
+                                        </>
+                                    )}
+                                </div>
+                                {withdrawShowFade && (
+                                    <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background via-background/95 to-transparent" />
+                                )}
+                            </div>
+                        </div>
                     </TabsContent>
                 </Tabs>
+                <style jsx global>{`
+                    .no-scrollbar {
+                        -ms-overflow-style: none;
+                        scrollbar-width: none;
+                    }
+                    .no-scrollbar::-webkit-scrollbar {
+                        display: none;
+                    }
+                `}</style>
+            </CardContent>
+        </Card>
+    );
+}
+
+type MarketCardProps = {
+    market: PromoMarket;
+    yesMax: bigint;
+    noMax: bigint;
+    yesSymbol: string;
+    noSymbol: string;
+    draftYes: string;
+    draftNo: string;
+    onChangeYes: (v: string) => void;
+    onChangeNo: (v: string) => void;
+    disabled?: boolean;
+};
+
+function MarketSlidersCard({ market, yesMax, noMax, yesSymbol, noSymbol, draftYes, draftNo, onChangeYes, onChangeNo, disabled }: MarketCardProps) {
+    return (
+        <Card className="relative overflow-hidden border-muted">
+            {market.eligible && (
+                <div className="pointer-events-none select-none absolute -right-10 top-3 rotate-45 bg-primary text-primary-foreground text-[10px] font-semibold uppercase tracking-wider px-12 py-1 shadow-md">
+                    +4% APY
+                </div>
+            )}
+            <CardContent className="pt-4">
+                <div className="flex items-start gap-3">
+                    <div className="w-16 h-16 relative shrink-0 rounded-md overflow-hidden bg-muted">
+                        <Image src={market.image || '/placeholder.png'} alt="market" fill className="object-cover" sizes="150px" />
+                    </div>
+                    <div className="flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                            <div className="font-medium">{market.title}</div>
+                        </div>
+                        <div className="flex w-full items-center gap-2 mb-1">
+                            <div className="text-xs min-w-7 shrink-0">{draftYes || '0'}</div>
+                            <OutcomeToken outcome={Outcome.Yes} symbolHolder={market} noText />
+                            <AmountSlider
+                                className="w-full"
+                                amount={draftYes || '0'}
+                                max={yesMax}
+                                onAmountChange={onChangeYes}
+                                disabled={!!disabled}
+                            />
+                        </div>
+                        <div className="flex w-full items-center gap-2">
+                            <div className="text-xs min-w-7 shrink-0">{draftNo || '0'}</div>
+                            <OutcomeToken outcome={Outcome.No} symbolHolder={market} noText />
+                            <AmountSlider className="w-full" amount={draftNo || '0'} max={noMax} onAmountChange={onChangeNo} disabled={!!disabled} />
+                        </div>
+                    </div>
+                </div>
             </CardContent>
         </Card>
     );

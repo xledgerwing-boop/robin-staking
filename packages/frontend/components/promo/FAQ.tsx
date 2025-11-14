@@ -25,18 +25,11 @@ const FAQS: Array<{ q: string; a: string }> = [
 
 export default function FAQ() {
     return (
-        <Card className="mt-8">
-            <CardHeader>
-                <CardTitle className="text-xl">FAQ</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div className="space-y-2">
-                    {FAQS.map((f, idx) => (
-                        <FaqItem key={idx} question={f.q} answer={f.a} />
-                    ))}
-                </div>
-            </CardContent>
-        </Card>
+        <div className="space-y-2">
+            {FAQS.map((f, idx) => (
+                <FaqItem key={idx} question={f.q} answer={f.a} />
+            ))}
+        </div>
     );
 }
 
