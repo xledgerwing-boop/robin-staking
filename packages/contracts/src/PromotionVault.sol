@@ -7,6 +7,7 @@ import { ReentrancyGuard } from '@openzeppelin/contracts/utils/ReentrancyGuard.s
 import { Ownable } from '@openzeppelin/contracts/access/Ownable.sol';
 import { Pausable } from '@openzeppelin/contracts/utils/Pausable.sol';
 import { ERC1155Holder } from '@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol';
+import { Math } from '@openzeppelin/contracts/utils/math/Math.sol';
 import { IConditionalTokens } from './interfaces/IConditionalTokens.sol';
 
 contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
@@ -207,9 +208,9 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
             if (pA > PRICE_SCALE) revert PriceOutOfRange();
             m.priceA = pA;
             if (m.active) {
-                uint256 vA = (m.totalAmountA * m.priceA) / PRICE_SCALE;
+                uint256 vA = Math.mulDiv(m.totalAmountA, m.priceA, PRICE_SCALE);
                 uint256 pBNow = PRICE_SCALE - pA;
-                uint256 vB = (m.totalAmountB * pBNow) / PRICE_SCALE;
+                uint256 vB = Math.mulDiv(m.totalAmountB, pBNow, PRICE_SCALE);
                 uint256 mVal = vA + vB;
                 newTotalValue += mVal;
                 if (m.extraEligible) newExtraTotal += mVal;
@@ -235,7 +236,8 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
 
         Market storage old = markets[endIndex];
         if (old.active) {
-            uint256 oldVal = (old.totalAmountA * old.priceA) / PRICE_SCALE + (old.totalAmountB * (PRICE_SCALE - old.priceA)) / PRICE_SCALE;
+            uint256 oldVal = Math.mulDiv(old.totalAmountA, old.priceA, PRICE_SCALE) +
+                Math.mulDiv(old.totalAmountB, PRICE_SCALE - old.priceA, PRICE_SCALE);
             if (totalValueUsd >= oldVal) totalValueUsd -= oldVal;
             else totalValueUsd = 0;
             if (old.extraEligible) {
@@ -321,7 +323,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
 
         if (isA) {
             // TVL cap: compute delta before transfer to fail early if exceeded
-            uint256 deltaUsd = (amount * m.priceA) / PRICE_SCALE;
+            uint256 deltaUsd = Math.mulDiv(amount, m.priceA, PRICE_SCALE);
             if (totalValueUsd + deltaUsd > tvlCapUsd) revert TvlCapExceeded();
             // transfer tokens in after cap check
             CTF.safeTransferFrom(msg.sender, address(this), m.tokenIdA, amount, '');
@@ -334,7 +336,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
             }
         } else {
             uint256 pBNow = PRICE_SCALE - m.priceA;
-            uint256 deltaUsd = (amount * pBNow) / PRICE_SCALE;
+            uint256 deltaUsd = Math.mulDiv(amount, pBNow, PRICE_SCALE);
             if (totalValueUsd + deltaUsd > tvlCapUsd) revert TvlCapExceeded();
             CTF.safeTransferFrom(msg.sender, address(this), m.tokenIdB, amount, '');
             m.totalAmountB += amount;
@@ -372,7 +374,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
             u.amountsA[marketIndex] = bal - amount;
             m.totalAmountA -= amount;
 
-            uint256 deltaUsd = (amount * m.priceA) / PRICE_SCALE;
+            uint256 deltaUsd = Math.mulDiv(amount, m.priceA, PRICE_SCALE);
             if (m.active) {
                 if (totalValueUsd >= deltaUsd) totalValueUsd -= deltaUsd;
                 else totalValueUsd = 0;
@@ -390,7 +392,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
             m.totalAmountB -= amount;
 
             uint256 pBNow = PRICE_SCALE - m.priceA;
-            uint256 deltaUsd = (amount * pBNow) / PRICE_SCALE;
+            uint256 deltaUsd = Math.mulDiv(amount, pBNow, PRICE_SCALE);
             if (m.active) {
                 if (totalValueUsd >= deltaUsd) totalValueUsd -= deltaUsd;
                 else totalValueUsd = 0;
@@ -488,7 +490,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
             if (rpa > lastPerA) {
                 if (balA > 0) {
                     uint256 diffA = rpa - lastPerA;
-                    uint256 addA = (balA * diffA) / PRICE_SCALE;
+                    uint256 addA = Math.mulDiv(balA, diffA, PRICE_SCALE);
                     deltaValueTime += addA;
                     if (m.extraEligible) deltaExtraValueTime += addA;
                 }
@@ -501,7 +503,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
             if (rpb > lastPerB) {
                 if (balB > 0) {
                     uint256 diffB = rpb - lastPerB;
-                    uint256 addB = (balB * diffB) / PRICE_SCALE;
+                    uint256 addB = Math.mulDiv(balB, diffB, PRICE_SCALE);
                     deltaValueTime += addB;
                     if (m.extraEligible) deltaExtraValueTime += addB;
                 }
@@ -548,13 +550,13 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
         uint256 baseScaled = 0;
         uint256 extraShare = 0;
         if (u.valueTime > 0 && finalizedBasePool > 0 && totalValueTime > 0) {
-            baseScaled = (u.valueTime * finalizedBasePool) / totalValueTime;
+            baseScaled = Math.mulDiv(u.valueTime, finalizedBasePool, totalValueTime);
         } else {
             baseScaled = 0;
         }
 
         if (u.extraValueTime > 0 && finalizedExtraPool > 0 && totalExtraValueTime > 0) {
-            extraShare = (u.extraValueTime * finalizedExtraPool) / totalExtraValueTime;
+            extraShare = Math.mulDiv(u.extraValueTime, finalizedExtraPool, totalExtraValueTime);
         } else {
             extraShare = 0;
         }
@@ -640,9 +642,9 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
         for (uint256 i = 0; i < markets.length; i++) {
             Market storage m = markets[i];
             if (!m.active) continue;
-            uint256 vA = (u.amountsA[i] * m.priceA) / PRICE_SCALE;
+            uint256 vA = Math.mulDiv(u.amountsA[i], m.priceA, PRICE_SCALE);
             uint256 pBNow = PRICE_SCALE - m.priceA;
-            uint256 vB = (u.amountsB[i] * pBNow) / PRICE_SCALE;
+            uint256 vB = Math.mulDiv(u.amountsB[i], pBNow, PRICE_SCALE);
             uint256 v = vA + vB;
             valueUsd += v;
             if (m.extraEligible) {
@@ -664,7 +666,9 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
         // 365 days
         uint256 secondsPerYear = 365 days;
         // scale to bps
-        apyBps = (baseRewardPool * secondsPerYear * 10_000) / duration / effTvl;
+        uint256 factor = secondsPerYear * 10_000;
+        uint256 denom = duration * effTvl;
+        apyBps = Math.mulDiv(baseRewardPool, factor, denom);
     }
 
     // Computes how much a user could currently stake (value and tokens) across all active markets.
@@ -708,7 +712,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
             totalTokens += balA + balB;
             uint256 pA = m.priceA;
             uint256 pB = PRICE_SCALE - pA;
-            uint256 mVal = (balA > 0 ? (balA * pA) / PRICE_SCALE : 0) + (balB > 0 ? (balB * pB) / PRICE_SCALE : 0);
+            uint256 mVal = (balA > 0 ? Math.mulDiv(balA, pA, PRICE_SCALE) : 0) + (balB > 0 ? Math.mulDiv(balB, pB, PRICE_SCALE) : 0);
             totalUsd += mVal;
             if (m.extraEligible) {
                 eligibleUsd += mVal;
@@ -753,7 +757,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
                 uint256 diffA = rpaNow - lastPerA;
                 uint256 balA = u.amountsA[i];
                 if (balA > 0) {
-                    uint256 add = (balA * diffA) / PRICE_SCALE;
+                    uint256 add = Math.mulDiv(balA, diffA, PRICE_SCALE);
                     userBaseUsdSeconds += add;
                     if (m.extraEligible) userExtraUsdSeconds += add;
                 }
@@ -764,7 +768,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
                 uint256 diffB = rpbNow - lastPerB;
                 uint256 balB = u.amountsB[i];
                 if (balB > 0) {
-                    uint256 add = (balB * diffB) / PRICE_SCALE;
+                    uint256 add = Math.mulDiv(balB, diffB, PRICE_SCALE);
                     userBaseUsdSeconds += add;
                     if (m.extraEligible) userExtraUsdSeconds += add;
                 }
@@ -790,7 +794,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
         // Base budget so far: linear vest of baseRewardPool, clamped to balance
         uint256 baseBudget = 0;
         if (duration > 0) {
-            baseBudget = ((baseRewardPool * elapsed) / duration);
+            baseBudget = Math.mulDiv(baseRewardPool, elapsed, duration);
             if (baseBudget > totalAvailable) baseBudget = totalAvailable;
         }
         // Extra budget so far is any extra that is in the vault right now, since it accumulates gradually
@@ -798,10 +802,10 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
 
         // 4) Scale user shares
         if (userBaseUsdSeconds > 0 && baseBudget > 0 && baseUsdSecondsTotal > 0) {
-            base = (userBaseUsdSeconds * baseBudget) / baseUsdSecondsTotal;
+            base = Math.mulDiv(userBaseUsdSeconds, baseBudget, baseUsdSecondsTotal);
         }
         if (userExtraUsdSeconds > 0 && extraBudget > 0 && extraUsdSecondsTotal > 0) {
-            extra = (userExtraUsdSeconds * extraBudget) / extraUsdSecondsTotal;
+            extra = Math.mulDiv(userExtraUsdSeconds, extraBudget, extraUsdSecondsTotal);
         }
         total = base + extra;
     }
