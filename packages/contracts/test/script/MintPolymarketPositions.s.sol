@@ -7,7 +7,6 @@ import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import { Constants } from '../helpers/Constants.t.sol';
 import { IConditionalTokens } from '../../src/interfaces/IConditionalTokens.sol';
-import { INegRiskAdapter } from '../../src/interfaces/INegRiskAdapter.sol';
 import { ISafeProxyFactory } from '../interfaces/ISafeProxyFactory.sol';
 import { PolymarketScriptLib } from './PolymarketScriptLib.sol';
 

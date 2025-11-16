@@ -690,4 +690,111 @@ contract PromotionVaultTest is Test, PromotionConstants, ForkFixture {
             _withdraw(carol, 1, true, A.carolM1a);
         }
     }
+
+    // ---------- Emergency Mode ----------
+
+    function test_Emergency_EnableAndBlockMutations() public {
+        // Seed a deposit so we can attempt withdraw later
+        _mintOutcome(alice, M0, 1_000_000);
+        _deposit(alice, 0, true, 1_000_000);
+
+        // Enable emergency mode
+        vm.expectEmit(true, true, true, true, address(vault));
+        emit PromotionVault.EmergencyModeEnabled(block.timestamp);
+        vault.enableEmergencyMode();
+        assertTrue(vault.emergencyMode());
+
+        // Owner operations blocked
+        vm.expectRevert(PromotionVault.InEmergency.selector);
+        vault.batchUpdatePrices(prices);
+
+        // New deposits blocked
+        _mintOutcome(bob, M0, 500_000);
+        vm.startPrank(bob);
+        vm.expectRevert(PromotionVault.InEmergency.selector);
+        vault.deposit(0, true, 500_000);
+        vm.stopPrank();
+
+        // Withdrawals blocked
+        vm.startPrank(alice);
+        vm.expectRevert(PromotionVault.InEmergency.selector);
+        vault.withdraw(0, true, 100_000);
+        vm.stopPrank();
+
+        // Irreversible
+        vm.expectRevert(PromotionVault.InEmergency.selector);
+        vault.enableEmergencyMode();
+    }
+
+    function test_EmergencyWithdrawAll_TransfersAllAndZerosBalances() public {
+        // Seed deposits on two markets/sides
+        _mintOutcome(alice, M0, 2_000_000);
+        _deposit(alice, 0, true, 2_000_000); // M0 A
+        _mintOutcome(alice, M1, 1_000_000);
+        _deposit(alice, 1, false, 1_000_000); // M1 B
+
+        // Pre balances
+        uint256 preVaultA0 = ctf.balanceOf(address(vault), M0.yesPositionId);
+        uint256 preVaultB1 = ctf.balanceOf(address(vault), M1.noPositionId);
+        uint256 preUserA0 = ctf.balanceOf(alice, M0.yesPositionId);
+        uint256 preUserB1 = ctf.balanceOf(alice, M1.noPositionId);
+
+        // Enable emergency
+        vault.enableEmergencyMode();
+
+        // Expect event and withdraw all
+        vm.expectEmit(true, true, true, true, address(vault));
+        emit PromotionVault.EmergencyWithdrawal(alice);
+        vm.prank(alice);
+        vault.emergencyWithdrawAll();
+
+        // User balances zeroed in vault accounting
+        (uint256 a0, uint256 b0) = vault.userMarketBalances(alice, 0);
+        (uint256 a1, uint256 b1) = vault.userMarketBalances(alice, 1);
+        assertEq(a0, 0);
+        assertEq(b0, 0);
+        assertEq(a1, 0);
+        assertEq(b1, 0);
+
+        // ERC-1155 tokens moved back to user
+        assertEq(ctf.balanceOf(address(vault), M0.yesPositionId), preVaultA0 - 2_000_000);
+        assertEq(ctf.balanceOf(address(vault), M1.noPositionId), preVaultB1 - 1_000_000);
+        assertEq(ctf.balanceOf(alice, M0.yesPositionId), preUserA0 + 2_000_000);
+        assertEq(ctf.balanceOf(alice, M1.noPositionId), preUserB1 + 1_000_000);
+    }
+
+    function test_EmergencyWithdrawAll_Reverts_NotInEmergency_And_ZeroAmount() public {
+        // Not in emergency -> revert
+        vm.prank(alice);
+        vm.expectRevert(PromotionVault.NotInEmergency.selector);
+        vault.emergencyWithdrawAll();
+
+        // Enable emergency; user with no stake -> ZeroAmount
+        vault.enableEmergencyMode();
+        vm.prank(bob);
+        vm.expectRevert(PromotionVault.ZeroAmount.selector);
+        vault.emergencyWithdrawAll();
+    }
+
+    function test_EmergencySweepUSDC_TransfersAllToRecipient() public {
+        address recipient = carol;
+        uint256 preRecipient = usdc.balanceOf(recipient);
+
+        // Not in emergency -> revert
+        vm.expectRevert(PromotionVault.NotInEmergency.selector);
+        vault.emergencySweepUsdc(recipient);
+
+        // Enable emergency; zero address -> revert
+        vault.enableEmergencyMode();
+        vm.expectRevert(PromotionVault.ZeroAddress.selector);
+        vault.emergencySweepUsdc(address(0));
+
+        // Sweep
+        vm.expectEmit(true, true, true, true, address(vault));
+        emit PromotionVault.LeftoversSwept(recipient, vault.baseRewardPool());
+        vault.emergencySweepUsdc(recipient);
+
+        assertEq(usdc.balanceOf(address(vault)), EXTRA_REWARD);
+        assertEq(usdc.balanceOf(recipient), preRecipient + BASE_REWARD);
+    }
 }

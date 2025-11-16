@@ -5,7 +5,6 @@ import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 
 import { PromotionVault } from '../../src/PromotionVault.sol';
 import { IConditionalTokens } from '../../src/interfaces/IConditionalTokens.sol';
-import { INegRiskAdapter } from '../../src/interfaces/INegRiskAdapter.sol';
 import { PromotionConstants } from '../../test/helpers/PromotionConstants.sol';
 import { ISafeProxyFactory } from '../interfaces/ISafeProxyFactory.sol';
 import { PolymarketScriptLib } from './PolymarketScriptLib.sol';
