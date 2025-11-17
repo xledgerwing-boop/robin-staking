@@ -87,7 +87,7 @@ export default function ManageGenesisPositions() {
     } = useReadRobinGenesisVaultViewUserActiveWalletBalancesAboveThreshold({
         address: vaultAddress,
         args: [proxyAddress as `0x${string}`, 0n],
-        query: { enabled: isConnected && tab === 'deposit' },
+        query: { enabled: tab === 'deposit' },
     });
     const {
         data: stakedRes,
@@ -96,7 +96,7 @@ export default function ManageGenesisPositions() {
     } = useReadRobinGenesisVaultViewUserStakedMarkets({
         address: vaultAddress,
         args: [proxyAddress as `0x${string}`],
-        query: { enabled: isConnected && tab === 'withdraw' },
+        query: { enabled: tab === 'withdraw' },
     });
 
     // Build market map and fetch metadata by genesis indices
@@ -404,7 +404,11 @@ export default function ManageGenesisPositions() {
 
                     <TabsContent value="deposit" className="space-y-4 pt-4">
                         {capReached && <div className="text-xs text-secondary -mt-2">Cap reached — deposits are temporarily disabled</div>}
-                        <Button className="relative w-full overflow-hidden h-12" onClick={onStakeEverything} disabled={stakeLoading || capReached}>
+                        <Button
+                            className="relative w-full overflow-hidden h-12"
+                            onClick={onStakeEverything}
+                            disabled={stakeLoading || capReached || depositSummary.totalTokens === 0n}
+                        >
                             <span className="flex items-center justify-center">
                                 {stakeLoading ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <ArrowUpRight className="w-4 h-4 mr-2" />}
                                 {`Stake ${formatUnitsViem(depositSummary.totalTokens, UNDERYLING_DECIMALS)} tokens`}
@@ -477,7 +481,7 @@ export default function ManageGenesisPositions() {
                             className="relative w-full overflow-hidden h-12"
                             variant="secondary"
                             onClick={onWithdrawEverything}
-                            disabled={withdrawLoading}
+                            disabled={withdrawLoading || withdrawSummary.totalTokens === 0n}
                         >
                             <span className="flex items-center justify-center">
                                 {withdrawLoading ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <ArrowUpRight className="w-4 h-4 mr-2" />}
