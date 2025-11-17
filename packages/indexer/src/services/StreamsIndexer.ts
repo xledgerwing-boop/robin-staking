@@ -232,6 +232,12 @@ export class StreamsIndexer {
                     timestamp: args[0],
                 };
                 break;
+            case GenesisVaultEvent.MarketPriceUpdated:
+                info = {
+                    index: args[0],
+                    newPriceA: args[1],
+                };
+                break;
             case GenesisVaultEvent.Deposit:
                 const user = args[0].toLowerCase();
                 const [totalTokens, totalUsd, eligibleUsd] = await this.genesisVault.viewUserStakeableValue(user);

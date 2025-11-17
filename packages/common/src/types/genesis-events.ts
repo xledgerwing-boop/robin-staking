@@ -1,6 +1,7 @@
 export enum GenesisVaultEvent {
     CampaignStarted = 'CampaignStarted',
     PricesUpdated = 'PricesUpdated',
+    MarketPriceUpdated = 'MarketPriceUpdated',
     Deposit = 'Deposit',
     BatchDeposit = 'BatchDeposit',
     Withdraw = 'Withdraw',
@@ -24,6 +25,11 @@ export type CampaignStartedEvent = {
 
 export type PricesUpdatedEvent = {
     timestamp: bigint;
+};
+
+export type MarketPriceUpdatedEvent = {
+    index: bigint;
+    newPriceA: bigint;
 };
 
 export type GenesisDepositEvent = {
@@ -103,6 +109,7 @@ export type EmergencyWithdrawalEvent = {
 export type GenesisVaultEventInfo =
     | CampaignStartedEvent
     | PricesUpdatedEvent
+    | MarketPriceUpdatedEvent
     | GenesisDepositEvent
     | GenesisBatchDepositEvent
     | GenesisWithdrawEvent
