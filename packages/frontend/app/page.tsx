@@ -40,7 +40,7 @@ export default function GenesisVaultPage() {
                         <TopMetrics />
                         <VaultCapacity />
                         {!isXl && (
-                            <div className="space-y-6">
+                            <div className="space-y-6 mt-16 xl:mt-0">
                                 <PotentialEarnings />
                                 <ManageGenesisPositions />
                             </div>

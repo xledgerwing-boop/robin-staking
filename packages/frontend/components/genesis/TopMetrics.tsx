@@ -1,7 +1,7 @@
 'use client';
 
 import { ValueState } from '@/components/value-state';
-import { UNDERYLING_DECIMALS, USED_CONTRACTS } from '@robin-pm-staking/common/src/constants';
+import { UNDERYLING_DECIMALS, USED_CONTRACTS, GENESIS_VAULT_INFOS } from '@robin-pm-staking/common/src/constants';
 import { useProxyAccount } from '@robin-pm-staking/common/src/hooks/use-proxy-account';
 import { formatUnits, formatUnitsLocale } from '@robin-pm-staking/common/lib/utils';
 import { useGenesisVaultInfo } from '@/hooks/use-genesis-vault-info';
@@ -37,11 +37,16 @@ export default function TopMetrics() {
             <div>
                 <p className="text-sm text-muted-foreground text-center">Current APY</p>
                 <div className="text-2xl font-bold text-center">
-                    <ValueState
-                        value={apyBps == null ? undefined : `${formatUnits(apyBps, 4 - 2, 1)}%`}
-                        loading={apyBpsLoading}
-                        error={!!apyBpsError}
-                    />
+                    {apyBps == null ? (
+                        <ValueState value={undefined} loading={apyBpsLoading} error={!!apyBpsError} />
+                    ) : (
+                        <div className="flex flex-col items-center">
+                            <ValueState value={`${formatUnits(apyBps, 4 - 2, 1)}%`} loading={apyBpsLoading} error={!!apyBpsError} />
+                            <span className="text-xs text-primary font-medium mt-0.5">
+                                +{formatUnits(GENESIS_VAULT_INFOS.EXTRA_APY_BPS, 4 - 2, 1)}% on selected
+                            </span>
+                        </div>
+                    )}
                 </div>
             </div>
             <div>

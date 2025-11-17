@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ExternalLink } from 'lucide-react';
+import Link from 'next/link';
 
 const FAQS: Array<{ q: string; a: string }> = [
     {
@@ -70,6 +71,15 @@ export default function FAQ() {
             {FAQS.map((f, idx) => (
                 <FaqItem key={idx} question={f.q} answer={f.a} />
             ))}
+            <Link
+                href="https://robin-markets.gitbook.io/robin-markets-docs/the-genesis-reward-vault"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="border rounded-md w-full flex items-center justify-between px-4 py-3 text-left hover:bg-accent transition-colors"
+            >
+                <span className="font-medium">More in the documentation</span>
+                <ExternalLink className="w-4 h-4" />
+            </Link>
         </div>
     );
 }
