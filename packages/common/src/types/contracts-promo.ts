@@ -15,6 +15,13 @@ export const promotionVaultAbi = [
         ],
         stateMutability: 'nonpayable',
     },
+    {
+        type: 'function',
+        inputs: [],
+        name: 'CTF',
+        outputs: [{ name: '', internalType: 'contract IConditionalTokens', type: 'address' }],
+        stateMutability: 'view',
+    },
     { type: 'function', inputs: [], name: 'NO_INDEX', outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }], stateMutability: 'view' },
     {
         type: 'function',
@@ -31,6 +38,13 @@ export const promotionVaultAbi = [
         stateMutability: 'view',
     },
     { type: 'function', inputs: [], name: 'PRICE_SCALE', outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }], stateMutability: 'view' },
+    {
+        type: 'function',
+        inputs: [],
+        name: 'USDC',
+        outputs: [{ name: '', internalType: 'contract IERC20', type: 'address' }],
+        stateMutability: 'view',
+    },
     { type: 'function', inputs: [], name: 'YES_INDEX', outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }], stateMutability: 'view' },
     {
         type: 'function',
@@ -116,13 +130,6 @@ export const promotionVaultAbi = [
     { type: 'function', inputs: [], name: 'claimRewards', outputs: [], stateMutability: 'nonpayable' },
     {
         type: 'function',
-        inputs: [],
-        name: 'ctf',
-        outputs: [{ name: '', internalType: 'contract IConditionalTokens', type: 'address' }],
-        stateMutability: 'view',
-    },
-    {
-        type: 'function',
         inputs: [
             { name: 'marketIndex', internalType: 'uint256', type: 'uint256' },
             { name: 'isA', internalType: 'bool', type: 'bool' },
@@ -132,6 +139,16 @@ export const promotionVaultAbi = [
         outputs: [],
         stateMutability: 'nonpayable',
     },
+    { type: 'function', inputs: [], name: 'emergencyMode', outputs: [{ name: '', internalType: 'bool', type: 'bool' }], stateMutability: 'view' },
+    {
+        type: 'function',
+        inputs: [{ name: 'to', internalType: 'address', type: 'address' }],
+        name: 'emergencySweepUsdc',
+        outputs: [],
+        stateMutability: 'nonpayable',
+    },
+    { type: 'function', inputs: [], name: 'emergencyWithdrawAll', outputs: [], stateMutability: 'nonpayable' },
+    { type: 'function', inputs: [], name: 'enableEmergencyMode', outputs: [], stateMutability: 'nonpayable' },
     {
         type: 'function',
         inputs: [
@@ -217,7 +234,10 @@ export const promotionVaultAbi = [
     { type: 'function', inputs: [], name: 'renounceOwnership', outputs: [], stateMutability: 'nonpayable' },
     {
         type: 'function',
-        inputs: [{ name: '_capUsd', internalType: 'uint256', type: 'uint256' }],
+        inputs: [
+            { name: '_capUsd', internalType: 'uint256', type: 'uint256' },
+            { name: '_newBaseRewardPool', internalType: 'uint256', type: 'uint256' },
+        ],
         name: 'setTvlCap',
         outputs: [],
         stateMutability: 'nonpayable',
@@ -275,13 +295,7 @@ export const promotionVaultAbi = [
         stateMutability: 'nonpayable',
     },
     { type: 'function', inputs: [], name: 'tvlCapUsd', outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }], stateMutability: 'view' },
-    {
-        type: 'function',
-        inputs: [],
-        name: 'usdc',
-        outputs: [{ name: '', internalType: 'contract IERC20', type: 'address' }],
-        stateMutability: 'view',
-    },
+    { type: 'function', inputs: [], name: 'unpause', outputs: [], stateMutability: 'nonpayable' },
     {
         type: 'function',
         inputs: [
@@ -384,6 +398,24 @@ export const promotionVaultAbi = [
         type: 'event',
         anonymous: false,
         inputs: [
+            { name: 'user', internalType: 'address', type: 'address', indexed: true },
+            { name: 'tokenAmount', internalType: 'uint256', type: 'uint256', indexed: false },
+        ],
+        name: 'BatchDeposit',
+    },
+    {
+        type: 'event',
+        anonymous: false,
+        inputs: [
+            { name: 'user', internalType: 'address', type: 'address', indexed: true },
+            { name: 'tokenAmount', internalType: 'uint256', type: 'uint256', indexed: false },
+        ],
+        name: 'BatchWithdraw',
+    },
+    {
+        type: 'event',
+        anonymous: false,
+        inputs: [
             { name: 'timestamp', internalType: 'uint256', type: 'uint256', indexed: false },
             { name: 'totalValueTime', internalType: 'uint256', type: 'uint256', indexed: false },
             { name: 'totalExtraValueTime', internalType: 'uint256', type: 'uint256', indexed: false },
@@ -427,6 +459,18 @@ export const promotionVaultAbi = [
     {
         type: 'event',
         anonymous: false,
+        inputs: [{ name: 'timestamp', internalType: 'uint256', type: 'uint256', indexed: false }],
+        name: 'EmergencyModeEnabled',
+    },
+    {
+        type: 'event',
+        anonymous: false,
+        inputs: [{ name: 'user', internalType: 'address', type: 'address', indexed: true }],
+        name: 'EmergencyWithdrawal',
+    },
+    {
+        type: 'event',
+        anonymous: false,
         inputs: [
             { name: 'to', internalType: 'address', type: 'address', indexed: true },
             { name: 'amount', internalType: 'uint256', type: 'uint256', indexed: false },
@@ -466,8 +510,8 @@ export const promotionVaultAbi = [
         type: 'event',
         anonymous: false,
         inputs: [
-            { name: 'oldCapUsd', internalType: 'uint256', type: 'uint256', indexed: false },
             { name: 'newCapUsd', internalType: 'uint256', type: 'uint256', indexed: false },
+            { name: 'newBaseRewardPool', internalType: 'uint256', type: 'uint256', indexed: false },
         ],
         name: 'TvlCapUpdated',
     },
@@ -484,17 +528,20 @@ export const promotionVaultAbi = [
         name: 'Withdraw',
     },
     { type: 'error', inputs: [], name: 'AlreadyStarted' },
+    { type: 'error', inputs: [], name: 'BaseRewardCantDecrease' },
     { type: 'error', inputs: [], name: 'CampaignNotActive' },
     { type: 'error', inputs: [], name: 'CampaignNotEnded' },
     { type: 'error', inputs: [], name: 'CampaignNotFinalized' },
     { type: 'error', inputs: [], name: 'DuplicateTokenId' },
     { type: 'error', inputs: [], name: 'EnforcedPause' },
     { type: 'error', inputs: [], name: 'ExpectedPause' },
+    { type: 'error', inputs: [], name: 'InEmergency' },
     { type: 'error', inputs: [], name: 'InsufficientBalance' },
     { type: 'error', inputs: [{ name: 'outcomeSlotCount', internalType: 'uint256', type: 'uint256' }], name: 'InvalidOutcomeSlotCount' },
     { type: 'error', inputs: [], name: 'LengthMismatch' },
     { type: 'error', inputs: [], name: 'MarketIndexOutOfBounds' },
     { type: 'error', inputs: [], name: 'MarketNotActive' },
+    { type: 'error', inputs: [], name: 'NotInEmergency' },
     { type: 'error', inputs: [{ name: 'owner', internalType: 'address', type: 'address' }], name: 'OwnableInvalidOwner' },
     { type: 'error', inputs: [{ name: 'account', internalType: 'address', type: 'address' }], name: 'OwnableUnauthorizedAccount' },
     { type: 'error', inputs: [], name: 'PriceOutOfRange' },
@@ -504,7 +551,7 @@ export const promotionVaultAbi = [
     { type: 'error', inputs: [], name: 'TvlCapExceeded' },
     { type: 'error', inputs: [], name: 'ZeroAddress' },
     { type: 'error', inputs: [], name: 'ZeroAmount' },
-] as const;
+] as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // React
@@ -513,17 +560,22 @@ export const promotionVaultAbi = [
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__
  */
-export const useReadPromotionVault = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi });
+export const useReadPromotionVault = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"CTF"`
+ */
+export const useReadPromotionVaultCtf = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'CTF' })
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"NO_INDEX"`
  */
-export const useReadPromotionVaultNoIndex = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'NO_INDEX' });
+export const useReadPromotionVaultNoIndex = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'NO_INDEX' })
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"NO_INDEX_SET"`
  */
-export const useReadPromotionVaultNoIndexSet = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'NO_INDEX_SET' });
+export const useReadPromotionVaultNoIndexSet = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'NO_INDEX_SET' })
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"PARENT_COLLECTION_ID"`
@@ -531,27 +583,32 @@ export const useReadPromotionVaultNoIndexSet = /*#__PURE__*/ createUseReadContra
 export const useReadPromotionVaultParentCollectionId = /*#__PURE__*/ createUseReadContract({
     abi: promotionVaultAbi,
     functionName: 'PARENT_COLLECTION_ID',
-});
+})
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"PRICE_SCALE"`
  */
-export const useReadPromotionVaultPriceScale = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'PRICE_SCALE' });
+export const useReadPromotionVaultPriceScale = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'PRICE_SCALE' })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"USDC"`
+ */
+export const useReadPromotionVaultUsdc = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'USDC' })
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"YES_INDEX"`
  */
-export const useReadPromotionVaultYesIndex = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'YES_INDEX' });
+export const useReadPromotionVaultYesIndex = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'YES_INDEX' })
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"YES_INDEX_SET"`
  */
-export const useReadPromotionVaultYesIndexSet = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'YES_INDEX_SET' });
+export const useReadPromotionVaultYesIndexSet = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'YES_INDEX_SET' })
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"baseRewardPool"`
  */
-export const useReadPromotionVaultBaseRewardPool = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'baseRewardPool' });
+export const useReadPromotionVaultBaseRewardPool = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'baseRewardPool' })
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"campaignEndTimestamp"`
@@ -559,7 +616,7 @@ export const useReadPromotionVaultBaseRewardPool = /*#__PURE__*/ createUseReadCo
 export const useReadPromotionVaultCampaignEndTimestamp = /*#__PURE__*/ createUseReadContract({
     abi: promotionVaultAbi,
     functionName: 'campaignEndTimestamp',
-});
+})
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"campaignFinalized"`
@@ -567,7 +624,7 @@ export const useReadPromotionVaultCampaignEndTimestamp = /*#__PURE__*/ createUse
 export const useReadPromotionVaultCampaignFinalized = /*#__PURE__*/ createUseReadContract({
     abi: promotionVaultAbi,
     functionName: 'campaignFinalized',
-});
+})
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"campaignRewardSize"`
@@ -575,7 +632,7 @@ export const useReadPromotionVaultCampaignFinalized = /*#__PURE__*/ createUseRea
 export const useReadPromotionVaultCampaignRewardSize = /*#__PURE__*/ createUseReadContract({
     abi: promotionVaultAbi,
     functionName: 'campaignRewardSize',
-});
+})
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"campaignStartTimestamp"`
@@ -583,17 +640,17 @@ export const useReadPromotionVaultCampaignRewardSize = /*#__PURE__*/ createUseRe
 export const useReadPromotionVaultCampaignStartTimestamp = /*#__PURE__*/ createUseReadContract({
     abi: promotionVaultAbi,
     functionName: 'campaignStartTimestamp',
-});
+})
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"campaignStarted"`
  */
-export const useReadPromotionVaultCampaignStarted = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'campaignStarted' });
+export const useReadPromotionVaultCampaignStarted = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'campaignStarted' })
 
 /**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"ctf"`
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"emergencyMode"`
  */
-export const useReadPromotionVaultCtf = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'ctf' });
+export const useReadPromotionVaultEmergencyMode = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'emergencyMode' })
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"finalizedBasePool"`
@@ -601,7 +658,7 @@ export const useReadPromotionVaultCtf = /*#__PURE__*/ createUseReadContract({ ab
 export const useReadPromotionVaultFinalizedBasePool = /*#__PURE__*/ createUseReadContract({
     abi: promotionVaultAbi,
     functionName: 'finalizedBasePool',
-});
+})
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"finalizedExtraPool"`
@@ -609,7 +666,7 @@ export const useReadPromotionVaultFinalizedBasePool = /*#__PURE__*/ createUseRea
 export const useReadPromotionVaultFinalizedExtraPool = /*#__PURE__*/ createUseReadContract({
     abi: promotionVaultAbi,
     functionName: 'finalizedExtraPool',
-});
+})
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"lastRewardTimestamp"`
@@ -617,27 +674,27 @@ export const useReadPromotionVaultFinalizedExtraPool = /*#__PURE__*/ createUseRe
 export const useReadPromotionVaultLastRewardTimestamp = /*#__PURE__*/ createUseReadContract({
     abi: promotionVaultAbi,
     functionName: 'lastRewardTimestamp',
-});
+})
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"marketCount"`
  */
-export const useReadPromotionVaultMarketCount = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'marketCount' });
+export const useReadPromotionVaultMarketCount = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'marketCount' })
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"markets"`
  */
-export const useReadPromotionVaultMarkets = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'markets' });
+export const useReadPromotionVaultMarkets = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'markets' })
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"owner"`
  */
-export const useReadPromotionVaultOwner = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'owner' });
+export const useReadPromotionVaultOwner = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'owner' })
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"paused"`
  */
-export const useReadPromotionVaultPaused = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'paused' });
+export const useReadPromotionVaultPaused = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'paused' })
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"supportsInterface"`
@@ -645,7 +702,7 @@ export const useReadPromotionVaultPaused = /*#__PURE__*/ createUseReadContract({
 export const useReadPromotionVaultSupportsInterface = /*#__PURE__*/ createUseReadContract({
     abi: promotionVaultAbi,
     functionName: 'supportsInterface',
-});
+})
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"totalExtraValueTime"`
@@ -653,7 +710,7 @@ export const useReadPromotionVaultSupportsInterface = /*#__PURE__*/ createUseRea
 export const useReadPromotionVaultTotalExtraValueTime = /*#__PURE__*/ createUseReadContract({
     abi: promotionVaultAbi,
     functionName: 'totalExtraValueTime',
-});
+})
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"totalExtraValueUsd"`
@@ -661,27 +718,22 @@ export const useReadPromotionVaultTotalExtraValueTime = /*#__PURE__*/ createUseR
 export const useReadPromotionVaultTotalExtraValueUsd = /*#__PURE__*/ createUseReadContract({
     abi: promotionVaultAbi,
     functionName: 'totalExtraValueUsd',
-});
+})
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"totalValueTime"`
  */
-export const useReadPromotionVaultTotalValueTime = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'totalValueTime' });
+export const useReadPromotionVaultTotalValueTime = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'totalValueTime' })
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"totalValueUsd"`
  */
-export const useReadPromotionVaultTotalValueUsd = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'totalValueUsd' });
+export const useReadPromotionVaultTotalValueUsd = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'totalValueUsd' })
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"tvlCapUsd"`
  */
-export const useReadPromotionVaultTvlCapUsd = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'tvlCapUsd' });
-
-/**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"usdc"`
- */
-export const useReadPromotionVaultUsdc = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'usdc' });
+export const useReadPromotionVaultTvlCapUsd = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'tvlCapUsd' })
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"userMarketBalances"`
@@ -689,12 +741,12 @@ export const useReadPromotionVaultUsdc = /*#__PURE__*/ createUseReadContract({ a
 export const useReadPromotionVaultUserMarketBalances = /*#__PURE__*/ createUseReadContract({
     abi: promotionVaultAbi,
     functionName: 'userMarketBalances',
-});
+})
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"users"`
  */
-export const useReadPromotionVaultUsers = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'users' });
+export const useReadPromotionVaultUsers = /*#__PURE__*/ createUseReadContract({ abi: promotionVaultAbi, functionName: 'users' })
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"viewCurrentApyBps"`
@@ -702,7 +754,7 @@ export const useReadPromotionVaultUsers = /*#__PURE__*/ createUseReadContract({ 
 export const useReadPromotionVaultViewCurrentApyBps = /*#__PURE__*/ createUseReadContract({
     abi: promotionVaultAbi,
     functionName: 'viewCurrentApyBps',
-});
+})
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"viewUserActiveWalletBalancesAboveThreshold"`
@@ -710,7 +762,7 @@ export const useReadPromotionVaultViewCurrentApyBps = /*#__PURE__*/ createUseRea
 export const useReadPromotionVaultViewUserActiveWalletBalancesAboveThreshold = /*#__PURE__*/ createUseReadContract({
     abi: promotionVaultAbi,
     functionName: 'viewUserActiveWalletBalancesAboveThreshold',
-});
+})
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"viewUserCurrentValues"`
@@ -718,7 +770,7 @@ export const useReadPromotionVaultViewUserActiveWalletBalancesAboveThreshold = /
 export const useReadPromotionVaultViewUserCurrentValues = /*#__PURE__*/ createUseReadContract({
     abi: promotionVaultAbi,
     functionName: 'viewUserCurrentValues',
-});
+})
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"viewUserEstimatedEarnings"`
@@ -726,7 +778,7 @@ export const useReadPromotionVaultViewUserCurrentValues = /*#__PURE__*/ createUs
 export const useReadPromotionVaultViewUserEstimatedEarnings = /*#__PURE__*/ createUseReadContract({
     abi: promotionVaultAbi,
     functionName: 'viewUserEstimatedEarnings',
-});
+})
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"viewUserStakeableValue"`
@@ -734,7 +786,7 @@ export const useReadPromotionVaultViewUserEstimatedEarnings = /*#__PURE__*/ crea
 export const useReadPromotionVaultViewUserStakeableValue = /*#__PURE__*/ createUseReadContract({
     abi: promotionVaultAbi,
     functionName: 'viewUserStakeableValue',
-});
+})
 
 /**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"viewUserStakedMarkets"`
@@ -742,22 +794,22 @@ export const useReadPromotionVaultViewUserStakeableValue = /*#__PURE__*/ createU
 export const useReadPromotionVaultViewUserStakedMarkets = /*#__PURE__*/ createUseReadContract({
     abi: promotionVaultAbi,
     functionName: 'viewUserStakedMarkets',
-});
+})
 
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link promotionVaultAbi}__
  */
-export const useWritePromotionVault = /*#__PURE__*/ createUseWriteContract({ abi: promotionVaultAbi });
+export const useWritePromotionVault = /*#__PURE__*/ createUseWriteContract({ abi: promotionVaultAbi })
 
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"addMarket"`
  */
-export const useWritePromotionVaultAddMarket = /*#__PURE__*/ createUseWriteContract({ abi: promotionVaultAbi, functionName: 'addMarket' });
+export const useWritePromotionVaultAddMarket = /*#__PURE__*/ createUseWriteContract({ abi: promotionVaultAbi, functionName: 'addMarket' })
 
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"batchDeposit"`
  */
-export const useWritePromotionVaultBatchDeposit = /*#__PURE__*/ createUseWriteContract({ abi: promotionVaultAbi, functionName: 'batchDeposit' });
+export const useWritePromotionVaultBatchDeposit = /*#__PURE__*/ createUseWriteContract({ abi: promotionVaultAbi, functionName: 'batchDeposit' })
 
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"batchUpdatePrices"`
@@ -765,22 +817,46 @@ export const useWritePromotionVaultBatchDeposit = /*#__PURE__*/ createUseWriteCo
 export const useWritePromotionVaultBatchUpdatePrices = /*#__PURE__*/ createUseWriteContract({
     abi: promotionVaultAbi,
     functionName: 'batchUpdatePrices',
-});
+})
 
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"batchWithdraw"`
  */
-export const useWritePromotionVaultBatchWithdraw = /*#__PURE__*/ createUseWriteContract({ abi: promotionVaultAbi, functionName: 'batchWithdraw' });
+export const useWritePromotionVaultBatchWithdraw = /*#__PURE__*/ createUseWriteContract({ abi: promotionVaultAbi, functionName: 'batchWithdraw' })
 
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"claimRewards"`
  */
-export const useWritePromotionVaultClaimRewards = /*#__PURE__*/ createUseWriteContract({ abi: promotionVaultAbi, functionName: 'claimRewards' });
+export const useWritePromotionVaultClaimRewards = /*#__PURE__*/ createUseWriteContract({ abi: promotionVaultAbi, functionName: 'claimRewards' })
 
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"deposit"`
  */
-export const useWritePromotionVaultDeposit = /*#__PURE__*/ createUseWriteContract({ abi: promotionVaultAbi, functionName: 'deposit' });
+export const useWritePromotionVaultDeposit = /*#__PURE__*/ createUseWriteContract({ abi: promotionVaultAbi, functionName: 'deposit' })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"emergencySweepUsdc"`
+ */
+export const useWritePromotionVaultEmergencySweepUsdc = /*#__PURE__*/ createUseWriteContract({
+    abi: promotionVaultAbi,
+    functionName: 'emergencySweepUsdc',
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"emergencyWithdrawAll"`
+ */
+export const useWritePromotionVaultEmergencyWithdrawAll = /*#__PURE__*/ createUseWriteContract({
+    abi: promotionVaultAbi,
+    functionName: 'emergencyWithdrawAll',
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"enableEmergencyMode"`
+ */
+export const useWritePromotionVaultEnableEmergencyMode = /*#__PURE__*/ createUseWriteContract({
+    abi: promotionVaultAbi,
+    functionName: 'enableEmergencyMode',
+})
 
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"endAndReplaceMarket"`
@@ -788,7 +864,7 @@ export const useWritePromotionVaultDeposit = /*#__PURE__*/ createUseWriteContrac
 export const useWritePromotionVaultEndAndReplaceMarket = /*#__PURE__*/ createUseWriteContract({
     abi: promotionVaultAbi,
     functionName: 'endAndReplaceMarket',
-});
+})
 
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"finalizeCampaign"`
@@ -796,7 +872,7 @@ export const useWritePromotionVaultEndAndReplaceMarket = /*#__PURE__*/ createUse
 export const useWritePromotionVaultFinalizeCampaign = /*#__PURE__*/ createUseWriteContract({
     abi: promotionVaultAbi,
     functionName: 'finalizeCampaign',
-});
+})
 
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"onERC1155BatchReceived"`
@@ -804,7 +880,7 @@ export const useWritePromotionVaultFinalizeCampaign = /*#__PURE__*/ createUseWri
 export const useWritePromotionVaultOnErc1155BatchReceived = /*#__PURE__*/ createUseWriteContract({
     abi: promotionVaultAbi,
     functionName: 'onERC1155BatchReceived',
-});
+})
 
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"onERC1155Received"`
@@ -812,12 +888,12 @@ export const useWritePromotionVaultOnErc1155BatchReceived = /*#__PURE__*/ create
 export const useWritePromotionVaultOnErc1155Received = /*#__PURE__*/ createUseWriteContract({
     abi: promotionVaultAbi,
     functionName: 'onERC1155Received',
-});
+})
 
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"pause"`
  */
-export const useWritePromotionVaultPause = /*#__PURE__*/ createUseWriteContract({ abi: promotionVaultAbi, functionName: 'pause' });
+export const useWritePromotionVaultPause = /*#__PURE__*/ createUseWriteContract({ abi: promotionVaultAbi, functionName: 'pause' })
 
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"renounceOwnership"`
@@ -825,17 +901,17 @@ export const useWritePromotionVaultPause = /*#__PURE__*/ createUseWriteContract(
 export const useWritePromotionVaultRenounceOwnership = /*#__PURE__*/ createUseWriteContract({
     abi: promotionVaultAbi,
     functionName: 'renounceOwnership',
-});
+})
 
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"setTvlCap"`
  */
-export const useWritePromotionVaultSetTvlCap = /*#__PURE__*/ createUseWriteContract({ abi: promotionVaultAbi, functionName: 'setTvlCap' });
+export const useWritePromotionVaultSetTvlCap = /*#__PURE__*/ createUseWriteContract({ abi: promotionVaultAbi, functionName: 'setTvlCap' })
 
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"startCampaign"`
  */
-export const useWritePromotionVaultStartCampaign = /*#__PURE__*/ createUseWriteContract({ abi: promotionVaultAbi, functionName: 'startCampaign' });
+export const useWritePromotionVaultStartCampaign = /*#__PURE__*/ createUseWriteContract({ abi: promotionVaultAbi, functionName: 'startCampaign' })
 
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"transferOwnership"`
@@ -843,30 +919,32 @@ export const useWritePromotionVaultStartCampaign = /*#__PURE__*/ createUseWriteC
 export const useWritePromotionVaultTransferOwnership = /*#__PURE__*/ createUseWriteContract({
     abi: promotionVaultAbi,
     functionName: 'transferOwnership',
-});
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"unpause"`
+ */
+export const useWritePromotionVaultUnpause = /*#__PURE__*/ createUseWriteContract({ abi: promotionVaultAbi, functionName: 'unpause' })
 
 /**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"withdraw"`
  */
-export const useWritePromotionVaultWithdraw = /*#__PURE__*/ createUseWriteContract({ abi: promotionVaultAbi, functionName: 'withdraw' });
+export const useWritePromotionVaultWithdraw = /*#__PURE__*/ createUseWriteContract({ abi: promotionVaultAbi, functionName: 'withdraw' })
 
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link promotionVaultAbi}__
  */
-export const useSimulatePromotionVault = /*#__PURE__*/ createUseSimulateContract({ abi: promotionVaultAbi });
+export const useSimulatePromotionVault = /*#__PURE__*/ createUseSimulateContract({ abi: promotionVaultAbi })
 
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"addMarket"`
  */
-export const useSimulatePromotionVaultAddMarket = /*#__PURE__*/ createUseSimulateContract({ abi: promotionVaultAbi, functionName: 'addMarket' });
+export const useSimulatePromotionVaultAddMarket = /*#__PURE__*/ createUseSimulateContract({ abi: promotionVaultAbi, functionName: 'addMarket' })
 
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"batchDeposit"`
  */
-export const useSimulatePromotionVaultBatchDeposit = /*#__PURE__*/ createUseSimulateContract({
-    abi: promotionVaultAbi,
-    functionName: 'batchDeposit',
-});
+export const useSimulatePromotionVaultBatchDeposit = /*#__PURE__*/ createUseSimulateContract({ abi: promotionVaultAbi, functionName: 'batchDeposit' })
 
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"batchUpdatePrices"`
@@ -874,7 +952,7 @@ export const useSimulatePromotionVaultBatchDeposit = /*#__PURE__*/ createUseSimu
 export const useSimulatePromotionVaultBatchUpdatePrices = /*#__PURE__*/ createUseSimulateContract({
     abi: promotionVaultAbi,
     functionName: 'batchUpdatePrices',
-});
+})
 
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"batchWithdraw"`
@@ -882,20 +960,41 @@ export const useSimulatePromotionVaultBatchUpdatePrices = /*#__PURE__*/ createUs
 export const useSimulatePromotionVaultBatchWithdraw = /*#__PURE__*/ createUseSimulateContract({
     abi: promotionVaultAbi,
     functionName: 'batchWithdraw',
-});
+})
 
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"claimRewards"`
  */
-export const useSimulatePromotionVaultClaimRewards = /*#__PURE__*/ createUseSimulateContract({
-    abi: promotionVaultAbi,
-    functionName: 'claimRewards',
-});
+export const useSimulatePromotionVaultClaimRewards = /*#__PURE__*/ createUseSimulateContract({ abi: promotionVaultAbi, functionName: 'claimRewards' })
 
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"deposit"`
  */
-export const useSimulatePromotionVaultDeposit = /*#__PURE__*/ createUseSimulateContract({ abi: promotionVaultAbi, functionName: 'deposit' });
+export const useSimulatePromotionVaultDeposit = /*#__PURE__*/ createUseSimulateContract({ abi: promotionVaultAbi, functionName: 'deposit' })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"emergencySweepUsdc"`
+ */
+export const useSimulatePromotionVaultEmergencySweepUsdc = /*#__PURE__*/ createUseSimulateContract({
+    abi: promotionVaultAbi,
+    functionName: 'emergencySweepUsdc',
+})
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"emergencyWithdrawAll"`
+ */
+export const useSimulatePromotionVaultEmergencyWithdrawAll = /*#__PURE__*/ createUseSimulateContract({
+    abi: promotionVaultAbi,
+    functionName: 'emergencyWithdrawAll',
+})
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"enableEmergencyMode"`
+ */
+export const useSimulatePromotionVaultEnableEmergencyMode = /*#__PURE__*/ createUseSimulateContract({
+    abi: promotionVaultAbi,
+    functionName: 'enableEmergencyMode',
+})
 
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"endAndReplaceMarket"`
@@ -903,7 +1002,7 @@ export const useSimulatePromotionVaultDeposit = /*#__PURE__*/ createUseSimulateC
 export const useSimulatePromotionVaultEndAndReplaceMarket = /*#__PURE__*/ createUseSimulateContract({
     abi: promotionVaultAbi,
     functionName: 'endAndReplaceMarket',
-});
+})
 
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"finalizeCampaign"`
@@ -911,7 +1010,7 @@ export const useSimulatePromotionVaultEndAndReplaceMarket = /*#__PURE__*/ create
 export const useSimulatePromotionVaultFinalizeCampaign = /*#__PURE__*/ createUseSimulateContract({
     abi: promotionVaultAbi,
     functionName: 'finalizeCampaign',
-});
+})
 
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"onERC1155BatchReceived"`
@@ -919,7 +1018,7 @@ export const useSimulatePromotionVaultFinalizeCampaign = /*#__PURE__*/ createUse
 export const useSimulatePromotionVaultOnErc1155BatchReceived = /*#__PURE__*/ createUseSimulateContract({
     abi: promotionVaultAbi,
     functionName: 'onERC1155BatchReceived',
-});
+})
 
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"onERC1155Received"`
@@ -927,12 +1026,12 @@ export const useSimulatePromotionVaultOnErc1155BatchReceived = /*#__PURE__*/ cre
 export const useSimulatePromotionVaultOnErc1155Received = /*#__PURE__*/ createUseSimulateContract({
     abi: promotionVaultAbi,
     functionName: 'onERC1155Received',
-});
+})
 
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"pause"`
  */
-export const useSimulatePromotionVaultPause = /*#__PURE__*/ createUseSimulateContract({ abi: promotionVaultAbi, functionName: 'pause' });
+export const useSimulatePromotionVaultPause = /*#__PURE__*/ createUseSimulateContract({ abi: promotionVaultAbi, functionName: 'pause' })
 
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"renounceOwnership"`
@@ -940,12 +1039,12 @@ export const useSimulatePromotionVaultPause = /*#__PURE__*/ createUseSimulateCon
 export const useSimulatePromotionVaultRenounceOwnership = /*#__PURE__*/ createUseSimulateContract({
     abi: promotionVaultAbi,
     functionName: 'renounceOwnership',
-});
+})
 
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"setTvlCap"`
  */
-export const useSimulatePromotionVaultSetTvlCap = /*#__PURE__*/ createUseSimulateContract({ abi: promotionVaultAbi, functionName: 'setTvlCap' });
+export const useSimulatePromotionVaultSetTvlCap = /*#__PURE__*/ createUseSimulateContract({ abi: promotionVaultAbi, functionName: 'setTvlCap' })
 
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"startCampaign"`
@@ -953,7 +1052,7 @@ export const useSimulatePromotionVaultSetTvlCap = /*#__PURE__*/ createUseSimulat
 export const useSimulatePromotionVaultStartCampaign = /*#__PURE__*/ createUseSimulateContract({
     abi: promotionVaultAbi,
     functionName: 'startCampaign',
-});
+})
 
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"transferOwnership"`
@@ -961,17 +1060,38 @@ export const useSimulatePromotionVaultStartCampaign = /*#__PURE__*/ createUseSim
 export const useSimulatePromotionVaultTransferOwnership = /*#__PURE__*/ createUseSimulateContract({
     abi: promotionVaultAbi,
     functionName: 'transferOwnership',
-});
+})
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"unpause"`
+ */
+export const useSimulatePromotionVaultUnpause = /*#__PURE__*/ createUseSimulateContract({ abi: promotionVaultAbi, functionName: 'unpause' })
 
 /**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link promotionVaultAbi}__ and `functionName` set to `"withdraw"`
  */
-export const useSimulatePromotionVaultWithdraw = /*#__PURE__*/ createUseSimulateContract({ abi: promotionVaultAbi, functionName: 'withdraw' });
+export const useSimulatePromotionVaultWithdraw = /*#__PURE__*/ createUseSimulateContract({ abi: promotionVaultAbi, functionName: 'withdraw' })
 
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link promotionVaultAbi}__
  */
-export const useWatchPromotionVaultEvent = /*#__PURE__*/ createUseWatchContractEvent({ abi: promotionVaultAbi });
+export const useWatchPromotionVaultEvent = /*#__PURE__*/ createUseWatchContractEvent({ abi: promotionVaultAbi })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link promotionVaultAbi}__ and `eventName` set to `"BatchDeposit"`
+ */
+export const useWatchPromotionVaultBatchDepositEvent = /*#__PURE__*/ createUseWatchContractEvent({
+    abi: promotionVaultAbi,
+    eventName: 'BatchDeposit',
+})
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link promotionVaultAbi}__ and `eventName` set to `"BatchWithdraw"`
+ */
+export const useWatchPromotionVaultBatchWithdrawEvent = /*#__PURE__*/ createUseWatchContractEvent({
+    abi: promotionVaultAbi,
+    eventName: 'BatchWithdraw',
+})
 
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link promotionVaultAbi}__ and `eventName` set to `"CampaignFinalized"`
@@ -979,7 +1099,7 @@ export const useWatchPromotionVaultEvent = /*#__PURE__*/ createUseWatchContractE
 export const useWatchPromotionVaultCampaignFinalizedEvent = /*#__PURE__*/ createUseWatchContractEvent({
     abi: promotionVaultAbi,
     eventName: 'CampaignFinalized',
-});
+})
 
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link promotionVaultAbi}__ and `eventName` set to `"CampaignStarted"`
@@ -987,17 +1107,33 @@ export const useWatchPromotionVaultCampaignFinalizedEvent = /*#__PURE__*/ create
 export const useWatchPromotionVaultCampaignStartedEvent = /*#__PURE__*/ createUseWatchContractEvent({
     abi: promotionVaultAbi,
     eventName: 'CampaignStarted',
-});
+})
 
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link promotionVaultAbi}__ and `eventName` set to `"Claim"`
  */
-export const useWatchPromotionVaultClaimEvent = /*#__PURE__*/ createUseWatchContractEvent({ abi: promotionVaultAbi, eventName: 'Claim' });
+export const useWatchPromotionVaultClaimEvent = /*#__PURE__*/ createUseWatchContractEvent({ abi: promotionVaultAbi, eventName: 'Claim' })
 
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link promotionVaultAbi}__ and `eventName` set to `"Deposit"`
  */
-export const useWatchPromotionVaultDepositEvent = /*#__PURE__*/ createUseWatchContractEvent({ abi: promotionVaultAbi, eventName: 'Deposit' });
+export const useWatchPromotionVaultDepositEvent = /*#__PURE__*/ createUseWatchContractEvent({ abi: promotionVaultAbi, eventName: 'Deposit' })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link promotionVaultAbi}__ and `eventName` set to `"EmergencyModeEnabled"`
+ */
+export const useWatchPromotionVaultEmergencyModeEnabledEvent = /*#__PURE__*/ createUseWatchContractEvent({
+    abi: promotionVaultAbi,
+    eventName: 'EmergencyModeEnabled',
+})
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link promotionVaultAbi}__ and `eventName` set to `"EmergencyWithdrawal"`
+ */
+export const useWatchPromotionVaultEmergencyWithdrawalEvent = /*#__PURE__*/ createUseWatchContractEvent({
+    abi: promotionVaultAbi,
+    eventName: 'EmergencyWithdrawal',
+})
 
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link promotionVaultAbi}__ and `eventName` set to `"LeftoversSwept"`
@@ -1005,17 +1141,17 @@ export const useWatchPromotionVaultDepositEvent = /*#__PURE__*/ createUseWatchCo
 export const useWatchPromotionVaultLeftoversSweptEvent = /*#__PURE__*/ createUseWatchContractEvent({
     abi: promotionVaultAbi,
     eventName: 'LeftoversSwept',
-});
+})
 
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link promotionVaultAbi}__ and `eventName` set to `"MarketAdded"`
  */
-export const useWatchPromotionVaultMarketAddedEvent = /*#__PURE__*/ createUseWatchContractEvent({ abi: promotionVaultAbi, eventName: 'MarketAdded' });
+export const useWatchPromotionVaultMarketAddedEvent = /*#__PURE__*/ createUseWatchContractEvent({ abi: promotionVaultAbi, eventName: 'MarketAdded' })
 
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link promotionVaultAbi}__ and `eventName` set to `"MarketEnded"`
  */
-export const useWatchPromotionVaultMarketEndedEvent = /*#__PURE__*/ createUseWatchContractEvent({ abi: promotionVaultAbi, eventName: 'MarketEnded' });
+export const useWatchPromotionVaultMarketEndedEvent = /*#__PURE__*/ createUseWatchContractEvent({ abi: promotionVaultAbi, eventName: 'MarketEnded' })
 
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link promotionVaultAbi}__ and `eventName` set to `"OwnershipTransferred"`
@@ -1023,12 +1159,12 @@ export const useWatchPromotionVaultMarketEndedEvent = /*#__PURE__*/ createUseWat
 export const useWatchPromotionVaultOwnershipTransferredEvent = /*#__PURE__*/ createUseWatchContractEvent({
     abi: promotionVaultAbi,
     eventName: 'OwnershipTransferred',
-});
+})
 
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link promotionVaultAbi}__ and `eventName` set to `"Paused"`
  */
-export const useWatchPromotionVaultPausedEvent = /*#__PURE__*/ createUseWatchContractEvent({ abi: promotionVaultAbi, eventName: 'Paused' });
+export const useWatchPromotionVaultPausedEvent = /*#__PURE__*/ createUseWatchContractEvent({ abi: promotionVaultAbi, eventName: 'Paused' })
 
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link promotionVaultAbi}__ and `eventName` set to `"PricesUpdated"`
@@ -1036,7 +1172,7 @@ export const useWatchPromotionVaultPausedEvent = /*#__PURE__*/ createUseWatchCon
 export const useWatchPromotionVaultPricesUpdatedEvent = /*#__PURE__*/ createUseWatchContractEvent({
     abi: promotionVaultAbi,
     eventName: 'PricesUpdated',
-});
+})
 
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link promotionVaultAbi}__ and `eventName` set to `"TvlCapUpdated"`
@@ -1044,14 +1180,14 @@ export const useWatchPromotionVaultPricesUpdatedEvent = /*#__PURE__*/ createUseW
 export const useWatchPromotionVaultTvlCapUpdatedEvent = /*#__PURE__*/ createUseWatchContractEvent({
     abi: promotionVaultAbi,
     eventName: 'TvlCapUpdated',
-});
+})
 
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link promotionVaultAbi}__ and `eventName` set to `"Unpaused"`
  */
-export const useWatchPromotionVaultUnpausedEvent = /*#__PURE__*/ createUseWatchContractEvent({ abi: promotionVaultAbi, eventName: 'Unpaused' });
+export const useWatchPromotionVaultUnpausedEvent = /*#__PURE__*/ createUseWatchContractEvent({ abi: promotionVaultAbi, eventName: 'Unpaused' })
 
 /**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link promotionVaultAbi}__ and `eventName` set to `"Withdraw"`
  */
-export const useWatchPromotionVaultWithdrawEvent = /*#__PURE__*/ createUseWatchContractEvent({ abi: promotionVaultAbi, eventName: 'Withdraw' });
+export const useWatchPromotionVaultWithdrawEvent = /*#__PURE__*/ createUseWatchContractEvent({ abi: promotionVaultAbi, eventName: 'Withdraw' })
