@@ -148,22 +148,9 @@ export default function useProxyContractInteraction<
         try {
             setBatchRunning(true);
             const safeTx = await protocolKit.current.createTransaction({ transactions: txs });
-            // return await safeWriteContract({
-            //     address: proxyAddress as `0x${string}`,
-            //     args: [
-            //         safeTx.data.to as `0x${string}`,
-            //         BigInt(safeTx.data.value),
-            //         safeTx.data.data as `0x${string}`,
-            //         OPERATION_CALL,
-            //         0n,
-            //         0n,
-            //         0n,
-            //         zeroAddress,
-            //         zeroAddress,
-            //         safeTx.encodedSignatures() as `0x${string}`,
-            //     ],
-            // });
-            const executeTxResponse = await protocolKit.current.executeTransaction(safeTx);
+            const executeTxResponse = await protocolKit.current.executeTransaction(safeTx, {
+                gasLimit: 3_000_000n,
+            });
             await waitForTransactionReceipt(config, { hash: executeTxResponse.hash as `0x${string}` });
             return executeTxResponse;
         } finally {

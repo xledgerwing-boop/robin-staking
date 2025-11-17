@@ -66,6 +66,7 @@ export default function ManageGenesisPositions() {
     const { data: approvedForAll } = useReadConditionalTokensIsApprovedForAll({
         address: USED_CONTRACTS.CONDITIONAL_TOKENS,
         args: [proxyAddress as `0x${string}`, vaultAddress],
+        query: { enabled: !!proxyAddress },
     });
 
     const {
@@ -87,7 +88,7 @@ export default function ManageGenesisPositions() {
     } = useReadRobinGenesisVaultViewUserActiveWalletBalancesAboveThreshold({
         address: vaultAddress,
         args: [proxyAddress as `0x${string}`, 10_000n],
-        query: { enabled: tab === 'deposit' },
+        query: { enabled: !!proxyAddress && tab === 'deposit' },
     });
     const {
         data: stakedRes,
@@ -96,7 +97,7 @@ export default function ManageGenesisPositions() {
     } = useReadRobinGenesisVaultViewUserStakedMarkets({
         address: vaultAddress,
         args: [proxyAddress as `0x${string}`],
-        query: { enabled: tab === 'withdraw' },
+        query: { enabled: !!proxyAddress && tab === 'withdraw' },
     });
 
     // Build market map and fetch metadata by genesis indices
