@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
         // Read on-chain stakeable value tuple: [totalTokens, totalUsd, eligibleUsd]
         const [totalTokens, totalUsd, eligibleUsd] = (await client.readContract({
             address: vaultAddress as `0x${string}`,
-            abi: robinGenesisVaultAbi as any,
+            abi: robinGenesisVaultAbi,
             functionName: 'viewUserStakeableValue',
             args: [proxyAddress as `0x${string}`],
         })) as readonly [bigint, bigint, bigint];

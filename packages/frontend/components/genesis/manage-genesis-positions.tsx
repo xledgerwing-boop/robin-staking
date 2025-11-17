@@ -56,7 +56,7 @@ export default function ManageGenesisPositions() {
     const { proxyAddress, isConnected, isConnecting } = useProxyAccount();
     const vaultAddress = USED_CONTRACTS.GENESIS_VAULT as `0x${string}`;
     const invalidateQueries = useInvalidateQueries();
-    let { totalValueUsd, tvlCapUsd, totalValueUsdQueryKey, apyBpsQueryKey } = useGenesisVaultInfo(vaultAddress);
+    const { totalValueUsd, tvlCapUsd, totalValueUsdQueryKey, apyBpsQueryKey } = useGenesisVaultInfo(vaultAddress);
     const { userCurrentValuesQueryKey, userStakeableValueQueryKey } = useGenesisVaultUserInfo(
         vaultAddress,
         (proxyAddress || null) as `0x${string}` | null
@@ -233,7 +233,11 @@ export default function ManageGenesisPositions() {
                 }
             });
             if (indices.length === 0) return;
-            const items: any[] = [];
+            const items: {
+                address: `0x${string}`;
+                args: readonly unknown[];
+                hookIndex: number;
+            }[] = [];
             if (!approvedForAll) {
                 items.push({
                     address: USED_CONTRACTS.CONDITIONAL_TOKENS as `0x${string}`,
@@ -246,6 +250,7 @@ export default function ManageGenesisPositions() {
                 args: [indices, sidesIsA, amounts],
                 hookIndex: approvedForAll ? 1 : 1,
             });
+            // @ts-expect-error fix typing
             await batchStake(items);
             await stakePromise.current;
             await invalidateQueries([totalValueUsdQueryKey, apyBpsQueryKey, userCurrentValuesQueryKey, userStakeableValueQueryKey, walletQueryKey]);
@@ -421,7 +426,7 @@ export default function ManageGenesisPositions() {
                                 <div
                                     ref={depositListRef}
                                     className="no-scrollbar max-h-[550px] overflow-y-auto pr-1 space-y-4"
-                                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as any}
+                                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                                 >
                                     {depositListLoading ? (
                                         <div className="py-8 flex items-center justify-center text-muted-foreground">
@@ -495,7 +500,7 @@ export default function ManageGenesisPositions() {
                                 <div
                                     ref={withdrawListRef}
                                     className="no-scrollbar max-h-[550px] overflow-y-auto pr-1 space-y-4 pb-4"
-                                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as any}
+                                    style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                                 >
                                     {withdrawListLoading ? (
                                         <div className="py-8 flex items-center justify-center text-muted-foreground">

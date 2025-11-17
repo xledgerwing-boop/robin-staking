@@ -13,7 +13,7 @@ import { useEffect, useState } from 'react';
 
 export default function VaultCapacity() {
     const VAULT = USED_CONTRACTS.GENESIS_VAULT as `0x${string}`;
-    let { totalValueUsd, tvlCapUsd } = useGenesisVaultInfo(VAULT);
+    const { totalValueUsd, tvlCapUsd } = useGenesisVaultInfo(VAULT);
     const { proxyAddress, isConnected, isConnecting } = useProxyAccount();
     const [registeredUsd, setRegisteredUsd] = useState<bigint>(0n);
     const [loading, setLoading] = useState(false);
