@@ -17,9 +17,9 @@ contract PrepareGenesisVault is Script, Constants {
     }
 
     function run() external {
-        address vaultAddr = 0xA09aBbe3e0d130D1Bc07A8d52Bad32933bBC8AA5;
-        uint256 baseRewardPool = 1_000_000;
-        uint256 campaignDuration = 1 hours;
+        address vaultAddr = 0xd9235C00bc80758B6abEcB0261B865e1d3dBa312;
+        uint256 baseRewardPool = 500_000;
+        uint256 campaignDuration = 6 hours;
 
         RobinGenesisVault vault = RobinGenesisVault(vaultAddr);
 

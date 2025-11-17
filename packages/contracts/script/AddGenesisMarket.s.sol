@@ -14,7 +14,7 @@ contract AddGenesisMarket is Script, Constants {
     }
 
     function run() external {
-        address vaultAddr = 0xA09aBbe3e0d130D1Bc07A8d52Bad32933bBC8AA5;
+        address vaultAddr = 0xd9235C00bc80758B6abEcB0261B865e1d3dBa312;
         RobinGenesisVault vault = RobinGenesisVault(vaultAddr);
 
         // Define markets to add (example list; replace with your actual list)
