@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader, PlusCircle, MinusCircle, TrendingUp } from 'lucide-react';
 import { USED_CONTRACTS } from '@robin-pm-staking/common/constants';
 import { GenesisVaultEvent } from '@robin-pm-staking/common/src/types/genesis-events';
@@ -24,7 +23,7 @@ export default function Activities() {
 
     useEffect(() => {
         fetchHistoricalActivities();
-    }, [lastTimestamp]);
+    }, [lastTimestamp, showUserActivityOnly]);
 
     const handleFetchMore = () => {
         if (fetchingMore) return;
@@ -50,7 +49,7 @@ export default function Activities() {
             fetchNewActivities();
         }, 4000);
         return () => clearInterval(interval);
-    }, [lastTimestamp]);
+    }, [lastTimestamp, showUserActivityOnly]);
 
     function formatTitle(type: GenesisVaultEvent) {
         return type.toString().replace(/([a-z0-9])([A-Z])/g, '$1 $2');
@@ -124,7 +123,7 @@ export default function Activities() {
 
     return (
         <div>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 mb-2">
                 <Switch id="genesis-user-activity" checked={showUserActivityOnly} onCheckedChange={setShowUserActivityOnly} />
                 <Label htmlFor="genesis-user-activity" className="text-sm">
                     My activity only

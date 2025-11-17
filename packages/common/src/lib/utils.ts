@@ -32,7 +32,14 @@ export function formatUnitsLocale(
     options: Intl.NumberFormatOptions = { maximumFractionDigits: maxDecimals }
 ) {
     const str = formatUnits(value, decimals, maxDecimals);
-    return Number(str).toLocaleString(locales, options);
+    let num = '';
+    if (str.includes('<')) {
+        num = Number(str.replace('<', '')).toLocaleString(locales, options);
+        num = '<' + num;
+    } else {
+        num = Number(str).toLocaleString(locales, options);
+    }
+    return num;
 }
 
 export function eventInfoToDb(info: VaultEventInfo | GenesisVaultEventInfo): string {

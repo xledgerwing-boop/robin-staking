@@ -34,7 +34,11 @@ export async function GET(request: NextRequest) {
 
         if (!vaultAddress) return NextResponse.json({ error: 'Missing vaultAddress' }, { status: 400 });
 
-        let query = pg(GENESIS_ACTIVITIES_TABLE).where('vaultAddress', vaultAddress).orderBy('timestamp', 'desc').orderBy('id', 'desc').limit(limit);
+        let query = pg(GENESIS_ACTIVITIES_TABLE)
+            .where('vaultAddress', vaultAddress.toLowerCase())
+            .orderBy('timestamp', 'desc')
+            .orderBy('id', 'desc')
+            .limit(limit);
 
         if (since) {
             query = query.where('timestamp', '>', parseInt(since, 10));
