@@ -9,7 +9,9 @@ const pg = knex({ client: 'pg', connection: process.env.POSTGRES_URI, ...knexSna
 
 const ALLOWED_TYPES: string[] = [
     PromoVaultEvent.Deposit,
+    PromoVaultEvent.BatchDeposit,
     PromoVaultEvent.Withdraw,
+    PromoVaultEvent.BatchWithdraw,
     PromoVaultEvent.Claim,
     PromoVaultEvent.MarketAdded,
     PromoVaultEvent.MarketEnded,

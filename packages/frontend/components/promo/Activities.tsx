@@ -57,8 +57,10 @@ export default function Activities() {
     }
 
     function renderIcon(type: PromoVaultEvent) {
-        if (type === PromoVaultEvent.Deposit || type === PromoVaultEvent.MarketAdded) return <PlusCircle className="w-4 h-4 text-primary" />;
-        if (type === PromoVaultEvent.Withdraw || type === PromoVaultEvent.MarketEnded) return <MinusCircle className="w-4 h-4 text-primary" />;
+        if (type === PromoVaultEvent.Deposit || type === PromoVaultEvent.MarketAdded || type === PromoVaultEvent.BatchDeposit)
+            return <PlusCircle className="w-4 h-4 text-primary" />;
+        if (type === PromoVaultEvent.Withdraw || type === PromoVaultEvent.MarketEnded || type === PromoVaultEvent.BatchWithdraw)
+            return <MinusCircle className="w-4 h-4 text-primary" />;
         return <TrendingUp className="w-4 h-4 text-primary" />;
     }
 
