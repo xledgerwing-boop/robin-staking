@@ -30,7 +30,6 @@ export async function GET(request: NextRequest) {
         const since = request.nextUrl.searchParams.get('since');
         const skip = request.nextUrl.searchParams.get('skip');
         const limit = 10;
-        const types = request.nextUrl.searchParams.getAll('types');
         const userAddress = request.nextUrl.searchParams.get('userAddress');
 
         if (!vaultAddress) return NextResponse.json({ error: 'Missing vaultAddress' }, { status: 400 });
@@ -44,7 +43,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Always filter to allowed types; allow additional narrowing via query param
-        query = query.whereIn('type', types.length > 0 ? types : ALLOWED_TYPES);
+        query = query.whereIn('type', ALLOWED_TYPES);
 
         if (userAddress) {
             query = query.where('userAddress', userAddress.toLowerCase());
