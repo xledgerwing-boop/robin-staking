@@ -21,7 +21,7 @@ import {
 } from '@robin-pm-staking/common/src/types/contracts-genesis';
 import useInvalidateQueries from '@robin-pm-staking/common/hooks/use-invalidate-queries';
 import { toast } from 'sonner';
-import { formatUnits, getErrorMessage } from '@robin-pm-staking/common/lib/utils';
+import { formatUnits, formatUnitsLocale, getErrorMessage } from '@robin-pm-staking/common/lib/utils';
 import OutcomeToken from '@robin-pm-staking/common/components/outcome-token';
 import { useGenesisVaultInfo } from '@/hooks/use-genesis-vault-info';
 import { useGenesisVaultUserInfo } from '@/hooks/use-genesis-vault-user-info';
@@ -124,7 +124,7 @@ export default function ManageGenesisPositions() {
             const list = (json.markets || []) as MarketRow[];
             const base: Record<number, GenesisMarket> = {};
             for (const row of list) {
-                if (!row.genesisIndex) continue;
+                if (row.genesisIndex == null) continue;
                 base[row.genesisIndex] = {
                     index: row.genesisIndex,
                     title: row.question,
@@ -411,7 +411,7 @@ export default function ManageGenesisPositions() {
                         >
                             <span className="flex items-center justify-center">
                                 {stakeLoading ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <ArrowUpRight className="w-4 h-4 mr-2" />}
-                                {`Stake ${formatUnitsViem(depositSummary.totalTokens, UNDERYLING_DECIMALS)} tokens`}
+                                {`Stake ${formatUnitsLocale(depositSummary.totalTokens, UNDERYLING_DECIMALS, 1)} tokens`}
                             </span>
                         </Button>
 
@@ -485,7 +485,7 @@ export default function ManageGenesisPositions() {
                         >
                             <span className="flex items-center justify-center">
                                 {withdrawLoading ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <ArrowUpRight className="w-4 h-4 mr-2" />}
-                                {`Withdraw ${formatUnitsViem(withdrawSummary.totalTokens, UNDERYLING_DECIMALS)} tokens`}
+                                {`Withdraw ${formatUnitsLocale(withdrawSummary.totalTokens, UNDERYLING_DECIMALS, 1)} tokens`}
                             </span>
                         </Button>
 
@@ -640,7 +640,7 @@ function MarketSlidersCard({ market, yesMax, noMax, yesSymbol, noSymbol, draftYe
                             <div className="font-medium">{market.title}</div>
                         </div>
                         <div className="flex w-full items-center gap-2 mb-1">
-                            <div className="text-xs min-w-7 shrink-0">{draftYes || '0'}</div>
+                            <div className="text-xs min-w-7 shrink-0">{Number.parseFloat(draftYes).toFixed(1) || '0'}</div>
                             <OutcomeToken outcome={Outcome.Yes} symbolHolder={market} noText />
                             <AmountSlider
                                 className="w-full"
@@ -651,7 +651,7 @@ function MarketSlidersCard({ market, yesMax, noMax, yesSymbol, noSymbol, draftYe
                             />
                         </div>
                         <div className="flex w-full items-center gap-2">
-                            <div className="text-xs min-w-7 shrink-0">{draftNo || '0'}</div>
+                            <div className="text-xs min-w-7 shrink-0">{Number.parseFloat(draftNo).toFixed(1) || '0'}</div>
                             <OutcomeToken outcome={Outcome.No} symbolHolder={market} noText />
                             <AmountSlider className="w-full" amount={draftNo || '0'} max={noMax} onAmountChange={onChangeNo} disabled={!!disabled} />
                         </div>
