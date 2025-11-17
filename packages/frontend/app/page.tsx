@@ -45,7 +45,7 @@ export default function GenesisVaultPage() {
                                 <ManageGenesisPositions />
                             </div>
                         )}
-                        <div className="flex w-full items-center justify-start gap-8 border-b border-border mt-40">
+                        <div className="flex w-full items-center justify-start gap-8 border-b border-border mt-16 xl:mt-40">
                             <button
                                 type="button"
                                 onClick={() => setSection('faq')}

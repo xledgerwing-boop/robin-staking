@@ -630,7 +630,7 @@ function MarketSlidersCard({ market, yesMax, noMax, yesSymbol, noSymbol, draftYe
                     +4% APY
                 </div>
             )}
-            <CardContent className="pt-4">
+            <CardContent className="">
                 <div className="flex items-start gap-3">
                     <div className="w-16 h-16 relative shrink-0 rounded-md overflow-hidden bg-muted">
                         <Image src={market.image || '/placeholder.png'} alt="market" fill className="object-cover" sizes="150px" />

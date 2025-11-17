@@ -50,18 +50,18 @@ export default function AvailableMarkets() {
 
     if (loading) {
         return (
-            <div className="py-8 flex items-center justify-center text-muted-foreground">
+            <div className="h-96 py-8 flex justify-center text-muted-foreground">
                 <Loader className="w-5 h-5 animate-spin" />
             </div>
         );
     }
 
     if (markets.length === 0) {
-        return <div className="text-sm text-muted-foreground text-center py-8">No markets available</div>;
+        return <div className="h-96 text-sm text-muted-foreground text-center py-8">No markets available</div>;
     }
 
     return (
-        <div className="max-h-96 overflow-y-auto pr-2 space-y-2 pb-2">
+        <div className="h-96 overflow-y-auto pr-2 space-y-2 pb-2">
             {markets.map(market => (
                 <Card key={market.index} className="relative overflow-hidden border-muted p-2">
                     {market.genesisEligible && (

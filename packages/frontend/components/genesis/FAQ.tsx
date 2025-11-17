@@ -66,7 +66,7 @@ const FAQS: Array<{ q: string; a: string }> = [
 
 export default function FAQ() {
     return (
-        <div className="space-y-2">
+        <div className="space-y-2 min-h-96">
             {FAQS.map((f, idx) => (
                 <FaqItem key={idx} question={f.q} answer={f.a} />
             ))}

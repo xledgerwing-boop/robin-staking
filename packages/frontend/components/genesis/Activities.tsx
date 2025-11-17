@@ -130,7 +130,7 @@ export default function Activities() {
                 </Label>
             </div>
             <div className="relative">
-                <div ref={feedRef} className="max-h-96 overflow-y-auto pr-2">
+                <div ref={feedRef} className="h-96 overflow-y-auto pr-2">
                     <div className="space-y-3">
                         {activities.map(a => (
                             <div key={a.id} className="flex items-center justify-between p-3 rounded-lg border">
