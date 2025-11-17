@@ -5,20 +5,62 @@ import { ChevronDown } from 'lucide-react';
 
 const FAQS: Array<{ q: string; a: string }> = [
     {
-        q: 'What tokens can I stake?',
-        a: 'You can stake Polymarket outcome tokens (YES/NO) from participating markets that are added to this vault.',
+        q: 'What is the Genesis Reward Vault?',
+        a: `<p>The Genesis Reward Vault is a <strong>30-day, yield-earning vault</strong> for Polymarket positions (YES/NO).</p>
+<p>You stake your outcome tokens, and they immediately start earning USDC yield—while staying <strong>fully liquid and tradeable</strong> at all times.</p>
+<ul>
+<li>No lockups</li>
+<li>Fully pre-funded by Robin</li>
+<li>Capped at $100,000 TVL</li>
+<li>Designed exclusively for early users as a thank-you campaign</li>
+</ul>
+<p><strong>Your Polymarket positions always remain yours. You can withdraw anytime.</strong></p>`,
     },
     {
-        q: 'How are earnings calculated?',
-        a: 'Earnings accrue based on the time-weighted USD value (USD-seconds) of your staked tokens. APY reflects current conditions and is subject to change as prices and TVL update.',
+        q: 'Where does the yield come from?',
+        a: `<p>For this early-access vault, all yield is <strong>pre-funded by Robin</strong>.</p>
+<ul>
+<li>We deposit a fixed amount of USDC into the vault contract before launch</li>
+<li>Users share this yield proportionally</li>
+<li>You can verify the pre-funded amount directly on-chain</li>
+</ul>
+<p>After the audited mainnet launch, yield will come from cross-chain, DeFi-native strategies — but this campaign intentionally keeps things simple, safe, and risk-free.</p>`,
     },
     {
-        q: 'When can I claim?',
-        a: 'Rewards can be claimed after the campaign is finalized. Your payout is proportional to your accumulated USD-seconds at the end.',
+        q: 'How much can I earn?',
+        a: `<p>The vault targets <strong>~6% APY over 30 days</strong>, and can reach <strong>~10% APY</strong> when combined with Polymarket's ~4% holding reward.</p>
+<p>Your final APY depends on the vault fill level:</p>
+<ul>
+<li>If it does NOT fill to $100k → yields go up</li>
+<li>If it fills quickly or oversubscribes → yields may adjust slightly down</li>
+</ul>
+<p><strong>Early stakers earn the most.</strong></p>`,
     },
     {
-        q: 'What happens if a market is not eligible?',
-        a: 'Non-eligible markets still accrue base rewards; only eligible markets also accrue extra rewards when available.',
+        q: 'Do I have to lock up funds or match tokens?',
+        a: `<p><strong>No — zero lockup and no matching required.</strong></p>
+<ul>
+<li>Withdraw your YES/NO tokens at any time</li>
+<li>Continue trading freely on Polymarket</li>
+<li>Vault mechanics never restrict your liquidity or redemption</li>
+<li>Yield is earned based on USD value, not YES/NO balance</li>
+</ul>
+<p>This is full flexibility with no strings attached.</p>`,
+    },
+    {
+        q: 'What happens when the vault ends?',
+        a: `<p>At the end of the 30-day campaign:</p>
+<ul>
+<li>Your accumulated USDC yield becomes claimable</li>
+<li>You also receive your share of the <strong>50,000 Genesis Points</strong>
+<li>Points are distributed proportionally based on your earned yield</li>
+    <ul>
+        
+        <li>(your yield / total vault yield) × 50,000</li>
+    </ul>
+</li>
+</ul>
+<p>Resolved Polymarket positions simply stop earning yield—you can withdraw them immediately and redeem as normal.</p>`,
     },
 ];
 
@@ -40,7 +82,12 @@ function FaqItem({ question, answer }: { question: string; answer: string }) {
                 <span className="font-medium">{question}</span>
                 <ChevronDown className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} />
             </button>
-            {open && <div className="px-4 pb-4 text-sm text-muted-foreground">{answer}</div>}
+            {open && (
+                <div
+                    className="px-4 pb-4 text-sm text-muted-foreground [&_p]:mb-2 [&_p:last-child]:mb-0 [&_ul]:list-disc [&_ul]:ml-6 [&_ul]:mb-2 [&_ul]:space-y-1 [&_li]:leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: answer }}
+                />
+            )}
         </div>
     );
 }

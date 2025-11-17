@@ -68,7 +68,7 @@ export default function GenesisVaultPage() {
                                 Activity
                             </button>
                         </div>
-                        <div className="pt-4">{section === 'faq' ? <FAQ /> : <Activities />}</div>
+                        <div className="">{section === 'faq' ? <FAQ /> : <Activities />}</div>
                     </div>
                     {isXl && (
                         <div className="xl:col-span-1">
