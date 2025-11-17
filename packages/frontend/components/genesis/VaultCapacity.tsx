@@ -68,17 +68,19 @@ export default function VaultCapacity() {
                     ({formatUnits(capPctBps, 4, 0)}%)
                 </span>
             </div>
-            <div className="w-[50%] mx-auto">
-                <p className="text-sm text-muted-foreground text-center mt-3">Registered interest</p>
-                <div className="text-2xl font-bold text-center">${formatUnitsLocale(registeredUsd, UNDERYLING_DECIMALS, 0)}</div>
-                {capReached && (
-                    <div className="mt-3">
-                        <Button className="w-full" variant="secondary" onClick={onRegisterInterest} disabled={loading}>
-                            {loading ? 'Registering...' : 'Register Interest'}
-                        </Button>
-                    </div>
-                )}
-            </div>
+            {registeredUsd > 0n && (
+                <div className="w-[50%] mx-auto">
+                    <p className="text-sm text-muted-foreground text-center mt-3">Registered interest</p>
+                    <div className="text-2xl font-bold text-center">${formatUnitsLocale(registeredUsd, UNDERYLING_DECIMALS, 0)}</div>
+                    {capReached && (
+                        <div className="mt-3">
+                            <Button className="w-full" variant="secondary" onClick={onRegisterInterest} disabled={loading}>
+                                {loading ? 'Registering...' : 'Register Interest'}
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
