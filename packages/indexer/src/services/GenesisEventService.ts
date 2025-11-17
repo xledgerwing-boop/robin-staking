@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
 import { DBService } from './DbService';
-import { GenesisActivityRow, GenesisActivityType } from '@robin-pm-staking/common/src/types/genesis-activity';
+import { GenesisActivityRow, GenesisActivityType } from '@robin-pm-staking/common/types/genesis-activity';
 import {
     ClaimEvent,
     GenesisDepositEvent,
@@ -11,7 +11,7 @@ import {
     MarketEndedEvent,
     GenesisBatchDepositEvent,
     GenesisBatchWithdrawEvent,
-} from '@robin-pm-staking/common/src/types/genesis-events';
+} from '@robin-pm-staking/common/types/genesis-events';
 import { LogInfo } from './EventService';
 import { logger } from '../utils/logger';
 import { eventInfoToDb } from '@robin-pm-staking/common/lib/utils';

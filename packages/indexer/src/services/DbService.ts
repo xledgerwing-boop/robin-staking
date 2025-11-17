@@ -1,7 +1,7 @@
 import knex, { Knex } from 'knex';
 import { knexSnakeCaseMappers } from 'objection';
 import { ActivityRow } from '@robin-pm-staking/common/types/activity';
-import { GenesisActivityRow } from '@robin-pm-staking/common/src/types/genesis-activity';
+import { GenesisActivityRow } from '@robin-pm-staking/common/types/genesis-activity';
 import { MarketRow } from '@robin-pm-staking/common/types/market';
 import { ensureSchema, USER_POSITIONS_TABLE, GENESIS_ACTIVITIES_TABLE, GENESIS_INTERESTS_TABLE } from '@robin-pm-staking/common/lib/repos';
 import { UserPositionRow } from '@robin-pm-staking/common/types/position';

@@ -1,11 +1,11 @@
 import { ethers } from 'ethers';
 import { DBService } from './DbService';
-import { USED_CONTRACTS } from '@robin-pm-staking/common/src/constants';
-import { robinGenesisVaultAbi } from '@robin-pm-staking/common/src/types/contracts-genesis';
+import { USED_CONTRACTS } from '@robin-pm-staking/common/constants';
+import { robinGenesisVaultAbi } from '@robin-pm-staking/common/types/contracts-genesis';
 import { NotificationService } from './NotificationService';
 import { Knex } from 'knex';
-import { MARKETS_TABLE } from '@robin-pm-staking/common/src/lib/repos';
-import { fetchMarketsByConditionIds } from '@robin-pm-staking/common/src/lib/polymarket';
+import { MARKETS_TABLE } from '@robin-pm-staking/common/lib/repos';
+import { fetchMarketsByConditionIds } from '@robin-pm-staking/common/lib/polymarket';
 import { Market, MarketRow, MarketRowToMarket } from '@robin-pm-staking/common/types/market';
 
 export class GenesisPriceUpdater {
