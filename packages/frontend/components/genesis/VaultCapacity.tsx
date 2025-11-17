@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { USED_CONTRACTS, UNDERYLING_DECIMALS } from '@robin-pm-staking/common/src/constants';
@@ -10,7 +9,6 @@ import { useGenesisVaultInfo } from '@/hooks/use-genesis-vault-info';
 import { useProxyAccount } from '@robin-pm-staking/common/src/hooks/use-proxy-account';
 import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
-import { ValueState } from '../value-state';
 
 export default function VaultCapacity() {
     const VAULT = USED_CONTRACTS.GENESIS_VAULT as `0x${string}`;
