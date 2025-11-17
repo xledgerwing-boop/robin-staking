@@ -14,7 +14,7 @@ import { USED_CONTRACTS } from '@robin-pm-staking/common/constants';
 import { useIsXlScreen } from '@/hooks/use-xl-screen';
 
 export default function GenesisVaultPage() {
-    const [section, setSection] = useState<'faq' | 'activity' | 'markets'>('faq');
+    const [section, setSection] = useState<'faq' | 'activity' | 'markets'>('markets');
     const isXl = useIsXlScreen();
     return (
         <div className="min-h-screen bg-background">
@@ -48,6 +48,17 @@ export default function GenesisVaultPage() {
                         <div className="flex w-full items-center justify-start gap-8 border-b border-border mt-16 xl:mt-40">
                             <button
                                 type="button"
+                                onClick={() => setSection('markets')}
+                                className={`relative pb-3 text-sm font-medium ${
+                                    section === 'markets'
+                                        ? 'text-foreground after:absolute after:left-0 after:bottom-[-1px] after:h-[2px] after:w-full after:bg-primary'
+                                        : 'text-muted-foreground hover:text-foreground/80'
+                                }`}
+                            >
+                                Eligible Markets
+                            </button>
+                            <button
+                                type="button"
                                 onClick={() => setSection('faq')}
                                 className={`relative pb-3 text-sm font-medium ${
                                     section === 'faq'
@@ -67,17 +78,6 @@ export default function GenesisVaultPage() {
                                 }`}
                             >
                                 Activity
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setSection('markets')}
-                                className={`relative pb-3 text-sm font-medium ${
-                                    section === 'markets'
-                                        ? 'text-foreground after:absolute after:left-0 after:bottom-[-1px] after:h-[2px] after:w-full after:bg-primary'
-                                        : 'text-muted-foreground hover:text-foreground/80'
-                                }`}
-                            >
-                                Markets
                             </button>
                         </div>
                         <div className="">

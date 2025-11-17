@@ -1,7 +1,7 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Clock, RefreshCcw, HandCoins, Trophy, Loader } from 'lucide-react';
+import { Clock, RefreshCcw, HandCoins, Trophy, Loader, ExternalLink } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { MarketStatusBadge } from '@/components/market/market-status-badge';
@@ -18,6 +18,11 @@ import { useReadContracts } from 'wagmi';
 import { robinStakingVaultAbi } from '@robin-pm-staking/common/types/contracts';
 import { ValueState } from '@/components/value-state';
 import { PolymarketPositionsCard } from '@/components/polymarket-positions-card';
+import { useGenesisVaultInfo } from '@/hooks/use-genesis-vault-info';
+import { useGenesisVaultUserInfo } from '@/hooks/use-genesis-vault-user-info';
+import { formatUnitsLocale } from '@robin-pm-staking/common/lib/utils';
+import { useReadRobinGenesisVaultViewUserStakedMarkets } from '@robin-pm-staking/common/types/contracts-genesis';
+import { useMemo } from 'react';
 
 export default function PortfolioPage() {
     const { proxyAddress: address } = useProxyAccount();
@@ -31,6 +36,33 @@ export default function PortfolioPage() {
     const [totalCount, setTotalCount] = useState(0);
     const [loading, setLoading] = useState(false);
     const [refreshTick, setRefreshTick] = useState(0);
+
+    // Genesis Vault data
+    const GENESIS_VAULT = USED_CONTRACTS.GENESIS_VAULT as `0x${string}`;
+    const {
+        userCurrentValues,
+        userCurrentValuesLoading,
+        userCurrentValuesError,
+        userEstimatedEarnings,
+        userEstimatedEarningsLoading,
+        userEstimatedEarningsError,
+    } = useGenesisVaultUserInfo(GENESIS_VAULT, address as `0x${string}`);
+
+    const { data: stakedMarkets, isLoading: stakedMarketsLoading } = useReadRobinGenesisVaultViewUserStakedMarkets({
+        address: GENESIS_VAULT,
+        args: [address as `0x${string}`],
+        query: { enabled: !!address },
+    });
+
+    const totalStakedTokens = useMemo(() => {
+        if (!stakedMarkets) return 0n;
+        const [, stakedABalances, stakedBBalances] = stakedMarkets as [bigint[], bigint[], bigint[]];
+        let total = 0n;
+        for (let i = 0; i < stakedABalances.length; i++) {
+            total += stakedABalances[i] + stakedBBalances[i];
+        }
+        return total;
+    }, [stakedMarkets]);
 
     const {
         data: userYields,
@@ -103,6 +135,59 @@ export default function PortfolioPage() {
                     <h1 className="text-3xl md:text-4xl font-bold mb-2">Portfolio</h1>
                     <p className="text-muted-foreground text-lg">Manage all your positions staked with Robin</p>
                 </div>
+
+                {/* Genesis Vault Section */}
+                <Card className="mb-8">
+                    <CardHeader>
+                        <CardTitle className="text-xl">
+                            <Link href="/" className="hover:underline">
+                                Genesis Reward Vault
+                            </Link>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-3 gap-6">
+                            <div>
+                                <p className="text-sm text-muted-foreground mb-2">Staked TVL</p>
+                                <div className="text-xl font-bold">
+                                    <ValueState
+                                        value={
+                                            userCurrentValues == null
+                                                ? undefined
+                                                : `$${formatUnitsLocale(userCurrentValues[0], UNDERYLING_DECIMALS, 1)}`
+                                        }
+                                        loading={userCurrentValuesLoading}
+                                        error={!!userCurrentValuesError}
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <p className="text-sm text-muted-foreground mb-2">Staked Tokens</p>
+                                <div className="text-xl font-bold">
+                                    <ValueState
+                                        value={stakedMarkets == null ? undefined : `${formatUnitsLocale(totalStakedTokens, UNDERYLING_DECIMALS, 1)}`}
+                                        loading={stakedMarketsLoading}
+                                        error={false}
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <p className="text-sm text-muted-foreground mb-2">Earnings</p>
+                                <div className="text-xl font-bold text-primary">
+                                    <ValueState
+                                        value={
+                                            userEstimatedEarnings == null
+                                                ? undefined
+                                                : `$${formatUnitsLocale(userEstimatedEarnings[0], UNDERYLING_DECIMALS, 1)}`
+                                        }
+                                        loading={userEstimatedEarningsLoading}
+                                        error={!!userEstimatedEarningsError}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
 
                 {/* Your Deposits Section */}
                 <Card className="mb-8">
