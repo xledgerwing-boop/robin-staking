@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { GENESIS_INTERESTS_TABLE } from '@robin-pm-staking/common/lib/repos';
+import { rateLimit } from '@/lib/rate-limit';
 
 export async function GET(req: NextRequest) {
+    const ip = req.headers.get('x-forwarded-for') || 'unknown';
+    const endpoint = '/api/genesis/interest';
+
+    if (!rateLimit(ip, endpoint)) {
+        return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
+
     try {
         const db = await getDb();
         const { searchParams } = new URL(req.url);

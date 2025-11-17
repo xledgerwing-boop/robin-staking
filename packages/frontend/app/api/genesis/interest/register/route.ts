@@ -5,8 +5,16 @@ import { USED_CONTRACTS } from '@robin-pm-staking/common/src/constants';
 import { createPublicClient, http } from 'viem';
 import { polygon } from 'viem/chains';
 import { robinGenesisVaultAbi } from '@robin-pm-staking/common/src/types/contracts-genesis';
+import { rateLimit } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
+    const ip = req.headers.get('x-forwarded-for') || 'unknown';
+    const endpoint = '/api/genesis/interest/register';
+
+    if (!rateLimit(ip, endpoint)) {
+        return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
+
     try {
         const db = await getDb();
         const body = await req.json();

@@ -7,13 +7,14 @@ import VaultCapacity from '@/components/genesis/VaultCapacity';
 import ManageGenesisPositions from '@/components/genesis/manage-genesis-positions';
 import Activities from '@/components/genesis/Activities';
 import FAQ from '@/components/genesis/FAQ';
+import AvailableMarkets from '@/components/genesis/AvailableMarkets';
 import { Button } from '@/components/ui/button';
 import { ExternalLink } from 'lucide-react';
 import { USED_CONTRACTS } from '@robin-pm-staking/common/constants';
 import { useIsXlScreen } from '@/hooks/use-xl-screen';
 
 export default function GenesisVaultPage() {
-    const [section, setSection] = useState<'faq' | 'activity'>('faq');
+    const [section, setSection] = useState<'faq' | 'activity' | 'markets'>('faq');
     const isXl = useIsXlScreen();
     return (
         <div className="min-h-screen bg-background">
@@ -67,8 +68,23 @@ export default function GenesisVaultPage() {
                             >
                                 Activity
                             </button>
+                            <button
+                                type="button"
+                                onClick={() => setSection('markets')}
+                                className={`relative pb-3 text-sm font-medium ${
+                                    section === 'markets'
+                                        ? 'text-foreground after:absolute after:left-0 after:bottom-[-1px] after:h-[2px] after:w-full after:bg-primary'
+                                        : 'text-muted-foreground hover:text-foreground/80'
+                                }`}
+                            >
+                                Markets
+                            </button>
                         </div>
-                        <div className="">{section === 'faq' ? <FAQ /> : <Activities />}</div>
+                        <div className="">
+                            {section === 'faq' && <FAQ />}
+                            {section === 'activity' && <Activities />}
+                            {section === 'markets' && <AvailableMarkets />}
+                        </div>
                     </div>
                     {isXl && (
                         <div className="xl:col-span-1">
