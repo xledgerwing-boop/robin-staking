@@ -7,8 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 export function BackButton() {
     const pathname = usePathname();
     const router = useRouter();
-    const includedPage =
-        pathname.includes('/market/') || pathname.includes('/portfolio') || pathname.includes('/rewards') || pathname.includes('/genesis');
+    const includedPage = pathname.includes('/market/');
 
     if (!includedPage) return null;
     return (

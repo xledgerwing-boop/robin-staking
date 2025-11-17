@@ -8,7 +8,7 @@ import { RobinGenesisVault } from '../src/RobinGenesisVault.sol';
 
 contract DeployGenesisVaultOnly is Script, Constants {
     function run() external {
-        uint256 tvlCapUsd = 10_000_000;
+        uint256 tvlCapUsd = 100_000_000_000; // 100 k USD
 
         vm.startBroadcast();
         RobinGenesisVault vault = new RobinGenesisVault(CONDITIONAL_TOKENS, UNDERLYING_USD, tvlCapUsd);
