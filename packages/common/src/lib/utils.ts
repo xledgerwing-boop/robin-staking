@@ -2,7 +2,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { formatUnits as viemFormatUnits } from 'viem';
 import { twMerge } from 'tailwind-merge';
 import { VaultEventInfo } from '../types/conract-events';
-import { PromoVaultEventInfo } from '../types/promo-events';
+import { GenesisVaultEventInfo } from '../types/genesis-events';
 
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
@@ -35,7 +35,7 @@ export function formatUnitsLocale(
     return Number(str).toLocaleString(locales, options);
 }
 
-export function eventInfoToDb(info: VaultEventInfo | PromoVaultEventInfo): string {
+export function eventInfoToDb(info: VaultEventInfo | GenesisVaultEventInfo): string {
     const dbInfo: Record<string, string> = {};
     for (const key in info) {
         if (typeof info[key as keyof typeof info] === 'bigint') {
@@ -47,11 +47,11 @@ export function eventInfoToDb(info: VaultEventInfo | PromoVaultEventInfo): strin
     return JSON.stringify(dbInfo);
 }
 
-export function eventInfoFromDb(dbInfo: Record<string, string | bigint | boolean | number>): VaultEventInfo | PromoVaultEventInfo {
+export function eventInfoFromDb(dbInfo: Record<string, string | bigint | boolean | number>): VaultEventInfo | GenesisVaultEventInfo {
     for (const key in dbInfo) {
         if (dbInfo[key] && typeof dbInfo[key] === 'string' && dbInfo[key].startsWith('bigint:')) {
             dbInfo[key] = BigInt(dbInfo[key].substring(7));
         }
     }
-    return dbInfo as VaultEventInfo | PromoVaultEventInfo;
+    return dbInfo as VaultEventInfo | GenesisVaultEventInfo;
 }

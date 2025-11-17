@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
 import { logger } from '../utils/logger';
 import { robinVaultManagerAbi, polymarketAaveStakingVaultAbi } from '@robin-pm-staking/common/types/contracts';
-import { promotionVaultAbi } from '@robin-pm-staking/common/types/contracts-promo';
+import { robinGenesisVaultAbi } from '@robin-pm-staking/common/types/contracts-genesis';
 import { EventService, LogInfo } from './EventService';
 import {
     DepositedEvent,
@@ -18,29 +18,29 @@ import {
     YieldUnlockProgressEvent,
     YieldUnlockStartedEvent,
 } from '@robin-pm-staking/common/types/conract-events';
-import { PromoEventService } from './PromoEventService';
-import { PromoVaultEvent, PromoVaultEventInfo } from '@robin-pm-staking/common/types/promo-events';
+import { GenesisEventService } from './GenesisEventService';
+import { GenesisVaultEvent, GenesisVaultEventInfo } from '@robin-pm-staking/common/src/types/genesis-events';
 import { USED_CONTRACTS } from '@robin-pm-staking/common/constants';
 
 export class StreamsIndexer {
     private provider: ethers.JsonRpcProvider;
     private manager: ethers.Contract;
-    private promoVault: ethers.Contract;
+    private genesisVault: ethers.Contract;
     private vaultInterface: ethers.Interface;
-    private promoVaultInterface: ethers.Interface;
+    private genesisVaultInterface: ethers.Interface;
     private eventService: EventService;
-    private promoEventService: PromoEventService;
+    private genesisEventService: GenesisEventService;
 
     constructor(rpcUrl: string, chainId: number, managerAddress: string, postgresUri: string) {
         this.provider = new ethers.JsonRpcProvider(rpcUrl, ethers.Network.from(chainId), {
             staticNetwork: true,
         });
         this.eventService = new EventService(postgresUri);
-        this.promoEventService = new PromoEventService(postgresUri);
+        this.genesisEventService = new GenesisEventService(postgresUri);
         this.manager = new ethers.Contract(managerAddress, robinVaultManagerAbi, this.provider);
-        this.promoVault = new ethers.Contract(USED_CONTRACTS.PROMOTION_VAULT, promotionVaultAbi, this.provider);
+        this.genesisVault = new ethers.Contract(USED_CONTRACTS.GENESIS_VAULT, robinGenesisVaultAbi, this.provider);
         this.vaultInterface = new ethers.Interface(polymarketAaveStakingVaultAbi);
-        this.promoVaultInterface = new ethers.Interface(promotionVaultAbi);
+        this.genesisVaultInterface = new ethers.Interface(robinGenesisVaultAbi);
     }
 
     public async start(): Promise<void> {
@@ -70,16 +70,16 @@ export class StreamsIndexer {
         }
     }
 
-    public async processPromoWebhook(webhookData: LogInfo[]): Promise<void> {
+    public async processGenesisWebhook(webhookData: LogInfo[]): Promise<void> {
         try {
-            logger.info(`Processing promo webhook data: ${webhookData.length}`);
+            logger.info(`Processing genesis webhook data: ${webhookData.length}`);
             for (const log of webhookData) {
-                await this.processPromoWebhookLog(log);
+                await this.processGenesisWebhookLog(log);
             }
-            logger.info('Promo webhook processing completed successfully');
+            logger.info('Genesis webhook processing completed successfully');
         } catch (error) {
-            logger.error('Error processing promo webhook:', error);
-            logger.info('Promo webhook data:', webhookData);
+            logger.error('Error processing genesis webhook:', error);
+            logger.info('Genesis webhook data:', webhookData);
             throw error;
         }
     }
@@ -99,11 +99,11 @@ export class StreamsIndexer {
         }
     }
 
-    private async processPromoWebhookLog(log: LogInfo): Promise<void> {
+    private async processGenesisWebhookLog(log: LogInfo): Promise<void> {
         try {
-            await this.handlePromoVaultEvent(log);
+            await this.handleGenesisVaultEvent(log);
         } catch (error) {
-            logger.error('Error processing promo webhook log:', error);
+            logger.error('Error processing genesis webhook log:', error);
             throw error;
         }
     }
@@ -209,17 +209,17 @@ export class StreamsIndexer {
         await this.eventService.handleMarketEvent(event, info, parsedEvent);
     }
 
-    private async handlePromoVaultEvent(event: LogInfo) {
-        const parsedEvent = this.promoVaultInterface.parseLog(event);
+    private async handleGenesisVaultEvent(event: LogInfo) {
+        const parsedEvent = this.genesisVaultInterface.parseLog(event);
         if (!parsedEvent) {
-            throw new Error(`Failed to parse promo vault log ${event.transactionHash}`);
+            throw new Error(`Failed to parse genesis vault log ${event.transactionHash}`);
         }
-        const eventName = parsedEvent.name as PromoVaultEvent;
+        const eventName = parsedEvent.name as GenesisVaultEvent;
         const args = parsedEvent.args;
-        let info: PromoVaultEventInfo;
+        let info: GenesisVaultEventInfo;
 
         switch (eventName) {
-            case PromoVaultEvent.CampaignStarted:
+            case GenesisVaultEvent.CampaignStarted:
                 info = {
                     starter: args[0].toLowerCase(),
                     baseFunded: args[1],
@@ -227,14 +227,14 @@ export class StreamsIndexer {
                     endTs: args[3],
                 };
                 break;
-            case PromoVaultEvent.PricesUpdated:
+            case GenesisVaultEvent.PricesUpdated:
                 info = {
                     timestamp: args[0],
                 };
                 break;
-            case PromoVaultEvent.Deposit:
+            case GenesisVaultEvent.Deposit:
                 const user = args[0].toLowerCase();
-                const [totalTokens, totalUsd, eligibleUsd] = await this.promoVault.viewUserStakeableValue(user);
+                const [totalTokens, totalUsd, eligibleUsd] = await this.genesisVault.viewUserStakeableValue(user);
                 info = {
                     user,
                     marketIndex: args[1],
@@ -245,8 +245,8 @@ export class StreamsIndexer {
                     eligibleUsd,
                 };
                 break;
-            case PromoVaultEvent.BatchDeposit:
-                const [totalTokens1, totalUsd1, eligibleUsd1] = await this.promoVault.viewUserStakeableValue(args[0].toLowerCase());
+            case GenesisVaultEvent.BatchDeposit:
+                const [totalTokens1, totalUsd1, eligibleUsd1] = await this.genesisVault.viewUserStakeableValue(args[0].toLowerCase());
                 info = {
                     user: args[0].toLowerCase(),
                     tokenAmount: args[1],
@@ -255,7 +255,7 @@ export class StreamsIndexer {
                     eligibleUsd: eligibleUsd1,
                 };
                 break;
-            case PromoVaultEvent.Withdraw:
+            case GenesisVaultEvent.Withdraw:
                 info = {
                     user: args[0].toLowerCase(),
                     marketIndex: args[1],
@@ -263,20 +263,20 @@ export class StreamsIndexer {
                     amount: args[3],
                 };
                 break;
-            case PromoVaultEvent.BatchWithdraw:
+            case GenesisVaultEvent.BatchWithdraw:
                 info = {
                     user: args[0].toLowerCase(),
                     tokenAmount: args[1],
                 };
                 break;
-            case PromoVaultEvent.Claim:
+            case GenesisVaultEvent.Claim:
                 info = {
                     user: args[0].toLowerCase(),
                     basePaid: args[1],
                     extraPaid: args[2],
                 };
                 break;
-            case PromoVaultEvent.MarketAdded:
+            case GenesisVaultEvent.MarketAdded:
                 info = {
                     index: args[0],
                     tokenIdA: args[1],
@@ -284,12 +284,12 @@ export class StreamsIndexer {
                     extraEligible: args[3],
                 };
                 break;
-            case PromoVaultEvent.MarketEnded:
+            case GenesisVaultEvent.MarketEnded:
                 info = {
                     index: args[0],
                 };
                 break;
-            case PromoVaultEvent.CampaignFinalized:
+            case GenesisVaultEvent.CampaignFinalized:
                 info = {
                     timestamp: args[0],
                     totalValueTime: args[1],
@@ -298,33 +298,33 @@ export class StreamsIndexer {
                     extraPool: args[4],
                 };
                 break;
-            case PromoVaultEvent.TvlCapUpdated:
+            case GenesisVaultEvent.TvlCapUpdated:
                 info = {
                     newCapUsd: args[0],
                     newBaseRewardPool: args[1],
                 };
                 break;
-            case PromoVaultEvent.LeftoversSwept:
+            case GenesisVaultEvent.LeftoversSwept:
                 info = {
                     to: args[0].toLowerCase(),
                     amount: args[1],
                 };
                 break;
-            case PromoVaultEvent.EmergencyModeEnabled:
+            case GenesisVaultEvent.EmergencyModeEnabled:
                 info = {
                     timestamp: args[0],
                 };
                 break;
-            case PromoVaultEvent.EmergencyWithdrawal:
+            case GenesisVaultEvent.EmergencyWithdrawal:
                 info = {
                     user: args[0].toLowerCase(),
                 };
                 break;
             default:
-                logger.warn(`Unknown promo event: ${eventName}`);
+                logger.warn(`Unknown genesis event: ${eventName}`);
                 return;
         }
 
-        await this.promoEventService.handlePromoEvent(event, info, parsedEvent);
+        await this.genesisEventService.handleGenesisEvent(event, info, parsedEvent);
     }
 }

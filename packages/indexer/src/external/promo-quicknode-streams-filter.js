@@ -6,7 +6,7 @@ async function main(payload) {
         const timestamp = blockData.block.timestamp;
         for (const receipt of blockData.receipts) {
             for (const log of receipt.logs) {
-                const isRelevant = log.address.toLowerCase() === promotionVault;
+                const isRelevant = log.address.toLowerCase() === genesisVault;
                 if (isRelevant) {
                     relevantLogs.push({ ...log, timestamp });
                 }
@@ -17,4 +17,4 @@ async function main(payload) {
     return relevantLogs;
 }
 
-const promotionVault = '0x443d773831c8B542F20bd9712c672084911eE10B'.toLowerCase();
+const genesisVault = '0x443d773831c8B542F20bd9712c672084911eE10B'.toLowerCase();

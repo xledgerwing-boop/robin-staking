@@ -1,9 +1,9 @@
 import knex, { Knex } from 'knex';
 import { knexSnakeCaseMappers } from 'objection';
 import { ActivityRow } from '@robin-pm-staking/common/types/activity';
-import { PromoActivityRow } from '@robin-pm-staking/common/types/promo-activity';
+import { GenesisActivityRow } from '@robin-pm-staking/common/src/types/genesis-activity';
 import { MarketRow } from '@robin-pm-staking/common/types/market';
-import { ensureSchema, USER_POSITIONS_TABLE, PROMO_ACTIVITIES_TABLE, PROMO_INTERESTS_TABLE } from '@robin-pm-staking/common/lib/repos';
+import { ensureSchema, USER_POSITIONS_TABLE, GENESIS_ACTIVITIES_TABLE, GENESIS_INTERESTS_TABLE } from '@robin-pm-staking/common/lib/repos';
 import { UserPositionRow } from '@robin-pm-staking/common/types/position';
 
 export class DBService {
@@ -38,11 +38,11 @@ export class DBService {
         await this.knex('markets').where('conditionId', conditionId).update(updateData);
     }
 
-    public async updateMarketPromotionOnEnded(params: { index: number; endedAt: bigint }) {
+    public async updateMarketGenesisOnEnded(params: { index: number; endedAt: bigint }) {
         const { index, endedAt } = params;
         const now = Date.now().toString();
-        await this.knex('markets').where('promotionIndex', index).update({
-            promoEndedAt: endedAt.toString(),
+        await this.knex('markets').where('genesisIndex', index).update({
+            genesisEndedAt: endedAt.toString(),
             updatedAt: now,
         });
     }
@@ -55,12 +55,12 @@ export class DBService {
         return await this.knex('activities').where('id', id).first();
     }
 
-    public async insertPromoActivity(activity: PromoActivityRow) {
-        await this.knex(PROMO_ACTIVITIES_TABLE).insert(activity).onConflict('id').ignore();
+    public async insertGenesisActivity(activity: GenesisActivityRow) {
+        await this.knex(GENESIS_ACTIVITIES_TABLE).insert(activity).onConflict('id').ignore();
     }
 
-    public async getPromoActivity(id: string): Promise<PromoActivityRow | undefined> {
-        return await this.knex(PROMO_ACTIVITIES_TABLE).where('id', id).first();
+    public async getGenesisActivity(id: string): Promise<GenesisActivityRow | undefined> {
+        return await this.knex(GENESIS_ACTIVITIES_TABLE).where('id', id).first();
     }
 
     public async adjustUserPosition(
@@ -106,7 +106,7 @@ export class DBService {
     }
 
     // Decrease user's registered interest (remainingUsd) when deposit occurs
-    public async updateUserPromoInterest(params: {
+    public async updateUserGenesisInterest(params: {
         vaultAddress: string;
         userAddress: string;
         totalTokens: bigint;
@@ -114,7 +114,7 @@ export class DBService {
         eligibleUsd: bigint;
     }) {
         const { vaultAddress, userAddress, totalTokens, totalUsd, eligibleUsd } = params;
-        await this.knex(PROMO_INTERESTS_TABLE).where({ vaultAddress: vaultAddress.toLowerCase(), userAddress: userAddress.toLowerCase() }).update({
+        await this.knex(GENESIS_INTERESTS_TABLE).where({ vaultAddress: vaultAddress.toLowerCase(), userAddress: userAddress.toLowerCase() }).update({
             totalTokens: totalTokens.toString(),
             totalUsd: totalUsd.toString(),
             eligibleUsd: eligibleUsd.toString(),

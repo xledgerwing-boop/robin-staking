@@ -11,8 +11,8 @@ try {
     const targetPath = path.resolve(__dirname, '..', 'src', 'types', 'contracts.ts');
     replaceImports(targetPath);
 
-    const targetPathPromo = path.resolve(__dirname, '..', 'src', 'types', 'contracts-promo.ts');
-    replaceImports(targetPathPromo);
+    const targetPathGenesis = path.resolve(__dirname, '..', 'src', 'types', 'contracts-genesis.ts');
+    replaceImports(targetPathGenesis);
 } catch (err) {
     console.error('[fix-wagmi-imports] Failed:', err);
     process.exit(1);

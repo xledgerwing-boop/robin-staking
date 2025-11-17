@@ -5,6 +5,7 @@ import { logger } from './utils/logger';
 import { DBService } from './services/DbService';
 import crypto from 'crypto';
 import { USED_CONTRACTS } from '@robin-pm-staking/common/constants';
+import { GenesisPriceUpdater } from './services/GenesisPriceUpdater';
 
 dotenv.config();
 
@@ -12,7 +13,7 @@ enum IndexerType {
     STREAMS = 'streams',
 }
 
-const { POSTGRES_URI, RPC_URL, RPC_CHAIN_ID, WEBHOOK_PORT, INDEXER_TYPE, QUICKNODE_SECURITY_TOKEN } = process.env;
+const { POSTGRES_URI, RPC_URL, RPC_CHAIN_ID, WEBHOOK_PORT, INDEXER_TYPE, QUICKNODE_SECURITY_TOKEN, PRICE_UPDATER_PRIVATE_KEY } = process.env;
 const MANAGER_ADDRESS = USED_CONTRACTS.VAULT_MANAGER;
 
 let app: express.Application | null = null;
@@ -44,11 +45,11 @@ async function main() {
                 }
             },
             async (data: any) => {
-                // Handle promo vault webhooks
+                // Handle genesis vault webhooks
                 if (indexerType === IndexerType.STREAMS && indexer instanceof StreamsIndexer) {
-                    await (indexer as StreamsIndexer).processPromoWebhook(data);
+                    await (indexer as StreamsIndexer).processGenesisWebhook(data);
                 } else {
-                    console.log('Promo webhook received for', indexerType, 'indexer:', data.length);
+                    console.log('Genesis webhook received for', indexerType, 'indexer:', data.length);
                 }
             }
         );
@@ -64,6 +65,14 @@ async function main() {
         }
 
         await indexer.start();
+
+        // // Start genesis price updater (scheduler)
+        // if (!RPC_URL || !PRICE_UPDATER_PRIVATE_KEY) {
+        //     logger.warn('Skipping GenesisPriceUpdater (RPC_URL or PRICE_UPDATER_PRIVATE_KEY missing).');
+        // } else {
+        //     const priceUpdater = new GenesisPriceUpdater(dbService, RPC_URL, PRICE_UPDATER_PRIVATE_KEY);
+        //     priceUpdater.start();
+        // }
 
         // Handle graceful shutdown
         const gracefulShutdown = async () => {
@@ -91,7 +100,12 @@ async function main() {
 
 main();
 
-function startWebhookServer(port: number, dbService: DBService, callback: (data: any) => Promise<void>, promoCallback: (data: any) => Promise<void>) {
+function startWebhookServer(
+    port: number,
+    dbService: DBService,
+    callback: (data: any) => Promise<void>,
+    genesisCallback: (data: any) => Promise<void>
+) {
     // Set up Express server for webhooks
     app = express();
     app.use(express.json({ limit: '10mb' }));
@@ -143,8 +157,8 @@ function startWebhookServer(port: number, dbService: DBService, callback: (data:
         }
     });
 
-    // Webhook endpoint for PromotionVault events
-    app.post('/webhook/promo-logs', async (req: Request, res: Response) => {
+    // Webhook endpoint for GenesisVault events
+    app.post('/webhook/genesis-logs', async (req: Request, res: Response) => {
         if (!QUICKNODE_SECURITY_TOKEN) {
             throw new Error('QUICKNODE_SECURITY_TOKEN is required');
         }
@@ -170,15 +184,15 @@ function startWebhookServer(port: number, dbService: DBService, callback: (data:
                 return res.status(401).send('Invalid signature');
             }
 
-            // Process webhook data with StreamsIndexer promo handler
-            await promoCallback(req.body);
+            // Process webhook data with StreamsIndexer genesis handler
+            await genesisCallback(req.body);
 
-            res.status(200).json({ success: true, message: 'Promo webhook processed successfully' });
+            res.status(200).json({ success: true, message: 'Genesis webhook processed successfully' });
         } catch (error) {
-            logger.error('Error processing promo webhook:', error);
+            logger.error('Error processing genesis webhook:', error);
             res.status(500).json({
                 success: false,
-                message: 'Error processing promo webhook',
+                message: 'Error processing genesis webhook',
                 error: error instanceof Error ? error.message : 'Unknown error',
             });
         }

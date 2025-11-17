@@ -1,0 +1,69 @@
+'use client';
+
+import { ValueState } from '@/components/value-state';
+import { UNDERYLING_DECIMALS, USED_CONTRACTS } from '@robin-pm-staking/common/src/constants';
+import { useProxyAccount } from '@robin-pm-staking/common/src/hooks/use-proxy-account';
+import { formatUnits, formatUnitsLocale } from '@robin-pm-staking/common/lib/utils';
+import { useGenesisVaultInfo } from '@/hooks/use-genesis-vault-info';
+import { useGenesisVaultUserInfo } from '@/hooks/use-genesis-vault-user-info';
+
+export default function TopMetrics() {
+    const VAULT = USED_CONTRACTS.GENESIS_VAULT as `0x${string}`;
+    const { proxyAddress, isConnected } = useProxyAccount();
+
+    const { totalValueUsd, totalValueUsdLoading, totalValueUsdError, apyBps, apyBpsLoading, apyBpsError } = useGenesisVaultInfo(VAULT);
+
+    const {
+        userCurrentValues,
+        userCurrentValuesLoading,
+        userCurrentValuesError,
+        userEstimatedEarnings,
+        userEstimatedEarningsLoading,
+        userEstimatedEarningsError,
+    } = useGenesisVaultUserInfo(VAULT, proxyAddress as `0x${string}`);
+
+    return (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div>
+                <p className="text-sm text-muted-foreground text-center">Total TVL</p>
+                <div className="text-2xl font-bold text-center">
+                    <ValueState
+                        value={totalValueUsd == null ? undefined : `$${formatUnitsLocale(totalValueUsd, UNDERYLING_DECIMALS, 0)}`}
+                        loading={totalValueUsdLoading}
+                        error={!!totalValueUsdError}
+                    />
+                </div>
+            </div>
+            <div>
+                <p className="text-sm text-muted-foreground text-center">Current APY</p>
+                <div className="text-2xl font-bold text-center">
+                    <ValueState
+                        value={apyBps == null ? undefined : `${formatUnits(apyBps, 4 - 2, 1)}%`}
+                        loading={apyBpsLoading}
+                        error={!!apyBpsError}
+                    />
+                </div>
+            </div>
+            <div>
+                <p className="text-sm text-muted-foreground text-center">My TVL</p>
+                <div className="text-2xl font-bold text-center">
+                    <ValueState
+                        value={userCurrentValues == null ? undefined : `$${formatUnitsLocale(userCurrentValues[0], UNDERYLING_DECIMALS, 0)}`}
+                        loading={userCurrentValuesLoading}
+                        error={!!userCurrentValuesError}
+                    />
+                </div>
+            </div>
+            <div>
+                <p className="text-sm text-muted-foreground text-center">My Earnings</p>
+                <div className="text-2xl font-bold text-center">
+                    <ValueState
+                        value={userEstimatedEarnings == null ? undefined : `$${formatUnitsLocale(userEstimatedEarnings[0], UNDERYLING_DECIMALS, 0)}`}
+                        loading={userEstimatedEarningsLoading}
+                        error={!!userEstimatedEarningsError}
+                    />
+                </div>
+            </div>
+        </div>
+    );
+}

@@ -8,11 +8,11 @@
         "build": "forge build",
         "anvil:polygon": "dotenv -- bash -c 'anvil --fork-url $POLYGON_RPC_URL --mnemonic \"$MNEMONIC\"'",
         "deploy:manager": "dotenv -- bash -c 'forge clean && forge script script/DeployManagerAndVaultImpl.s.sol:DeployManagerAndVaultImpl --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY'",
-        "deploy:promotion-vault": "dotenv -- bash -c 'forge script script/DeployPromotionVaultOnly.s.sol:DeployPromotionVaultOnly --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY --verify --etherscan-api-key $POLYGONSCAN_API_KEY'",
-        "prepare:promotion-vault": "dotenv -- bash -c 'forge script script/PreparePromotionVault.s.sol:PreparePromotionVault --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY'",
+        "deploy:genesis-vault": "dotenv -- bash -c 'forge script script/DeployGenesisVaultOnly.s.sol:DeployGenesisVaultOnly --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY --verify --etherscan-api-key $POLYGONSCAN_API_KEY'",
+        "prepare:genesis-vault": "dotenv -- bash -c 'forge script script/PrepareGenesisVault.s.sol:PrepareGenesisVault --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY'",
         "send-usdc": "dotenv -- ./sh-scripts.sh send-usdc",
         "check-usdc": "dotenv -- ./sh-scripts.sh check-balance",
         "mint-pol-positions": "dotenv -- ./sh-scripts.sh mint-polymarket-positions",
-        "test-promotion-vault": "dotenv -- ./sh-scripts.sh test-promotion-vault"
+        "test-genesis-vault": "dotenv -- ./sh-scripts.sh test-genesis-vault"
     }
 }

@@ -8,7 +8,7 @@ export function BackButton() {
     const pathname = usePathname();
     const router = useRouter();
     const includedPage =
-        pathname.includes('/market/') || pathname.includes('/portfolio') || pathname.includes('/rewards') || pathname.includes('/promo');
+        pathname.includes('/market/') || pathname.includes('/portfolio') || pathname.includes('/rewards') || pathname.includes('/genesis');
 
     if (!includedPage) return null;
     return (

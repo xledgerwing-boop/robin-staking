@@ -10,8 +10,8 @@ elif [[ "$1" == "check-balance" ]]; then
   cast call "$USDC" "balanceOf(address)(uint256)" "$TARGET" --rpc-url "$RPC_URL"
 elif [[ "$1" == "mint-polymarket-positions" ]]; then
   forge script test/script/MintPolymarketPositions.s.sol:MintPolymarketPositions --rpc-url "$RPC_URL" --ffi --broadcast --private-key "$PRIVATE_KEY"
-elif [[ "$1" == "test-promotion-vault" ]]; then
-  forge script test/script/TestPromotionVault.s.sol:TestPromotionVault --rpc-url "$RPC_URL" --ffi --broadcast --private-key "$PRIVATE_KEY"
+elif [[ "$1" == "test-genesis-vault" ]]; then
+  forge script test/script/TestGenesisVault.s.sol:TestGenesisVault --rpc-url "$RPC_URL" --ffi --broadcast --private-key "$PRIVATE_KEY"
 else
   echo "Invalid script"
   exit 1

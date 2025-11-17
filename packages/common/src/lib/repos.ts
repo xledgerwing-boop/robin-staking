@@ -6,8 +6,8 @@ import { fetchEventAndMarketsByEventSlug, fetchEventsByEventSlugs, fetchMarketBy
 export const EVENTS_TABLE = 'events';
 export const MARKETS_TABLE = 'markets';
 export const ACTIVITIES_TABLE = 'activities';
-export const PROMO_ACTIVITIES_TABLE = 'promo_activities';
-export const PROMO_INTERESTS_TABLE = 'promo_interests';
+export const GENESIS_ACTIVITIES_TABLE = 'genesis_activities';
+export const GENESIS_INTERESTS_TABLE = 'genesis_interests';
 export const USER_POSITIONS_TABLE = 'user_positions';
 
 export async function ensureSchema(db: Knex): Promise<void> {
@@ -49,40 +49,55 @@ export async function ensureSchema(db: Knex): Promise<void> {
             table.string('creator').nullable();
             table.bigint('vaultCreatedBlockNumber').nullable();
             table.bigint('vaultCreatedAt').nullable();
-            // Promotion columns
-            table.integer('promotionIndex').nullable();
-            table.boolean('eligible').nullable();
-            table.bigint('promoStartedAt').nullable();
-            table.bigint('promoEndedAt').nullable();
+            // Genesis columns
+            table.integer('genesisIndex').nullable();
+            table.boolean('genesisEligible').nullable();
+            table.decimal('genesisLastSubmittedPriceA', 78, 0).nullable();
+            table.bigint('genesisLastSubmittedAt').nullable();
+            table.bigint('genesisStartedAt').nullable();
+            table.bigint('genesisEndedAt').nullable();
             table.bigint('createdAt');
             table.bigint('updatedAt');
         });
     }
 
-    // Ensure promotion columns exist on existing table
+    // Ensure genesis columns exist on existing table
     if (hasMarkets) {
-        const hasPromotionIndex = await db.schema.hasColumn(MARKETS_TABLE, 'promotionIndex');
-        if (!hasPromotionIndex) {
+        const hasGenesisIndex = await db.schema.hasColumn(MARKETS_TABLE, 'genesisIndex');
+        if (!hasGenesisIndex) {
             await db.schema.alterTable(MARKETS_TABLE, table => {
-                table.integer('promotionIndex').nullable().index();
+                table.integer('genesisIndex').nullable().index();
             });
         }
-        const hasEligible = await db.schema.hasColumn(MARKETS_TABLE, 'eligible');
-        if (!hasEligible) {
+        const hasGenesisEligible = await db.schema.hasColumn(MARKETS_TABLE, 'genesisEligible');
+        if (!hasGenesisEligible) {
             await db.schema.alterTable(MARKETS_TABLE, table => {
-                table.boolean('eligible').nullable();
+                table.boolean('genesisEligible').nullable();
             });
         }
-        const hasPromoStartedAt = await db.schema.hasColumn(MARKETS_TABLE, 'promoStartedAt');
-        if (!hasPromoStartedAt) {
+        const hasGenesisStartedAt = await db.schema.hasColumn(MARKETS_TABLE, 'genesisStartedAt');
+        if (!hasGenesisStartedAt) {
             await db.schema.alterTable(MARKETS_TABLE, table => {
-                table.bigint('promoStartedAt').nullable();
+                table.bigint('genesisStartedAt').nullable();
             });
         }
-        const hasPromoEndedAt = await db.schema.hasColumn(MARKETS_TABLE, 'promoEndedAt');
-        if (!hasPromoEndedAt) {
+        const hasGenesisEndedAt = await db.schema.hasColumn(MARKETS_TABLE, 'genesisEndedAt');
+        if (!hasGenesisEndedAt) {
             await db.schema.alterTable(MARKETS_TABLE, table => {
-                table.bigint('promoEndedAt').nullable();
+                table.bigint('genesisEndedAt').nullable();
+            });
+        }
+        // Columns for price update tracking
+        const hasGenesisLastSubmittedPriceA = await db.schema.hasColumn(MARKETS_TABLE, 'genesisLastSubmittedPriceA');
+        if (!hasGenesisLastSubmittedPriceA) {
+            await db.schema.alterTable(MARKETS_TABLE, table => {
+                table.decimal('genesisLastSubmittedPriceA', 78, 0).nullable();
+            });
+        }
+        const hasGenesisLastSubmittedAt = await db.schema.hasColumn(MARKETS_TABLE, 'genesisLastSubmittedAt');
+        if (!hasGenesisLastSubmittedAt) {
+            await db.schema.alterTable(MARKETS_TABLE, table => {
+                table.bigint('genesisLastSubmittedAt').nullable();
             });
         }
     }
@@ -102,9 +117,9 @@ export async function ensureSchema(db: Knex): Promise<void> {
         });
     }
 
-    const hasPromoActivities = await db.schema.hasTable(PROMO_ACTIVITIES_TABLE);
-    if (!hasPromoActivities) {
-        await db.schema.createTable(PROMO_ACTIVITIES_TABLE, (table: Knex.CreateTableBuilder) => {
+    const hasGenesisActivities = await db.schema.hasTable(GENESIS_ACTIVITIES_TABLE);
+    if (!hasGenesisActivities) {
+        await db.schema.createTable(GENESIS_ACTIVITIES_TABLE, (table: Knex.CreateTableBuilder) => {
             table.string('id').primary();
             table.string('vaultAddress'); // not FK-bound to markets
             table.string('transactionHash');
@@ -118,9 +133,9 @@ export async function ensureSchema(db: Knex): Promise<void> {
     }
 
     // Table for capturing user interest when TVL cap is reached
-    const hasPromoInterests = await db.schema.hasTable(PROMO_INTERESTS_TABLE);
-    if (!hasPromoInterests) {
-        await db.schema.createTable(PROMO_INTERESTS_TABLE, (table: Knex.CreateTableBuilder) => {
+    const hasGenesisInterests = await db.schema.hasTable(GENESIS_INTERESTS_TABLE);
+    if (!hasGenesisInterests) {
+        await db.schema.createTable(GENESIS_INTERESTS_TABLE, (table: Knex.CreateTableBuilder) => {
             table.string('id').primary();
             table.string('vaultAddress').notNullable().index();
             table.string('userAddress').notNullable().index(); // proxy address

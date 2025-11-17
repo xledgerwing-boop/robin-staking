@@ -25,11 +25,13 @@ export interface MarketRow {
     creator?: string;
     vaultCreatedBlockNumber?: string;
     vaultCreatedAt?: string;
-    // Promotion fields (nullable)
-    promotionIndex?: number;
-    eligible?: boolean;
-    promoStartedAt?: string; // bigint as string
-    promoEndedAt?: string; // bigint as string
+    // Genesis fields (nullable)
+    genesisIndex?: number;
+    genesisEligible?: boolean;
+    genesisLastSubmittedPriceA?: string; // decimal as string
+    genesisLastSubmittedAt?: string; // bigint as string
+    genesisStartedAt?: string; // bigint as string
+    genesisEndedAt?: string; // bigint as string
 }
 
 export interface Market {
@@ -57,11 +59,13 @@ export interface Market {
     creator?: string;
     vaultCreatedBlockNumber?: number;
     vaultCreatedAt?: number;
-    // Promotion fields (nullable)
-    promotionIndex?: number;
-    eligible?: boolean;
-    promoStartedAt?: number;
-    promoEndedAt?: number;
+    // Genesis fields (nullable)
+    genesisIndex?: number;
+    genesisEligible?: boolean;
+    genesisLastSubmittedPriceA?: bigint; // decimal as string
+    genesisLastSubmittedAt?: number; // bigint as string
+    genesisStartedAt?: number;
+    genesisEndedAt?: number;
 }
 
 export function MarketRowToMarket(row: MarketRow): Market {
@@ -79,8 +83,10 @@ export function MarketRowToMarket(row: MarketRow): Market {
         matchedTokens: BigInt(row.matchedTokens),
         vaultCreatedBlockNumber: row.vaultCreatedBlockNumber ? Number.parseInt(row.vaultCreatedBlockNumber) : undefined,
         vaultCreatedAt: row.vaultCreatedAt ? Number.parseInt(row.vaultCreatedAt) : undefined,
-        promoStartedAt: row.promoStartedAt ? Number.parseInt(row.promoStartedAt) : undefined,
-        promoEndedAt: row.promoEndedAt ? Number.parseInt(row.promoEndedAt) : undefined,
+        genesisLastSubmittedPriceA: row.genesisLastSubmittedPriceA ? BigInt(row.genesisLastSubmittedPriceA) : undefined,
+        genesisLastSubmittedAt: row.genesisLastSubmittedAt ? Number.parseInt(row.genesisLastSubmittedAt) : undefined,
+        genesisStartedAt: row.genesisStartedAt ? Number.parseInt(row.genesisStartedAt) : undefined,
+        genesisEndedAt: row.genesisEndedAt ? Number.parseInt(row.genesisEndedAt) : undefined,
     };
 }
 
