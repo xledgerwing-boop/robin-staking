@@ -86,7 +86,7 @@ export default function ManageGenesisPositions() {
         queryKey: walletQueryKey,
     } = useReadRobinGenesisVaultViewUserActiveWalletBalancesAboveThreshold({
         address: vaultAddress,
-        args: [proxyAddress as `0x${string}`, 0n],
+        args: [proxyAddress as `0x${string}`, 10_000n],
         query: { enabled: tab === 'deposit' },
     });
     const {
