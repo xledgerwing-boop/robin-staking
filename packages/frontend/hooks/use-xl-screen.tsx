@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 export function useIsXlScreen() {
-    const [isLg, setIsLg] = useState(false);
+    const [isLg, setIsLg] = useState(true);
     useEffect(() => {
         const mediaQuery = window.matchMedia('(min-width: 1280px)');
         const handleChange = (e: MediaQueryListEvent) => setIsLg(e.matches);

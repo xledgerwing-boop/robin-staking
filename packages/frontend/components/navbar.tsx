@@ -11,8 +11,8 @@ import { usePathname } from 'next/navigation';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 
 const navigationItems = [
-    { href: '/', label: 'Home', icon: Home },
-    // { href: '/genesis', label: 'Genesis Vault', icon: Sparkles },
+    { href: '/', label: 'Genesis Vault', icon: Sparkles },
+    { href: '/staking', label: 'Staking', icon: Home },
     { href: '/portfolio', label: 'Portfolio', icon: WalletMinimal },
     { href: '/rewards', label: 'Rewards', icon: Trophy },
     { href: 'https://robin-markets.gitbook.io', label: 'Docs', icon: BookText, external: true },

@@ -1,0 +1,650 @@
+'use client';
+
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { TrendingUp, DollarSign, BarChart3, Clock, ArrowUpRight, Search, ArrowUpDown, ArrowUp, ArrowDown, User, Loader, X } from 'lucide-react';
+import Image from 'next/image';
+import Link from 'next/link';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
+import { fetchPolymarketPositionIds, isPolymarketUrl } from '@robin-pm-staking/common/lib/polymarket';
+import { DateTime } from 'luxon';
+import type { Market, MarketRow } from '@robin-pm-staking/common/types/market';
+import { MarketRowToMarket, MarketStatus } from '@robin-pm-staking/common/types/market';
+import { useSearchParams } from 'next/navigation';
+import { MarketStatusBadge } from '@/components/market/market-status-badge';
+import { formatUnits } from '@robin-pm-staking/common/lib/utils';
+import { UNDERYLING_DECIMALS, USED_CONTRACTS, DEFAULT_QUERY_STALE_TIME } from '@robin-pm-staking/common/constants';
+import { useReadRobinStakingVaultGetCurrentApy } from '@robin-pm-staking/common/types/contracts';
+import { useReadRobinGenesisVaultTotalValueUsd } from '@robin-pm-staking/common/types/contracts-genesis';
+import { zeroAddress } from 'viem';
+import { ValueState } from '@/components/value-state';
+import { toast } from 'sonner';
+import { debounce } from 'throttle-debounce';
+import useUpdateQueryParams from '@/hooks/useUpdateQueryParams';
+import { RewardsSummary } from '@/components/rewards/rewards-summary';
+
+function StakingPageContent() {
+    const { proxyAddress: address, isConnected, isConnecting } = useProxyAccount();
+    const [availableMarkets, setAvailableMarkets] = useState<Market[]>([]);
+    const [numberOfMarkets, setNumberOfMarkets] = useState(0);
+    const [totalTVL, setTotalTVL] = useState<bigint>(0n);
+    const [totalUsers, setTotalUsers] = useState(0);
+    const [metricsLoading, setMetricsLoading] = useState(true);
+    const [vaultAddress, setVaultAddress] = useState<`0x${string}` | null>(null);
+
+    const {
+        data: averageApy,
+        isLoading: averageApyLoading,
+        isEnabled: averageApyEnabled,
+        error: averageApyError,
+    } = useReadRobinStakingVaultGetCurrentApy({
+        address: vaultAddress as `0x${string}`,
+        args: [],
+        query: {
+            enabled: !!vaultAddress && vaultAddress !== zeroAddress,
+        },
+    });
+
+    const {
+        data: genesisTotalValueUsd,
+        isLoading: genesisTotalValueUsdLoading,
+        error: genesisTotalValueUsdError,
+    } = useReadRobinGenesisVaultTotalValueUsd({
+        address: USED_CONTRACTS.GENESIS_VAULT,
+        args: [],
+        query: {
+            enabled: !!USED_CONTRACTS.GENESIS_VAULT && USED_CONTRACTS.GENESIS_VAULT !== zeroAddress,
+            staleTime: DEFAULT_QUERY_STALE_TIME,
+        },
+    });
+
+    // State for filtering controls
+    const [showWalletOnly, setShowWalletOnly] = useState(false);
+    const [searchContent, setSearchContent] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [walletConditionIds, setWalletConditionIds] = useState<string[] | null>(null);
+    const [marketsLoading, setMarketsLoading] = useState(true);
+    const [page, setPage] = useState(1);
+    const [pageSize] = useState(12);
+    const [totalCount, setTotalCount] = useState(0);
+    const [queryParamsLoaded, setQueryParamsLoaded] = useState(false);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const isConnectingFinishedOnce = useRef(false);
+
+    // Sorting state
+    type SortField = 'tvl' | 'endDate' | 'title';
+    type SortDirection = 'asc' | 'desc';
+    const [sortField, setSortField] = useState<SortField>('tvl');
+    const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
+    const { updateQueryParams } = useUpdateQueryParams();
+    const searchParams = useSearchParams();
+
+    const loadQueryParams = () => {
+        const spSearch = searchParams.get('search') ?? '';
+        if (spSearch !== searchQuery) {
+            setSearchQuery(spSearch);
+            setSearchContent(spSearch);
+        }
+
+        // Wallet-only behavior: default ON when connected, OFF when disconnected
+        if (!isConnected) {
+            if (showWalletOnly) setShowWalletOnly(false);
+        } else {
+            const walletOnlyParam = searchParams.get('walletOnly');
+            const computedWalletOnly = walletOnlyParam == null ? true : walletOnlyParam === '1' || walletOnlyParam === 'true';
+            if (computedWalletOnly !== showWalletOnly) setShowWalletOnly(computedWalletOnly);
+            // If param missing while connected, reflect default in URL
+            if (walletOnlyParam == null && computedWalletOnly) {
+                updateQueryParams({ walletOnly: '1' });
+            }
+        }
+
+        const allowedSortFields: SortField[] = ['tvl', 'endDate', 'title'];
+        const spSortField = searchParams.get('sortField') as SortField | null;
+        const spSortDirection = searchParams.get('sortDirection') as SortDirection | null;
+        if (spSortField && allowedSortFields.includes(spSortField) && spSortField !== sortField) {
+            setSortField(spSortField);
+        }
+        if (spSortDirection && (spSortDirection === 'asc' || spSortDirection === 'desc') && spSortDirection !== sortDirection) {
+            setSortDirection(spSortDirection);
+        }
+        // Page index
+        const spPage = parseInt(searchParams.get('page') || '1', 10);
+        if (!Number.isNaN(spPage) && spPage > 0 && spPage !== page) {
+            setPage(spPage);
+        }
+        setQueryParamsLoaded(true);
+    };
+
+    // Load key metrics on mount
+    useEffect(() => {
+        const run = async () => {
+            try {
+                setMetricsLoading(true);
+                const res = await fetch('/api/metrics');
+                if (!res.ok) throw new Error('Failed to fetch metrics');
+                const data = (await res.json()) as {
+                    numberOfMarkets: number;
+                    totalTVL: string;
+                    totalUsers: number;
+                    contractAddress: `0x${string}` | null;
+                };
+                setNumberOfMarkets(data.numberOfMarkets ?? 0);
+                setTotalTVL(BigInt(data.totalTVL ?? '0'));
+                setTotalUsers(data.totalUsers ?? 0);
+                setVaultAddress(data.contractAddress);
+            } catch (e) {
+                console.error(e);
+                toast.error('Failed to fetch metrics');
+            } finally {
+                setMetricsLoading(false);
+            }
+        };
+        run();
+    }, []);
+
+    // Combine staking vault TVL with Genesis vault TVL
+    const combinedTotalTVL = useMemo(() => {
+        const stakingTVL = totalTVL;
+        const genesisTVL = genesisTotalValueUsd ?? 0n;
+        return stakingTVL + genesisTVL;
+    }, [totalTVL, genesisTotalValueUsd]);
+
+    const totalTVLLoading = metricsLoading || genesisTotalValueUsdLoading;
+    const totalTVLError = !!genesisTotalValueUsdError;
+
+    // Sync URL -> state on mount and when navigating back/forward
+    useEffect(() => {
+        if (isConnecting) return;
+        loadQueryParams();
+    }, [searchParams]);
+
+    useEffect(() => {
+        if (isConnecting || isConnectingFinishedOnce.current) return;
+        isConnectingFinishedOnce.current = true;
+        loadQueryParams();
+    }, [isConnecting]);
+
+    // Toggle wallet-only default when connection status changes
+    useEffect(() => {
+        if (isConnecting) return;
+        if (isConnected) {
+            const walletOnlyParam = searchParams.get('walletOnly');
+            if (walletOnlyParam != null) return;
+            if (!showWalletOnly) setShowWalletOnly(true);
+            updateQueryParams({ walletOnly: '1', page: '1' });
+        } else {
+            if (showWalletOnly) setShowWalletOnly(false);
+            updateQueryParams({ walletOnly: null, page: '1' });
+        }
+    }, [isConnected, isConnecting]);
+
+    useEffect(() => {
+        if (!queryParamsLoaded) return;
+        const controller = new AbortController();
+        const fetchMarkets = async () => {
+            const showWalletOnlyEff = !isPolymarketUrl(searchQuery) && showWalletOnly;
+            if (showWalletOnlyEff && !walletConditionIds) {
+                setAvailableMarkets([]);
+                setTotalCount(0);
+                return;
+            }
+            setMarketsLoading(true);
+            try {
+                const params = new URLSearchParams();
+                if (searchQuery.trim()) params.set('search', searchQuery.trim());
+                if (showWalletOnlyEff) {
+                    params.set('walletOnly', 'true');
+                    params.set('address', address ?? '');
+                    if (walletConditionIds) params.set('conditionIds', walletConditionIds.join(','));
+                }
+
+                params.set('sortField', sortField);
+                params.set('sortDirection', sortDirection);
+                params.set('page', String(page));
+                params.set('pageSize', String(pageSize));
+                const res = await fetch(`/api/markets?${params.toString()}`, { signal: controller.signal });
+                if (!res.ok) throw new Error('Failed to load markets');
+                const data = (await res.json()) as { markets: MarketRow[]; page: number; pageSize: number; totalCount: number };
+                setAvailableMarkets((data.markets ?? []).map(MarketRowToMarket));
+                setTotalCount(data.totalCount ?? 0);
+            } catch (e) {
+                console.error(e);
+                toast.error('Failed to fetch markets');
+                setAvailableMarkets([]);
+            } finally {
+                setMarketsLoading(false);
+            }
+        };
+        fetchMarkets();
+    }, [searchQuery, showWalletOnly, address, walletConditionIds, sortField, sortDirection, queryParamsLoaded, page, pageSize]);
+
+    useEffect(() => {
+        if (isPolymarketUrl(searchQuery)) return; //Do the normal flow when the search query is a Polymarket URL
+        const controller = new AbortController();
+        const run = async () => {
+            if (showWalletOnly && isConnected && address) {
+                try {
+                    //This loads up to 100 positions for the wallet
+                    //the user can then paginate through these 100. Assumption is that a user would use the search anyways is they have more than 100 positions
+                    const { conditionIds } = await fetchPolymarketPositionIds(address, {
+                        title: searchQuery.trim() || undefined,
+                        pageSize: 100,
+                    });
+                    setWalletConditionIds(conditionIds);
+                } catch {
+                    setWalletConditionIds(null);
+                }
+            } else {
+                setWalletConditionIds(null);
+            }
+        };
+        run();
+        return () => controller.abort();
+    }, [showWalletOnly, isConnected, address, searchQuery]);
+
+    const defaultDirectionByField: Record<SortField, SortDirection> = {
+        tvl: 'desc',
+        endDate: 'asc',
+        title: 'asc',
+    };
+
+    const sortLabels: Record<SortField, string> = {
+        tvl: 'TVL',
+        endDate: 'End Date',
+        title: 'Name',
+    };
+
+    const handleSortSelect = (field: SortField) => {
+        if (sortField === field) {
+            const nextDirection: SortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            setSortDirection(nextDirection);
+            updateQueryParams({ sortField: field, sortDirection: nextDirection });
+        } else {
+            const nextDirection = defaultDirectionByField[field];
+            setSortField(field);
+            setSortDirection(nextDirection);
+            updateQueryParams({ sortField: field, sortDirection: nextDirection });
+        }
+    };
+
+    const handleSearchContentChange = (value: string) => {
+        setSearchContent(value);
+        handleSearchInputChange(value);
+    };
+
+    const handleSearchInputChange = useMemo(
+        () =>
+            debounce(700, (v: string) => {
+                setSearchQuery(v);
+                const trimmed = v.trim();
+                // Reset to first page on new search
+                setPage(1);
+                updateQueryParams({ search: trimmed || null, page: '1' });
+            }),
+        []
+    );
+
+    const handleClearSearch = () => {
+        setSearchQuery('');
+        setSearchContent('');
+        setPage(1);
+        updateQueryParams({ search: null, page: '1' });
+        inputRef.current?.focus();
+    };
+
+    const handleWalletOnlyChange = (checked: boolean) => {
+        setShowWalletOnly(checked);
+        setPage(1);
+        updateQueryParams({ walletOnly: checked ? '1' : '0', page: '1' });
+    };
+
+    return (
+        <div className="min-h-screen bg-background">
+            <div className="h-full container mx-auto px-4 py-8">
+                {/* Page Header */}
+                <div className="mb-8">
+                    <h1 className="text-3xl md:text-4xl font-bold mb-2">Staking Dashboard</h1>
+                    <p className="text-muted-foreground text-lg">
+                        Manage your prediction market positions and earn yield on delta-neutral strategies
+                    </p>
+                </div>
+
+                {/* Key Metrics */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    <Card>
+                        <CardContent className="p-3 sm:p-6 md:p-6">
+                            <div className="flex items-center w-full h-full justify-between space-x-2">
+                                <div className="text-center p-2 md:p-4 bg-muted/50 rounded-lg">
+                                    <TrendingUp className="w-6 h-6 text-primary" />
+                                </div>
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Current APY</p>
+                                    <div className="text-2xl font-bold text-right">
+                                        {vaultAddress ? (
+                                            <ValueState
+                                                value={`${((Number(averageApy) / 10_000) * 100).toFixed(2)}%`}
+                                                loading={averageApyLoading || !averageApyEnabled}
+                                                error={!!averageApyError}
+                                            />
+                                        ) : (
+                                            '—'
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardContent className="p-3 sm:p-6 md:p-6">
+                            <div className="flex items-center w-full h-full justify-between space-x-2">
+                                <div className="text-center p-2 md:p-4 bg-muted/50 rounded-lg">
+                                    <BarChart3 className="w-6 h-6 text-primary" />
+                                </div>
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Markets</p>
+                                    <div className="text-2xl font-bold text-right">
+                                        <ValueState value={numberOfMarkets.toLocaleString()} loading={metricsLoading} error={false} />
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardContent className="p-3 sm:p-6 md:p-6">
+                            <div className="flex items-center w-full h-full justify-between space-x-2">
+                                <div className="text-center p-2 md:p-4 bg-muted/50 rounded-lg">
+                                    <DollarSign className="w-6 h-6 text-primary" />
+                                </div>
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Total TVL</p>
+                                    <div className="text-2xl font-bold text-right">
+                                        <ValueState
+                                            value={`$${formatUnits(combinedTotalTVL, UNDERYLING_DECIMALS, 0)}`}
+                                            loading={totalTVLLoading}
+                                            error={totalTVLError}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardContent className="p-3 sm:p-6 md:p-6">
+                            <div className="flex items-center w-full h-full justify-between space-x-2">
+                                <div className="text-center p-2 md:p-4 bg-muted/50 rounded-lg">
+                                    <User className="w-6 h-6 text-primary" />
+                                </div>
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Active Users</p>
+                                    <div className="text-2xl font-bold text-right">
+                                        <ValueState value={totalUsers.toLocaleString()} loading={metricsLoading} error={false} />
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Available Markets Section */}
+                <RewardsSummary onHomepage={true} />
+                <Card className="h-full">
+                    <CardHeader>
+                        <CardTitle className="text-xl">Explore Markets</CardTitle>
+                        <p className="text-muted-foreground">
+                            You can stake on any Polymarket event you want. Connect your wallet to see your positions or enter a Polymarket URL to
+                            activate a new market.
+                        </p>
+
+                        <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                                <Input
+                                    placeholder="Search by name or Polymarket URL..."
+                                    value={searchContent}
+                                    onChange={e => handleSearchContentChange(e.target.value)}
+                                    ref={inputRef}
+                                    className="pl-10 pr-10"
+                                />
+                                {searchContent && (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={handleClearSearch}
+                                        aria-label="Clear search"
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground"
+                                    >
+                                        <X className="w-4 h-4" />
+                                    </Button>
+                                )}
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Switch
+                                    id="wallet-only"
+                                    checked={showWalletOnly}
+                                    onCheckedChange={handleWalletOnlyChange}
+                                    disabled={!isConnected || !address}
+                                />
+                                <Label htmlFor="wallet-only" className="text-sm font-medium">
+                                    In My Wallet
+                                </Label>
+                            </div>
+                            <div className="flex items-center">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" size="sm" className="min-w-36 justify-between">
+                                            <span className="flex items-center gap-2">{sortLabels[sortField]}</span>
+                                            {sortDirection === 'asc' ? (
+                                                <ArrowUp className="w-4 h-4 text-primary" />
+                                            ) : (
+                                                <ArrowDown className="w-4 h-4 text-primary" />
+                                            )}
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-48">
+                                        <DropdownMenuItem onClick={() => handleSortSelect('tvl')}>
+                                            <span className="flex-1">TVL</span>
+                                            {sortField === 'tvl' ? (
+                                                sortDirection === 'asc' ? (
+                                                    <ArrowUp className="w-4 h-4 text-primary" />
+                                                ) : (
+                                                    <ArrowDown className="w-4 h-4 text-primary" />
+                                                )
+                                            ) : (
+                                                <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+                                            )}
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleSortSelect('endDate')}>
+                                            <span className="flex-1">End Date</span>
+                                            {sortField === 'endDate' ? (
+                                                sortDirection === 'asc' ? (
+                                                    <ArrowUp className="w-4 h-4 text-primary" />
+                                                ) : (
+                                                    <ArrowDown className="w-4 h-4 text-primary" />
+                                                )
+                                            ) : (
+                                                <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+                                            )}
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleSortSelect('title')}>
+                                            <span className="flex-1">Name</span>
+                                            {sortField === 'title' ? (
+                                                sortDirection === 'asc' ? (
+                                                    <ArrowUp className="w-4 h-4 text-primary" />
+                                                ) : (
+                                                    <ArrowDown className="w-4 h-4 text-primary" />
+                                                )
+                                            ) : (
+                                                <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+                                            )}
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+                            {marketsLoading ? (
+                                <div className="col-span-full h-full flex items-center justify-center">
+                                    <Loader className="w-12 h-12 animate-spin" />
+                                </div>
+                            ) : (
+                                availableMarkets.map(market => (
+                                    <Card className="hover:shadow-md transition-shadow" key={market.conditionId}>
+                                        <CardContent>
+                                            <Link href={`/market/${encodeURIComponent(market.slug)}`} className="flex items-center space-x-3 mb-4">
+                                                <div className="w-18 h-18 relative shrink-0">
+                                                    <Image
+                                                        src={market.image || '/placeholder.png'}
+                                                        alt={market.question ?? 'Market'}
+                                                        fill
+                                                        className="rounded-lg object-cover"
+                                                        sizes="150px"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col items-start justify-center h-18">
+                                                    <h3 className="font-semibold line-clamp-2">{market.question}</h3>
+                                                    <div className="flex items-center space-x-1 text-sm text-muted-foreground mt-1">
+                                                        <Clock className="w-3 h-3 hidden sm:block" />
+                                                        <span>
+                                                            {market.endDate
+                                                                ? DateTime.fromMillis(market.endDate).toLocaleString(DateTime.DATE_MED)
+                                                                : '—'}
+                                                        </span>
+                                                        <div className="flex items-center">
+                                                            <MarketStatusBadge status={market.status} />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </Link>
+
+                                            <div className="space-y-2">
+                                                <div className="flex justify-between">
+                                                    <span className="text-sm text-muted-foreground">TVL</span>
+                                                    <span className="font-medium">${formatUnits(market.tvl || 0n, UNDERYLING_DECIMALS, 0)}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-sm text-muted-foreground">Unmatched Tokens</span>
+                                                    <span className="font-medium">
+                                                        {market.unmatchedYesTokens > 0
+                                                            ? `${formatUnits(market.unmatchedYesTokens, UNDERYLING_DECIMALS, 0)} ${
+                                                                  market.outcomes[0]
+                                                              }`
+                                                            : ''}
+                                                        {market.unmatchedNoTokens > 0
+                                                            ? `${formatUnits(market.unmatchedNoTokens, UNDERYLING_DECIMALS, 0)} ${market.outcomes[1]}`
+                                                            : ''}
+                                                        {market.unmatchedYesTokens === 0n && market.unmatchedNoTokens === 0n ? `0` : ''}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-sm text-muted-foreground">APY</span>
+                                                    <span className="font-bold text-primary">
+                                                        {vaultAddress ? (
+                                                            <ValueState
+                                                                value={`${((Number(averageApy) / 10_000) * 100).toFixed(2)}%`}
+                                                                loading={averageApyLoading || !averageApyEnabled}
+                                                                error={!!averageApyError}
+                                                            />
+                                                        ) : (
+                                                            '—'
+                                                        )}
+                                                    </span>
+                                                </div>
+
+                                                <Button className="w-full" size="sm" asChild>
+                                                    <Link href={`/market/${encodeURIComponent(market.slug)}`}>
+                                                        {market.status === MarketStatus.Uninitialized
+                                                            ? 'Activate Market'
+                                                            : market.status === MarketStatus.Active
+                                                            ? 'Stake Now'
+                                                            : 'View Market'}
+                                                        <ArrowUpRight className="w-4 h-4 ml-1" />
+                                                    </Link>
+                                                </Button>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                ))
+                            )}
+                            {availableMarkets.length === 0 && !marketsLoading && (
+                                <div className="col-span-full text-center py-8">
+                                    <p className="text-muted-foreground">
+                                        No markets found matching your criteria. Try searching by Polymarket URL or condition ID to activate a
+                                        non-existing market.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                        {totalCount > 0 && (
+                            <div className="flex items-center justify-between pt-2 mt-8">
+                                <div className="text-sm text-muted-foreground">
+                                    {`Showing ${Math.min((page - 1) * pageSize + 1, totalCount)}-${Math.min(
+                                        page * pageSize,
+                                        totalCount
+                                    )} of ${totalCount}${showWalletOnly && walletConditionIds?.length === 100 ? '+' : ''}`}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                            if (page > 1 && !marketsLoading) {
+                                                const nextPage = Math.max(1, page - 1);
+                                                setPage(nextPage);
+                                                updateQueryParams({ page: String(nextPage) });
+                                            }
+                                        }}
+                                        disabled={page <= 1 || marketsLoading}
+                                    >
+                                        Prev
+                                    </Button>
+                                    <div className="text-sm">Page {page}</div>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => {
+                                            if (page * pageSize < totalCount && !marketsLoading) {
+                                                const nextPage = page + 1;
+                                                setPage(nextPage);
+                                                updateQueryParams({ page: String(nextPage) });
+                                            }
+                                        }}
+                                        disabled={page * pageSize >= totalCount || marketsLoading}
+                                    >
+                                        Next
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
+    );
+}
+
+export default function StakingPage() {
+    return (
+        <React.Suspense
+            fallback={
+                <div className="min-h-screen bg-background flex items-center justify-center">
+                    <Loader className="w-8 h-8 animate-spin" />
+                </div>
+            }
+        >
+            <StakingPageContent />
+        </React.Suspense>
+    );
+}

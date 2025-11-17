@@ -242,11 +242,11 @@ contract PrepareGenesisVault is Script, Constants {
             slug: 'putin-out-before-2027'
         });
         markets[31] = MarketDef({
-            conditionId: 0x8ee2f1640386310eb5e7ffa596ba9335f2d324e303d21b0dfea6998874445791,
-            priceA: 45000,
-            extraEligible: false,
+            conditionId: 0xaeea5f917fc5746387b5f9c0a4263dba035dbb3f0ac6ad72bf92183d21e26739,
+            priceA: 430000,
+            extraEligible: true,
             collateral: UNDERLYING_USD,
-            slug: 'russia-x-ukraine-ceasefire-in-2025'
+            slug: 'russia-x-ukraine-ceasefire-before-2027'
         });
         markets[32] = MarketDef({
             conditionId: 0xd407fc7bc044a509b1eb3059d8a85af5493425d9edb677781dcc7a98c1554adb,
