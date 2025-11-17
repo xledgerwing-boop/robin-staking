@@ -83,6 +83,7 @@ contract RobinGenesisVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder 
     // ---------- Events ----------
     event CampaignStarted(address indexed starter, uint256 baseFunded, uint256 startTs, uint256 endTs);
     event PricesUpdated(uint256 timestamp);
+    event MarketPriceUpdated(uint256 index, uint256 newPriceA);
     event Deposit(address indexed user, uint256 indexed marketIndex, bool isA, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed marketIndex, bool isA, uint256 amount);
     event BatchDeposit(address indexed user, uint256 tokenAmount);
@@ -235,6 +236,45 @@ contract RobinGenesisVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder 
         totalExtraValueUsd = newExtraTotal;
 
         emit PricesUpdated(block.timestamp);
+    }
+
+    // Update the price of a single market by index.
+    // Advances time first so previous price accruals are finalized.
+    function updateMarketPrice(uint256 index, uint256 newPriceA) external onlyOwner {
+        if (emergencyMode) revert InEmergency();
+        if (index >= markets.length) revert MarketIndexOutOfBounds();
+        if (newPriceA > PRICE_SCALE) revert PriceOutOfRange();
+
+        // Finalize accruals using old prices
+        _advanceTime();
+
+        Market storage m = markets[index];
+        uint256 oldPriceA = m.priceA;
+        if (oldPriceA == newPriceA) {
+            emit MarketPriceUpdated(index, newPriceA);
+            return;
+        }
+
+        // Adjust TVL totals by this market's valuation delta
+        if (m.active) {
+            uint256 oldVal = Math.mulDiv(m.totalAmountA, oldPriceA, PRICE_SCALE) + Math.mulDiv(m.totalAmountB, PRICE_SCALE - oldPriceA, PRICE_SCALE);
+            uint256 newVal = Math.mulDiv(m.totalAmountA, newPriceA, PRICE_SCALE) + Math.mulDiv(m.totalAmountB, PRICE_SCALE - newPriceA, PRICE_SCALE);
+
+            if (newVal >= oldVal) {
+                uint256 inc = newVal - oldVal;
+                totalValueUsd += inc;
+                if (m.extraEligible) totalExtraValueUsd += inc;
+            } else {
+                uint256 dec = oldVal - newVal;
+                totalValueUsd = totalValueUsd >= dec ? totalValueUsd - dec : 0;
+                if (m.extraEligible) {
+                    totalExtraValueUsd = totalExtraValueUsd >= dec ? totalExtraValueUsd - dec : 0;
+                }
+            }
+        }
+
+        m.priceA = newPriceA;
+        emit MarketPriceUpdated(index, newPriceA);
     }
 
     // End a market and append a replacement in same call

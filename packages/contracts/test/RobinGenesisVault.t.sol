@@ -10,6 +10,7 @@ import { RobinGenesisVault } from '../src/RobinGenesisVault.sol';
 import { GenesisConstants } from './helpers/GenesisConstants.sol';
 import { ForkFixture } from './helpers/ForkFixture.t.sol';
 import { INegRiskAdapter } from '../src/interfaces/INegRiskAdapter.sol';
+import { Math } from '@openzeppelin/contracts/utils/math/Math.sol';
 
 contract RobinGenesisVaultTest is Test, GenesisConstants, ForkFixture {
     // actors
@@ -356,6 +357,30 @@ contract RobinGenesisVaultTest is Test, GenesisConstants, ForkFixture {
         prices[0] = PRICE_SCALE + 1;
         vm.expectRevert(RobinGenesisVault.PriceOutOfRange.selector);
         vault.batchUpdatePrices(prices);
+    }
+
+    function test_UpdateMarketPrice_AdjustsTotalsSingleMarket() public {
+        // Seed deposits on both sides of market 0 (eligible)
+        _mintOutcome(alice, M0, 2_000_000);
+        _deposit(alice, 0, true, 2_000_000); // A side
+        _mintOutcome(bob, M0, 1_500_000);
+        _deposit(bob, 0, false, 1_500_000); // B side
+
+        uint256 oldTotal = vault.totalValueUsd();
+        uint256 newPrice = 900_000; // $0.90
+
+        vm.expectEmit(true, true, true, true, address(vault));
+        emit RobinGenesisVault.MarketPriceUpdated(0, newPrice);
+        vault.updateMarketPrice(0, newPrice);
+
+        // Manual new valuation: (2m * 0.90) + (1.5m * 0.10) = 1.95m
+        uint256 expectedNewTotal = Math.mulDiv(2_000_000, newPrice, PRICE_SCALE) + Math.mulDiv(1_500_000, PRICE_SCALE - newPrice, PRICE_SCALE);
+        assertEq(vault.totalValueUsd(), expectedNewTotal);
+        // Since this market is eligible, extra total should track the same delta
+        assertEq(vault.totalExtraValueUsd(), expectedNewTotal);
+        (, , , , uint256 priceA, , , , ) = vault.markets(0);
+        assertEq(priceA, newPrice);
+        assertEq(oldTotal + (expectedNewTotal - oldTotal), vault.totalValueUsd());
     }
 
     // ---------- Rewards and Eligibility ----------
