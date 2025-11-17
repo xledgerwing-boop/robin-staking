@@ -9,6 +9,7 @@ import { useGenesisVaultInfo } from '@/hooks/use-genesis-vault-info';
 import { useProxyAccount } from '@robin-pm-staking/common/src/hooks/use-proxy-account';
 import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
+import { Info } from 'lucide-react';
 
 export default function VaultCapacity() {
     const VAULT = USED_CONTRACTS.GENESIS_VAULT as `0x${string}`;
@@ -68,15 +69,23 @@ export default function VaultCapacity() {
                     ({formatUnits(capPctBps, 4, 0)}%)
                 </span>
             </div>
-            {registeredUsd > 0n && (
-                <div className="w-[50%] mx-auto">
+            {(registeredUsd > 0n || capReached) && (
+                <div className="w-[50%] lg:w-[20%] mx-auto">
                     <p className="text-sm text-muted-foreground text-center mt-3">Registered interest</p>
                     <div className="text-2xl font-bold text-center">${formatUnitsLocale(registeredUsd, UNDERYLING_DECIMALS, 0)}</div>
                     {capReached && (
                         <div className="mt-3">
-                            <Button className="w-full" variant="secondary" onClick={onRegisterInterest} disabled={loading}>
-                                {loading ? 'Registering...' : 'Register Interest'}
-                            </Button>
+                            <div className="flex items-center justify-center gap-2 mb-2">
+                                <Button className="w-full" variant="secondary" onClick={onRegisterInterest} disabled={loading}>
+                                    {loading ? 'Registering...' : 'Register Interest'}
+                                </Button>
+                                <div className="relative inline-flex items-center group">
+                                    <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+                                    <span className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 hidden w-48 -translate-x-1/2 whitespace-normal rounded-md border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md group-hover:block">
+                                        This will register your stakeable portfolio value to show popularity of the vault
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
