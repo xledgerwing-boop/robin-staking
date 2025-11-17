@@ -19,7 +19,25 @@ import {
     YieldUnlockStartedEvent,
 } from '@robin-pm-staking/common/types/conract-events';
 import { GenesisEventService } from './GenesisEventService';
-import { GenesisVaultEvent, GenesisVaultEventInfo } from '@robin-pm-staking/common/types/genesis-events';
+import {
+    CampaignFinalizedEvent,
+    CampaignStartedEvent,
+    ClaimEvent,
+    EmergencyModeEnabledEvent,
+    EmergencyWithdrawalEvent,
+    GenesisBatchDepositEvent,
+    GenesisBatchWithdrawEvent,
+    GenesisDepositEvent,
+    GenesisVaultEvent,
+    GenesisVaultEventInfo,
+    GenesisWithdrawEvent,
+    LeftoversSweptEvent,
+    MarketAddedEvent,
+    MarketEndedEvent,
+    MarketPriceUpdatedEvent,
+    PricesUpdatedEvent,
+    TvlCapUpdatedEvent,
+} from '@robin-pm-staking/common/types/genesis-events';
 import { USED_CONTRACTS } from '@robin-pm-staking/common/constants';
 
 export class StreamsIndexer {
@@ -225,18 +243,18 @@ export class StreamsIndexer {
                     baseFunded: args[1],
                     startTs: args[2],
                     endTs: args[3],
-                };
+                } as CampaignStartedEvent;
                 break;
             case GenesisVaultEvent.PricesUpdated:
                 info = {
                     timestamp: args[0],
-                };
+                } as PricesUpdatedEvent;
                 break;
             case GenesisVaultEvent.MarketPriceUpdated:
                 info = {
                     index: args[0],
                     newPriceA: args[1],
-                };
+                } as MarketPriceUpdatedEvent;
                 break;
             case GenesisVaultEvent.Deposit:
                 const user = args[0].toLowerCase();
@@ -249,7 +267,7 @@ export class StreamsIndexer {
                     totalTokens,
                     totalUsd,
                     eligibleUsd,
-                };
+                } as GenesisDepositEvent;
                 break;
             case GenesisVaultEvent.BatchDeposit:
                 const [totalTokens1, totalUsd1, eligibleUsd1] = await this.genesisVault.viewUserStakeableValue(args[0].toLowerCase());
@@ -259,7 +277,7 @@ export class StreamsIndexer {
                     totalTokens: totalTokens1,
                     totalUsd: totalUsd1,
                     eligibleUsd: eligibleUsd1,
-                };
+                } as GenesisBatchDepositEvent;
                 break;
             case GenesisVaultEvent.Withdraw:
                 info = {
@@ -267,33 +285,34 @@ export class StreamsIndexer {
                     marketIndex: args[1],
                     isA: args[2],
                     amount: args[3],
-                };
+                } as GenesisWithdrawEvent;
                 break;
             case GenesisVaultEvent.BatchWithdraw:
                 info = {
                     user: args[0].toLowerCase(),
                     tokenAmount: args[1],
-                };
+                } as GenesisBatchWithdrawEvent;
                 break;
             case GenesisVaultEvent.Claim:
                 info = {
                     user: args[0].toLowerCase(),
                     basePaid: args[1],
                     extraPaid: args[2],
-                };
+                } as ClaimEvent;
                 break;
             case GenesisVaultEvent.MarketAdded:
                 info = {
                     index: args[0],
-                    tokenIdA: args[1],
-                    tokenIdB: args[2],
-                    extraEligible: args[3],
-                };
+                    conditionId: args[1],
+                    tokenIdA: args[2],
+                    tokenIdB: args[3],
+                    extraEligible: args[4],
+                } as MarketAddedEvent;
                 break;
             case GenesisVaultEvent.MarketEnded:
                 info = {
                     index: args[0],
-                };
+                } as MarketEndedEvent;
                 break;
             case GenesisVaultEvent.CampaignFinalized:
                 info = {
@@ -302,29 +321,29 @@ export class StreamsIndexer {
                     totalExtraValueTime: args[2],
                     baseDistributed: args[3],
                     extraPool: args[4],
-                };
+                } as CampaignFinalizedEvent;
                 break;
             case GenesisVaultEvent.TvlCapUpdated:
                 info = {
                     newCapUsd: args[0],
                     newBaseRewardPool: args[1],
-                };
+                } as TvlCapUpdatedEvent;
                 break;
             case GenesisVaultEvent.LeftoversSwept:
                 info = {
                     to: args[0].toLowerCase(),
                     amount: args[1],
-                };
+                } as LeftoversSweptEvent;
                 break;
             case GenesisVaultEvent.EmergencyModeEnabled:
                 info = {
                     timestamp: args[0],
-                };
+                } as EmergencyModeEnabledEvent;
                 break;
             case GenesisVaultEvent.EmergencyWithdrawal:
                 info = {
                     user: args[0].toLowerCase(),
-                };
+                } as EmergencyWithdrawalEvent;
                 break;
             default:
                 logger.warn(`Unknown genesis event: ${eventName}`);
