@@ -9,6 +9,8 @@ import {
     PromoVaultEvent,
     MarketAddedEvent,
     MarketEndedEvent,
+    PromoBatchDepositEvent,
+    PromoBatchWithdrawEvent,
 } from '@robin-pm-staking/common/types/promo-events';
 import { LogInfo } from './EventService';
 import { logger } from '../utils/logger';
@@ -36,8 +38,8 @@ export class PromoEventService {
             info: eventInfoToDb(logData),
         };
 
-        if (activity.type === PromoVaultEvent.Deposit) {
-            const d = logData as PromoDepositEvent;
+        if (activity.type === PromoVaultEvent.Deposit || activity.type === PromoVaultEvent.BatchDeposit) {
+            const d = logData as PromoDepositEvent | PromoBatchDepositEvent;
             activity.userAddress = d.user.toLowerCase();
             // Optionally adjust promo interest (remainingUsd) for this user if present
             try {
@@ -51,8 +53,8 @@ export class PromoEventService {
             } catch (e) {
                 logger.warn('Failed to update user promo interest on deposit', e);
             }
-        } else if (activity.type === PromoVaultEvent.Withdraw) {
-            activity.userAddress = (logData as PromoWithdrawEvent).user.toLowerCase();
+        } else if (activity.type === PromoVaultEvent.Withdraw || activity.type === PromoVaultEvent.BatchWithdraw) {
+            activity.userAddress = (logData as PromoWithdrawEvent | PromoBatchWithdrawEvent).user.toLowerCase();
         } else if (activity.type === PromoVaultEvent.Claim) {
             activity.userAddress = (logData as ClaimEvent).user.toLowerCase();
         } else if (activity.type === PromoVaultEvent.MarketAdded) {

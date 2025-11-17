@@ -14,6 +14,7 @@ contract PromotionVaultGasTest is Test, PromotionConstants, ForkFixture {
     // actors
     address internal owner;
     address internal user;
+    address internal user2;
 
     // tokens and polymarket
     IERC20 internal usdc;
@@ -38,10 +39,13 @@ contract PromotionVaultGasTest is Test, PromotionConstants, ForkFixture {
 
         owner = address(this);
         user = makeAddr('gas_user');
+        user2 = makeAddr('gas_user2');
         vm.label(owner, 'owner');
         vm.label(user, 'gas_user');
+        vm.label(user2, 'gas_user2');
         vm.deal(owner, 100 ether);
         vm.deal(user, 100 ether);
+        vm.deal(user2, 100 ether);
 
         usdc = IERC20(UNDERLYING_USD);
         ctf = IConditionalTokens(CTF);
@@ -165,6 +169,8 @@ contract PromotionVaultGasTest is Test, PromotionConstants, ForkFixture {
         // approval once
         vm.prank(user);
         ctf.setApprovalForAll(address(vault), true);
+        vm.prank(user2);
+        ctf.setApprovalForAll(address(vault), true);
 
         uint256[] memory idxs = new uint256[](markets.length);
         bool[] memory sides = new bool[](markets.length);
@@ -174,6 +180,7 @@ contract PromotionVaultGasTest is Test, PromotionConstants, ForkFixture {
         for (uint256 i = 0; i < markets.length; i++) {
             uint256 amt = 1_000_000;
             _mintOutcome(user, markets[i], amt);
+            _mintOutcome(user2, markets[i], amt);
             idxs[i] = i;
             sides[i] = _randomSide(i);
             amts[i] = amt;
@@ -182,6 +189,11 @@ contract PromotionVaultGasTest is Test, PromotionConstants, ForkFixture {
         vm.prank(user);
         vault.batchDeposit(idxs, sides, amts);
         _measureEnd(gs1, 'batchDeposit first touch (all markets)');
+
+        uint256 gs12 = _measureStart();
+        vm.prank(user2);
+        vault.batchDeposit(idxs, sides, amts);
+        _measureEnd(gs12, 'batchDeposit first touch (all markets) for user2');
 
         // Subsequent: mint another 1.0 for all markets and deposit again
         for (uint256 i = 0; i < markets.length; i++) {

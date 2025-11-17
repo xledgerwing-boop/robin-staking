@@ -157,21 +157,21 @@ contract PromotionVaultTest is Test, PromotionConstants, ForkFixture {
     function _batchDeposit(address user, uint256[] memory idxs, bool[] memory sides, uint256[] memory amts) internal {
         vm.prank(user);
         ctf.setApprovalForAll(address(vault), true);
-        // Expect events for each item, in order
-        for (uint256 i = 0; i < idxs.length; i++) {
-            vm.expectEmit(true, true, true, true, address(vault));
-            emit PromotionVault.Deposit(user, idxs[i], sides[i], amts[i]);
-        }
+        // Expect single batch event
+        uint256 total;
+        for (uint256 i = 0; i < amts.length; i++) total += amts[i];
+        vm.expectEmit(true, true, true, true, address(vault));
+        emit PromotionVault.BatchDeposit(user, total);
         vm.prank(user);
         vault.batchDeposit(idxs, sides, amts);
     }
 
     function _batchWithdraw(address user, uint256[] memory idxs, bool[] memory sides, uint256[] memory amts) internal {
-        // Expect events for each item, in order
-        for (uint256 i = 0; i < idxs.length; i++) {
-            vm.expectEmit(true, true, true, true, address(vault));
-            emit PromotionVault.Withdraw(user, idxs[i], sides[i], amts[i]);
-        }
+        // Expect single batch event
+        uint256 total;
+        for (uint256 i = 0; i < amts.length; i++) total += amts[i];
+        vm.expectEmit(true, true, true, true, address(vault));
+        emit PromotionVault.BatchWithdraw(user, total);
         vm.prank(user);
         vault.batchWithdraw(idxs, sides, amts);
     }
@@ -187,10 +187,21 @@ contract PromotionVaultTest is Test, PromotionConstants, ForkFixture {
 
     function test_SetTvlCap_Emits() public {
         uint256 newCap = TVL_CAP / 2;
+        uint256 newBase = BASE_REWARD + 1;
+        // Approve the diff
+        usdc.approve(address(vault), newBase - BASE_REWARD);
         vm.expectEmit(true, true, true, true, address(vault));
-        emit PromotionVault.TvlCapUpdated(TVL_CAP, newCap);
-        vault.setTvlCap(newCap);
+        //First check without changing base reward
+        emit PromotionVault.TvlCapUpdated(newCap, BASE_REWARD);
+        vault.setTvlCap(newCap, BASE_REWARD);
+
+        vm.expectEmit(true, true, true, true, address(vault));
+        //Second check with changing base reward
+        emit PromotionVault.TvlCapUpdated(newCap, newBase);
+        vault.setTvlCap(newCap, newBase);
+
         assertEq(vault.tvlCapUsd(), newCap);
+        assertEq(vault.baseRewardPool(), newBase);
     }
 
     function test_Pause_Blocks_MutatingOps() public {
@@ -200,13 +211,6 @@ contract PromotionVaultTest is Test, PromotionConstants, ForkFixture {
         vm.prank(alice);
         vm.expectRevert(Pausable.EnforcedPause.selector); // Pausable revert
         vault.deposit(0, true, 1);
-        // price push blocked
-        vm.expectRevert(Pausable.EnforcedPause.selector);
-        vault.batchUpdatePrices(prices);
-        // finalize blocked (warp to end)
-        vm.warp(vault.campaignEndTimestamp());
-        vm.expectRevert(Pausable.EnforcedPause.selector);
-        vault.finalizeCampaign();
     }
 
     // ---------- Deposits, Withdrawals, Prices ----------
@@ -225,7 +229,9 @@ contract PromotionVaultTest is Test, PromotionConstants, ForkFixture {
     }
 
     function test_Deposit_Enforces_TvlCap() public {
-        vault.setTvlCap(1); // very small cap
+        // Increase base reward minimally to satisfy function requirement
+        usdc.approve(address(vault), 1);
+        vault.setTvlCap(1, BASE_REWARD + 1); // very small cap
         _mintOutcome(alice, M0, 10);
         vm.prank(alice);
         vm.expectRevert(PromotionVault.TvlCapExceeded.selector);

@@ -85,11 +85,13 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
     event PricesUpdated(uint256 timestamp);
     event Deposit(address indexed user, uint256 indexed marketIndex, bool isA, uint256 amount);
     event Withdraw(address indexed user, uint256 indexed marketIndex, bool isA, uint256 amount);
+    event BatchDeposit(address indexed user, uint256 tokenAmount);
+    event BatchWithdraw(address indexed user, uint256 tokenAmount);
     event Claim(address indexed user, uint256 basePaid, uint256 extraPaid);
     event MarketAdded(uint256 index, bytes32 conditionId, uint256 tokenIdA, uint256 tokenIdB, bool extraEligible);
     event MarketEnded(uint256 index);
     event CampaignFinalized(uint256 timestamp, uint256 totalValueTime, uint256 totalExtraValueTime, uint256 baseDistributed, uint256 extraPool);
-    event TvlCapUpdated(uint256 oldCapUsd, uint256 newCapUsd);
+    event TvlCapUpdated(uint256 newCapUsd, uint256 newBaseRewardPool);
     event LeftoversSwept(address indexed to, uint256 amount);
     event EmergencyModeEnabled(uint256 timestamp);
     event EmergencyWithdrawal(address indexed user);
@@ -112,6 +114,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
     error CampaignNotFinalized();
     error InEmergency();
     error NotInEmergency();
+    error BaseRewardCantDecrease();
 
     // ---------- Constructor ----------
     constructor(address _ctf, address _usdc, uint256 _tvlCapUsd) Ownable(msg.sender) {
@@ -160,15 +163,27 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
         emit MarketAdded(markets.length - 1, conditionId, tokenIdA, tokenIdB, extraEligible);
     }
 
-    function setTvlCap(uint256 _capUsd) external onlyOwner {
-        uint256 old = tvlCapUsd;
+    function setTvlCap(uint256 _capUsd, uint256 _newBaseRewardPool) external onlyOwner {
+        if (emergencyMode) revert InEmergency();
         tvlCapUsd = _capUsd;
-        emit TvlCapUpdated(old, _capUsd);
+
+        if (_newBaseRewardPool < baseRewardPool) revert BaseRewardCantDecrease();
+        uint256 diff = _newBaseRewardPool - baseRewardPool;
+        if (diff > 0) {
+            USDC.safeTransferFrom(msg.sender, address(this), diff);
+        }
+        baseRewardPool = _newBaseRewardPool;
+
+        emit TvlCapUpdated(_capUsd, _newBaseRewardPool);
     }
 
     // Expose owner pause control
     function pause() external onlyOwner {
         _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
     }
 
     // ---------- Campaign lifecycle ----------
@@ -193,7 +208,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
     }
 
     // Admin must push prices for all markets in a batch
-    function batchUpdatePrices(uint256[] calldata pricesA) external onlyOwner whenNotPaused {
+    function batchUpdatePrices(uint256[] calldata pricesA) external onlyOwner {
         if (emergencyMode) revert InEmergency();
         if (pricesA.length != markets.length) revert LengthMismatch();
         // advance global accumulators and per-market RPMs to now
@@ -229,7 +244,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
         uint256 newPriceA,
         bool newExtraEligible,
         address newPolymarketCollateral
-    ) external onlyOwner whenNotPaused {
+    ) external onlyOwner {
         if (emergencyMode) revert InEmergency();
         if (endIndex >= markets.length) revert MarketIndexOutOfBounds();
         _advanceTime();
@@ -308,10 +323,10 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
     function deposit(uint256 marketIndex, bool isA, uint256 amount) external nonReentrant whenNotPaused {
         if (emergencyMode) revert InEmergency();
         _advanceTime();
-        depositInner(marketIndex, isA, amount);
+        _depositInner(marketIndex, isA, amount, true);
     }
 
-    function depositInner(uint256 marketIndex, bool isA, uint256 amount) internal {
+    function _depositInner(uint256 marketIndex, bool isA, uint256 amount, bool emitEvt) internal {
         if (!campaignStarted || block.timestamp >= campaignEndTimestamp) revert CampaignNotActive();
         if (marketIndex >= markets.length) revert MarketIndexOutOfBounds();
         if (amount == 0) revert ZeroAmount();
@@ -349,17 +364,19 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
         }
 
         // TVL cap is checked before token transfers to fail early
-        emit Deposit(msg.sender, marketIndex, isA, amount);
+        if (emitEvt) {
+            emit Deposit(msg.sender, marketIndex, isA, amount);
+        }
     }
 
     // withdraw tokens (no immediate UsdC reward). Stops earning further after withdraw.
     function withdraw(uint256 marketIndex, bool isA, uint256 amount) external nonReentrant {
         if (emergencyMode) revert InEmergency();
         _advanceTime();
-        withdrawInner(marketIndex, isA, amount);
+        _withdrawInner(marketIndex, isA, amount, true);
     }
 
-    function withdrawInner(uint256 marketIndex, bool isA, uint256 amount) internal {
+    function _withdrawInner(uint256 marketIndex, bool isA, uint256 amount, bool emitEvt) internal {
         if (marketIndex >= markets.length) revert MarketIndexOutOfBounds();
         if (amount == 0) revert ZeroAmount();
 
@@ -405,7 +422,9 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
             CTF.safeTransferFrom(address(this), msg.sender, m.tokenIdB, amount, '');
         }
 
-        emit Withdraw(msg.sender, marketIndex, isA, amount);
+        if (emitEvt) {
+            emit Withdraw(msg.sender, marketIndex, isA, amount);
+        }
     }
 
     // Batch deposit across multiple markets/sides. Reverts atomically if any item fails.
@@ -422,12 +441,15 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
 
         _advanceTime();
 
+        uint256 totalTokens = 0;
         for (uint256 i = 0; i < n; i++) {
             uint256 idx = marketIndexes[i];
             uint256 amt = amounts[i];
             bool isA = sidesIsA[i];
-            depositInner(idx, isA, amt);
+            _depositInner(idx, isA, amt, false);
+            totalTokens += amt;
         }
+        emit BatchDeposit(msg.sender, totalTokens);
     }
 
     // Batch withdraw across multiple markets/sides. Reverts atomically if any item fails.
@@ -439,12 +461,15 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
 
         _advanceTime();
 
+        uint256 totalTokens = 0;
         for (uint256 i = 0; i < n; i++) {
             uint256 idx = marketIndexes[i];
             uint256 amt = amounts[i];
             bool isA = sidesIsA[i];
-            withdrawInner(idx, isA, amt);
+            _withdrawInner(idx, isA, amt, false);
+            totalTokens += amt;
         }
+        emit BatchWithdraw(msg.sender, totalTokens);
     }
 
     // ---------- Per-user settlement ----------
@@ -513,7 +538,7 @@ contract PromotionVault is ReentrancyGuard, Ownable, Pausable, ERC1155Holder {
     }
 
     // finalizeCampaign: owner-only after campaign end timestamp
-    function finalizeCampaign() external onlyOwner whenNotPaused {
+    function finalizeCampaign() external onlyOwner {
         if (!campaignStarted || campaignFinalized) revert CampaignNotActive();
         if (block.timestamp < campaignEndTimestamp) revert CampaignNotEnded();
 

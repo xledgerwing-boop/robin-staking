@@ -245,12 +245,28 @@ export class StreamsIndexer {
                     eligibleUsd,
                 };
                 break;
+            case PromoVaultEvent.BatchDeposit:
+                const [totalTokens1, totalUsd1, eligibleUsd1] = await this.promoVault.viewUserStakeableValue(args[0].toLowerCase());
+                info = {
+                    user: args[0].toLowerCase(),
+                    tokenAmount: args[1],
+                    totalTokens: totalTokens1,
+                    totalUsd: totalUsd1,
+                    eligibleUsd: eligibleUsd1,
+                };
+                break;
             case PromoVaultEvent.Withdraw:
                 info = {
                     user: args[0].toLowerCase(),
                     marketIndex: args[1],
                     isA: args[2],
                     amount: args[3],
+                };
+                break;
+            case PromoVaultEvent.BatchWithdraw:
+                info = {
+                    user: args[0].toLowerCase(),
+                    tokenAmount: args[1],
                 };
                 break;
             case PromoVaultEvent.Claim:
@@ -284,14 +300,24 @@ export class StreamsIndexer {
                 break;
             case PromoVaultEvent.TvlCapUpdated:
                 info = {
-                    oldCapUsd: args[0],
-                    newCapUsd: args[1],
+                    newCapUsd: args[0],
+                    newBaseRewardPool: args[1],
                 };
                 break;
             case PromoVaultEvent.LeftoversSwept:
                 info = {
                     to: args[0].toLowerCase(),
                     amount: args[1],
+                };
+                break;
+            case PromoVaultEvent.EmergencyModeEnabled:
+                info = {
+                    timestamp: args[0],
+                };
+                break;
+            case PromoVaultEvent.EmergencyWithdrawal:
+                info = {
+                    user: args[0].toLowerCase(),
                 };
                 break;
             default:
