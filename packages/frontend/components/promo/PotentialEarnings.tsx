@@ -8,6 +8,7 @@ import { formatUnits, formatUnitsLocale } from '@robin-pm-staking/common/lib/uti
 import { usePromotionVaultInfo } from '@/hooks/use-promotion-vault-info';
 import { usePromotionVaultUserInfo } from '@/hooks/use-promotion-vault-user-info';
 import { DateTime } from 'luxon';
+import { ArrowBigRight, Circle, CircleSmall } from 'lucide-react';
 
 export default function PotentialEarnings() {
     const VAULT = USED_CONTRACTS.PROMOTION_VAULT as `0x${string}`;
@@ -61,7 +62,7 @@ export default function PotentialEarnings() {
                             />
                         </div>
                     </div>
-                    <div className="text-3xl font-extrabold select-none">×</div>
+                    <CircleSmall className="size-6 text-muted-foreground mt-1" />
                     <div className="flex-1 text-center">
                         <div className="text-sm text-muted-foreground mb-1">APY</div>
                         <div className="text-lg md:text-xl font-extrabold">
@@ -73,7 +74,7 @@ export default function PotentialEarnings() {
                         </div>
                         <div className="text-xs text-muted-foreground mt-1">annualized</div>
                     </div>
-                    <div className="text-3xl font-extrabold select-none">=</div>
+                    <ArrowBigRight className="size-6 text-muted-foreground mt-1" />
                     <div className="flex-1 text-center">
                         <div className="text-sm text-muted-foreground mb-1">Potential yield</div>
                         <div className="text-lg md:text-xl font-extrabold">
