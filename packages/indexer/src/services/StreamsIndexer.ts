@@ -19,7 +19,7 @@ import {
     YieldUnlockStartedEvent,
 } from '@robin-pm-staking/common/types/conract-events';
 import { GenesisEventService } from './GenesisEventService';
-import { GenesisVaultEvent, GenesisVaultEventInfo } from '@robin-pm-staking/common/src/types/genesis-events';
+import { GenesisVaultEvent, GenesisVaultEventInfo } from '@robin-pm-staking/common/types/genesis-events';
 import { USED_CONTRACTS } from '@robin-pm-staking/common/constants';
 
 export class StreamsIndexer {

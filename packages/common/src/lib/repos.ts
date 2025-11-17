@@ -61,46 +61,46 @@ export async function ensureSchema(db: Knex): Promise<void> {
         });
     }
 
-    // Ensure genesis columns exist on existing table
-    if (hasMarkets) {
-        const hasGenesisIndex = await db.schema.hasColumn(MARKETS_TABLE, 'genesisIndex');
-        if (!hasGenesisIndex) {
-            await db.schema.alterTable(MARKETS_TABLE, table => {
-                table.integer('genesisIndex').nullable().index();
-            });
-        }
-        const hasGenesisEligible = await db.schema.hasColumn(MARKETS_TABLE, 'genesisEligible');
-        if (!hasGenesisEligible) {
-            await db.schema.alterTable(MARKETS_TABLE, table => {
-                table.boolean('genesisEligible').nullable();
-            });
-        }
-        const hasGenesisStartedAt = await db.schema.hasColumn(MARKETS_TABLE, 'genesisStartedAt');
-        if (!hasGenesisStartedAt) {
-            await db.schema.alterTable(MARKETS_TABLE, table => {
-                table.bigint('genesisStartedAt').nullable();
-            });
-        }
-        const hasGenesisEndedAt = await db.schema.hasColumn(MARKETS_TABLE, 'genesisEndedAt');
-        if (!hasGenesisEndedAt) {
-            await db.schema.alterTable(MARKETS_TABLE, table => {
-                table.bigint('genesisEndedAt').nullable();
-            });
-        }
-        // Columns for price update tracking
-        const hasGenesisLastSubmittedPriceA = await db.schema.hasColumn(MARKETS_TABLE, 'genesisLastSubmittedPriceA');
-        if (!hasGenesisLastSubmittedPriceA) {
-            await db.schema.alterTable(MARKETS_TABLE, table => {
-                table.decimal('genesisLastSubmittedPriceA', 78, 0).nullable();
-            });
-        }
-        const hasGenesisLastSubmittedAt = await db.schema.hasColumn(MARKETS_TABLE, 'genesisLastSubmittedAt');
-        if (!hasGenesisLastSubmittedAt) {
-            await db.schema.alterTable(MARKETS_TABLE, table => {
-                table.bigint('genesisLastSubmittedAt').nullable();
-            });
-        }
-    }
+    // // Ensure genesis columns exist on existing table
+    // if (hasMarkets) {
+    //     const hasGenesisIndex = await db.schema.hasColumn(MARKETS_TABLE, 'genesisIndex');
+    //     if (!hasGenesisIndex) {
+    //         await db.schema.alterTable(MARKETS_TABLE, table => {
+    //             table.integer('genesisIndex').nullable().index();
+    //         });
+    //     }
+    //     const hasGenesisEligible = await db.schema.hasColumn(MARKETS_TABLE, 'genesisEligible');
+    //     if (!hasGenesisEligible) {
+    //         await db.schema.alterTable(MARKETS_TABLE, table => {
+    //             table.boolean('genesisEligible').nullable();
+    //         });
+    //     }
+    //     const hasGenesisStartedAt = await db.schema.hasColumn(MARKETS_TABLE, 'genesisStartedAt');
+    //     if (!hasGenesisStartedAt) {
+    //         await db.schema.alterTable(MARKETS_TABLE, table => {
+    //             table.bigint('genesisStartedAt').nullable();
+    //         });
+    //     }
+    //     const hasGenesisEndedAt = await db.schema.hasColumn(MARKETS_TABLE, 'genesisEndedAt');
+    //     if (!hasGenesisEndedAt) {
+    //         await db.schema.alterTable(MARKETS_TABLE, table => {
+    //             table.bigint('genesisEndedAt').nullable();
+    //         });
+    //     }
+    //     // Columns for price update tracking
+    //     const hasGenesisLastSubmittedPriceA = await db.schema.hasColumn(MARKETS_TABLE, 'genesisLastSubmittedPriceA');
+    //     if (!hasGenesisLastSubmittedPriceA) {
+    //         await db.schema.alterTable(MARKETS_TABLE, table => {
+    //             table.decimal('genesisLastSubmittedPriceA', 78, 0).nullable();
+    //         });
+    //     }
+    //     const hasGenesisLastSubmittedAt = await db.schema.hasColumn(MARKETS_TABLE, 'genesisLastSubmittedAt');
+    //     if (!hasGenesisLastSubmittedAt) {
+    //         await db.schema.alterTable(MARKETS_TABLE, table => {
+    //             table.bigint('genesisLastSubmittedAt').nullable();
+    //         });
+    //     }
+    // }
 
     const hasActivities = await db.schema.hasTable(ACTIVITIES_TABLE);
     if (!hasActivities) {
