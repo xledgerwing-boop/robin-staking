@@ -644,17 +644,27 @@ function MarketSlidersCard({ market, yesMax, noMax, yesSymbol, noSymbol, draftYe
                             <div className="text-xs min-w-7 shrink-0">{Number.parseFloat(draftYes).toFixed(1) || '0'}</div>
                             <OutcomeToken outcome={Outcome.Yes} symbolHolder={market} noText />
                             <AmountSlider
-                                className="w-full"
+                                className="w-full max-w-80"
                                 amount={draftYes || '0'}
                                 max={yesMax}
                                 onAmountChange={onChangeYes}
                                 disabled={!!disabled}
+                                showMax={false}
+                                showSticky={false}
                             />
                         </div>
                         <div className="flex w-full items-center gap-2">
                             <div className="text-xs min-w-7 shrink-0">{Number.parseFloat(draftNo).toFixed(1) || '0'}</div>
                             <OutcomeToken outcome={Outcome.No} symbolHolder={market} noText />
-                            <AmountSlider className="w-full" amount={draftNo || '0'} max={noMax} onAmountChange={onChangeNo} disabled={!!disabled} />
+                            <AmountSlider
+                                className="w-full max-w-80"
+                                amount={draftNo || '0'}
+                                max={noMax}
+                                onAmountChange={onChangeNo}
+                                disabled={!!disabled}
+                                showMax={false}
+                                showSticky={false}
+                            />
                         </div>
                     </div>
                 </div>

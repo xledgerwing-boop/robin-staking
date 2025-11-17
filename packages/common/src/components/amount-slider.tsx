@@ -15,6 +15,7 @@ export type AmountSliderProps = {
     stickyPercents?: number[]; // e.g. [25, 50, 75]
     stickyThreshold?: number; // +/- percentage points within which to snap (legacy)
     showMax?: boolean;
+    showSticky?: boolean;
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -44,6 +45,7 @@ export function AmountSlider({
     stickyPercents = [25, 50, 75],
     stickyThreshold = 1.5,
     showMax = true,
+    showSticky = true,
 }: AmountSliderProps) {
     // Percent from amount/max (integer percent for a clean UI)
     const percent = React.useMemo(() => {
@@ -112,11 +114,12 @@ export function AmountSlider({
                     <SliderPrimitive.Range className="absolute h-full bg-primary" />
                 </SliderPrimitive.Track>
                 {/* Sticky marks */}
-                {stickyPercents.map(p => (
-                    <div key={p} className="pointer-events-none absolute top-1/2 -translate-y-1/2" style={{ left: `${p}%` }}>
-                        <div className="h-3 w-[2px] bg-primary/50" />
-                    </div>
-                ))}
+                {showSticky &&
+                    stickyPercents.map(p => (
+                        <div key={p} className="pointer-events-none absolute top-1/2 -translate-y-1/2" style={{ left: `${p}%` }}>
+                            <div className="h-3 w-[2px] bg-primary/50" />
+                        </div>
+                    ))}
                 {/* Thumb + tooltip on hover */}
                 <SliderPrimitive.Thumb className="cursor-pointer group relative block h-4 w-4 rounded-full border border-primary/50 bg-background shadow transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50">
                     <div className="pointer-events-none absolute -top-5 left-1/2 -translate-x-1/2 select-none text-[10px] leading-none opacity-0 transition-opacity group-hover:opacity-100">
