@@ -18,8 +18,9 @@ import { MarketRowToMarket, MarketStatus } from '@robin-pm-staking/common/types/
 import { useSearchParams } from 'next/navigation';
 import { MarketStatusBadge } from '@/components/market/market-status-badge';
 import { formatUnits } from '@robin-pm-staking/common/lib/utils';
-import { UNDERYLING_DECIMALS } from '@robin-pm-staking/common/constants';
+import { UNDERYLING_DECIMALS, USED_CONTRACTS, DEFAULT_QUERY_STALE_TIME } from '@robin-pm-staking/common/constants';
 import { useReadRobinStakingVaultGetCurrentApy } from '@robin-pm-staking/common/types/contracts';
+import { useReadRobinGenesisVaultTotalValueUsd } from '@robin-pm-staking/common/types/contracts-genesis';
 import { zeroAddress } from 'viem';
 import { ValueState } from '@/components/value-state';
 import { toast } from 'sonner';
@@ -46,6 +47,19 @@ function StakingPageContent() {
         args: [],
         query: {
             enabled: !!vaultAddress && vaultAddress !== zeroAddress,
+        },
+    });
+
+    const {
+        data: genesisTotalValueUsd,
+        isLoading: genesisTotalValueUsdLoading,
+        error: genesisTotalValueUsdError,
+    } = useReadRobinGenesisVaultTotalValueUsd({
+        address: USED_CONTRACTS.GENESIS_VAULT,
+        args: [],
+        query: {
+            enabled: !!USED_CONTRACTS.GENESIS_VAULT && USED_CONTRACTS.GENESIS_VAULT !== zeroAddress,
+            staleTime: DEFAULT_QUERY_STALE_TIME,
         },
     });
 
@@ -134,6 +148,16 @@ function StakingPageContent() {
         };
         run();
     }, []);
+
+    // Combine staking vault TVL with Genesis vault TVL
+    const combinedTotalTVL = useMemo(() => {
+        const stakingTVL = totalTVL;
+        const genesisTVL = genesisTotalValueUsd ?? 0n;
+        return stakingTVL + genesisTVL;
+    }, [totalTVL, genesisTotalValueUsd]);
+
+    const totalTVLLoading = metricsLoading || genesisTotalValueUsdLoading;
+    const totalTVLError = !!genesisTotalValueUsdError;
 
     // Sync URL -> state on mount and when navigating back/forward
     useEffect(() => {
@@ -344,9 +368,9 @@ function StakingPageContent() {
                                     <p className="text-sm text-muted-foreground">Total TVL</p>
                                     <div className="text-2xl font-bold text-right">
                                         <ValueState
-                                            value={`$${formatUnits(totalTVL, UNDERYLING_DECIMALS, 0)}`}
-                                            loading={metricsLoading}
-                                            error={false}
+                                            value={`$${formatUnits(combinedTotalTVL, UNDERYLING_DECIMALS, 0)}`}
+                                            loading={totalTVLLoading}
+                                            error={totalTVLError}
                                         />
                                     </div>
                                 </div>
