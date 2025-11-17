@@ -293,7 +293,7 @@ export default function ManageGenesisPositions() {
             await invalidateQueries([totalValueUsdQueryKey, apyBpsQueryKey, userCurrentValuesQueryKey, userStakeableValueQueryKey, stakedQueryKey]);
             toast.success('Withdraw successful');
         } catch (error) {
-            toast.error(`Withdraw failed: ${getErrorMessage(error)}`);
+            toast.error(`Withdraw failed: ${getErrorMessage(error) || 'Please try again after 1 minute'}`);
             console.error(error);
         }
     };
