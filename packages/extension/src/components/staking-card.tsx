@@ -225,7 +225,11 @@ export function StakingCard({ isMobile = false, mobileDialog = null }: StakingCa
 
                             <span className="text-sm">{isConnected ? `${formatAddress(address)}` : 'Wallet not connected'}</span>
                         </div>
-                        {/* <div className="text-sm text-muted-foreground">{market?.conditionId}</div> */}
+                        {/* <div className="text-sm text-muted-foreground">{market?.conditionId}</div>
+                        <div className="text-sm text-muted-foreground">{Number(market?.outcomePrices?.[0]) * 1_000_000}</div>
+                        <div className="text-sm text-muted-foreground">{market?.holdingRewardsEnabled?.toString()}</div>
+                        <div className="text-sm text-muted-foreground">{market?.negRisk ? 'WCOL' : 'UNDERLYING_USD'}</div>
+                        <div className="text-sm text-muted-foreground">{market?.slug?.toString()}</div> */}
                     </CardTitle>
                     <CardDescription>{market?.groupItemTitle}</CardDescription>
                 </CardHeader>

@@ -105,6 +105,7 @@ export interface PolymarketMarket {
     eventId: string;
     groupItemTitle?: string;
     closed?: boolean;
+    holdingRewardsEnabled?: boolean;
 }
 
 export interface PolymarketMarketWithEvent extends PolymarketMarket {
