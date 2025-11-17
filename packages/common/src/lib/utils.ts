@@ -20,7 +20,11 @@ export function formatUnits(value: bigint, decimals: number, maxDecimals: number
     const oneUnit = 10n ** BigInt(decimals);
     if (value !== 0n && clampedMaxDecimals === 0 && value < oneUnit) return '<1';
     if (value !== 0n && value < precision) return '<0.' + '0'.repeat(clampedMaxDecimals - 1) + '1';
-    const quantizedValue = (value / precision) * precision;
+    // Round when maxDecimals is 0, otherwise truncate
+    const quantizedValue =
+        clampedMaxDecimals === 0
+            ? ((value + precision / 2n) / precision) * precision // Round to nearest
+            : (value / precision) * precision; // Truncate
     return viemFormatUnits(quantizedValue, decimals);
 }
 
