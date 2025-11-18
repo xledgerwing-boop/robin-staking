@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader, ExternalLink } from 'lucide-react';
-import { Market, MarketRow, MarketRowToMarket } from '@robin-pm-staking/common/types/market';
+import { Market, MarketRow, MarketRowToMarket, Outcome } from '@robin-pm-staking/common/types/market';
+import OutcomeToken from '@robin-pm-staking/common/components/outcome-token';
+import { formatUnits } from '@robin-pm-staking/common/lib/utils';
 
 export default function AvailableMarkets() {
     const [markets, setMarkets] = useState<Market[]>([]);
@@ -57,17 +59,33 @@ export default function AvailableMarkets() {
                                 <div className="flex items-center justify-between gap-1">
                                     <div className="font-medium">{market.question}</div>
                                 </div>
-                                <div className="text-sm text-muted-foreground">
-                                    <a
-                                        href={`https://polymarket.com/event/${encodeURIComponent(market.eventSlug)}`}
-                                        className="flex items-center gap-1 text-primary hover:underline"
-                                        target="_blank"
-                                    >
-                                        Buy on Polymarket
-                                        <ExternalLink className="w-3 h-3" />
-                                    </a>
+                                <div className="flex items-center gap-3 flex-wrap">
+                                    {market.genesisLastSubmittedPriceA != null && (
+                                        <div className="flex items-center gap-1 mt-1 text-sm text-muted-foreground">
+                                            <div className="flex items-center gap-1">
+                                                <OutcomeToken outcome={Outcome.Yes} symbolHolder={market} noText />
+                                                <span className="font-medium">{formatUnits(market.genesisLastSubmittedPriceA, 6 - 2, 1)}¢</span>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <OutcomeToken outcome={Outcome.No} symbolHolder={market} noText />
+                                                <span className="font-medium">
+                                                    {formatUnits(1_000_000n - market.genesisLastSubmittedPriceA, 6 - 2, 1)}¢
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className="text-sm text-muted-foreground mt-1">
+                                        <a
+                                            href={`https://polymarket.com/event/${encodeURIComponent(market.eventSlug)}`}
+                                            className="flex items-center gap-1 text-primary hover:underline"
+                                            target="_blank"
+                                        >
+                                            Buy on Polymarket
+                                            <ExternalLink className="w-3 h-3" />
+                                        </a>
+                                    </div>
+                                    {market.genesisEndedAt && <div className="mt-2 text-xs text-secondary italic">Market resolved</div>}
                                 </div>
-                                {market.genesisEndedAt && <div className="mt-2 text-xs text-muted-foreground italic">Market ended</div>}
                             </div>
                         </div>
                     </CardContent>

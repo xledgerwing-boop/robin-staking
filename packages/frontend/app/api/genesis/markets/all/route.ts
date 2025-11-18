@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
     try {
         const db = await getDb();
-        const rows = await db(MARKETS_TABLE).select('*').whereNotNull('genesisIndex').orderBy('genesisIndex', 'asc');
+        const rows = await db(MARKETS_TABLE).select('*').whereNotNull('genesisIndex').orderBy('genesisEndedAt', 'desc').orderBy('question', 'asc');
         return NextResponse.json({ markets: rows });
     } catch (e) {
         console.error('GET /api/genesis/markets/all failed', e);
