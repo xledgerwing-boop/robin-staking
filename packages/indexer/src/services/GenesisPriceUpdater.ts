@@ -6,7 +6,7 @@ import { NotificationService } from './NotificationService';
 import { Knex } from 'knex';
 import { MARKETS_TABLE } from '@robin-pm-staking/common/lib/repos';
 import { fetchMarketsByConditionIds } from '@robin-pm-staking/common/lib/polymarket';
-import { Market, MarketRow, MarketRowToMarket, parsePolymarketMarket } from '@robin-pm-staking/common/types/market';
+import { Market, MarketRow, MarketRowToMarket, ParsedPolymarketMarket, parsePolymarketMarket } from '@robin-pm-staking/common/types/market';
 
 export class GenesisPriceUpdater {
     private db: DBService;
@@ -48,16 +48,18 @@ export class GenesisPriceUpdater {
                 return;
             }
             const conditionToPriceA: Record<string, bigint | undefined> = {};
-            let anyClosed = false;
+            const closedMarkets: ParsedPolymarketMarket[] = [];
             for (const mk of pmkts) {
                 // outcomePrices[0] is YES/first market price in frontend usage
                 const p = mk.outcomePrices?.[0];
                 const priceA = p ? BigInt(Math.round(Number.parseFloat(p) * UNDERYLING_PRECISION)) : undefined;
                 conditionToPriceA[mk.conditionId.toLowerCase()] = priceA;
-                if (mk.closed) anyClosed = true;
+                if (mk.closed) closedMarkets.push(mk);
             }
-            if (anyClosed) {
-                await NotificationService.sendNotification('One or more Polymarket markets appear resolved (closed=true).');
+            if (closedMarkets.length > 0) {
+                await NotificationService.sendNotification(
+                    `One or more Polymarket markets appear resolved (closed=true): ${closedMarkets.map(m => m.question).join(', ')}`
+                );
             }
 
             // Compose full price array aligned to genesisIndex order (including ended markets)
