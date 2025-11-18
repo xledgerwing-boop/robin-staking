@@ -74,6 +74,10 @@ export class GenesisPriceUpdater {
                 return;
             }
 
+            if (canEarly) {
+                await NotificationService.sendNotification('Large shift detected in Polymarket markets. Proceding with price update.');
+            }
+
             for (const m of markets) {
                 const cid = m.conditionId.toLowerCase();
                 const fromApi = conditionToPriceA[cid];
