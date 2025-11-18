@@ -422,10 +422,10 @@ export default function ManageGenesisPositions() {
                             {marketList.length != 0 && (
                                 <div className="flex items-center justify-end gap-2">
                                     <Button variant="outline" size="sm" onClick={deselectAllDepositable} disabled={stakeLoading}>
-                                        Deselect all
+                                        None
                                     </Button>
                                     <Button variant="outline" size="sm" onClick={selectAllDepositable} disabled={stakeLoading}>
-                                        Select all
+                                        All
                                     </Button>
                                 </div>
                             )}
@@ -441,7 +441,10 @@ export default function ManageGenesisPositions() {
                                         </div>
                                     ) : marketList.length === 0 ? (
                                         <div className="text-sm text-muted-foreground text-center py-8">
-                                            No eligible positions - check eligible markets and buy on Polymarket
+                                            No eligible positions -{' '}
+                                            {proxyAddress
+                                                ? 'check eligible markets and buy on Polymarket'
+                                                : 'connect wallet to check eligible markets'}
                                         </div>
                                     ) : (
                                         marketList.map(m => {
@@ -502,10 +505,10 @@ export default function ManageGenesisPositions() {
                             {(inactiveWithdrawList.length > 0 || activeWithdrawList.length > 0) && (
                                 <div className="flex items-center justify-end gap-2">
                                     <Button variant="outline" size="sm" onClick={deselectAllWithdrawable} disabled={withdrawLoading}>
-                                        Deselect all
+                                        None
                                     </Button>
                                     <Button variant="outline" size="sm" onClick={selectAllWithdrawable} disabled={withdrawLoading}>
-                                        Select all
+                                        All
                                     </Button>
                                 </div>
                             )}
@@ -521,7 +524,10 @@ export default function ManageGenesisPositions() {
                                         </div>
                                     ) : inactiveWithdrawList.length === 0 && activeWithdrawList.length === 0 ? (
                                         <div className="text-sm text-muted-foreground text-center py-8">
-                                            No eligible positions - check eligible markets and buy on Polymarket
+                                            No eligible positions -{' '}
+                                            {proxyAddress
+                                                ? 'check eligible markets and buy on Polymarket'
+                                                : 'connect wallet to check eligible markets'}
                                         </div>
                                     ) : (
                                         <>
