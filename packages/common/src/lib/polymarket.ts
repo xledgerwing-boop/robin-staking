@@ -5,9 +5,10 @@ import { PolymarketMarket, PolymarketMarketWithEvent } from '../types/market';
 // Function prototypes only — implement integration later
 const BASE_URL = 'https://gamma-api.polymarket.com';
 const DATA_API_URL = 'https://data-api.polymarket.com';
+const CONDITION_IDS_LIMIT = 100; //use fort portfolio and for fetching markets via positionsIds because they correlate
 
 export async function fetchMarketsByConditionIds(conditionIds: string[]): Promise<PolymarketMarketWithEvent[]> {
-    const url = `${BASE_URL}/markets?${conditionIds.map(id => `condition_ids=${id}`).join('&')}`;
+    const url = `${BASE_URL}/markets?${conditionIds.map(id => `condition_ids=${id}`).join('&')}&limit=${CONDITION_IDS_LIMIT}`;
     const options = { method: 'GET', body: undefined };
 
     const response = await fetch(url, options);
@@ -76,7 +77,7 @@ export async function fetchWalletPositionsPage(
     opts: WalletPositionsPageOptions = {}
 ): Promise<{ positions: PolymarketPosition[]; hasMore: boolean }> {
     const page = opts.page ? Math.max(1, opts.page) : undefined;
-    const limit = opts.pageSize ? Math.max(1, Math.min(opts.pageSize, 100)) : undefined;
+    const limit = opts.pageSize ? Math.max(1, Math.min(opts.pageSize, CONDITION_IDS_LIMIT)) : undefined;
     const offset = page && limit ? (page - 1) * limit : undefined;
 
     const params = new URLSearchParams();

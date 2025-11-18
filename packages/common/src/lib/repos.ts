@@ -252,7 +252,7 @@ export async function getAndSaveEventsAndMarkets(db: Knex, eventSlugs?: string[]
     if (!eventSlugs && !conditionIds) throw new Error('Either eventSlugs or conditionIds are required');
     if (!eventSlugs) {
         const markets = await fetchMarketsByConditionIds(conditionIds as string[]);
-        eventSlugs = markets.map(m => m.events[0].slug);
+        eventSlugs = markets.map(m => m.events[0].slug).filter((slug, index, self) => self.indexOf(slug) === index); // remove duplicates
     }
 
     const payload = await fetchEventsByEventSlugs(eventSlugs);
