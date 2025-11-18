@@ -6,6 +6,7 @@ import { useProxyAccount } from '@robin-pm-staking/common/src/hooks/use-proxy-ac
 import { formatUnits, formatUnitsLocale } from '@robin-pm-staking/common/lib/utils';
 import { useGenesisVaultInfo } from '@/hooks/use-genesis-vault-info';
 import { useGenesisVaultUserInfo } from '@/hooks/use-genesis-vault-user-info';
+import { useMemo } from 'react';
 
 export default function TopMetrics() {
     const VAULT = USED_CONTRACTS.GENESIS_VAULT as `0x${string}`;
@@ -21,6 +22,16 @@ export default function TopMetrics() {
         userEstimatedEarningsLoading,
         userEstimatedEarningsError,
     } = useGenesisVaultUserInfo(VAULT, proxyAddress as `0x${string}`);
+
+    // Calculate Robin points from base earnings (non-eligible yield)
+    // Robin points = (baseEarnings / $500 pool) * 50,000 points
+    const robinPointsPoolUsd = 500n * 10n ** BigInt(UNDERYLING_DECIMALS); // $500 in 6 decimals
+    const robinPoints = useMemo(() => {
+        if (userEstimatedEarnings == null) return undefined;
+        const baseEarnings = userEstimatedEarnings[1]; // base earnings from non-eligible markets
+        if (baseEarnings == null || baseEarnings === 0n) return 0n;
+        return (baseEarnings * 50_000n) / robinPointsPoolUsd;
+    }, [userEstimatedEarnings]);
 
     return (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4 mt-8">
@@ -74,6 +85,13 @@ export default function TopMetrics() {
                             loading={userEstimatedEarningsLoading}
                             error={!!userEstimatedEarningsError}
                         />
+                    )}
+                </div>
+                <div className="text-xs text-center text-primary font-medium mt-0.5">
+                    {robinPoints == null ? (
+                        <ValueState value={undefined} loading={userEstimatedEarningsLoading} error={!!userEstimatedEarningsError} />
+                    ) : (
+                        `${formatUnitsLocale(robinPoints, 0, 0)} Robin Points`
                     )}
                 </div>
             </div>
