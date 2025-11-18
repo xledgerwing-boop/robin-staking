@@ -76,10 +76,6 @@ export class GenesisPriceUpdater {
                 return;
             }
 
-            if (canEarly) {
-                await NotificationService.sendNotification('Large shift detected in Polymarket markets. Proceding with price update.');
-            }
-
             for (const m of markets) {
                 const cid = m.conditionId.toLowerCase();
                 const fromApi = conditionToPriceA[cid];
@@ -107,9 +103,9 @@ export class GenesisPriceUpdater {
             const costMatic = Number(ethers.formatEther(costWei));
             const balMatic = Number(ethers.formatEther(balanceWei));
             await NotificationService.sendNotification(
-                `✅ Genesis price update submitted. Gas used: ${gasUsed.toString()} (≈ ${costMatic.toFixed(
-                    2
-                )} POL). Wallet balance: ${balMatic.toFixed(2)} POL.`
+                `✅ Genesis price update submitted${
+                    canEarly ? ' (due to LARGE PRICE SHIFT)' : ''
+                }. Gas used: ${gasUsed.toString()} (≈ ${costMatic.toFixed(2)} POL). Wallet balance: ${balMatic.toFixed(2)} POL.`
             );
         } catch (e: any) {
             await NotificationService.sendNotification(`❌ Genesis price update failed: ${(e && e.message) || String(e)}`);
