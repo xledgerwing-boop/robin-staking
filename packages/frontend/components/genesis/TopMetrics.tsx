@@ -12,9 +12,11 @@ export default function TopMetrics() {
     const VAULT = USED_CONTRACTS.GENESIS_VAULT as `0x${string}`;
     const { proxyAddress } = useProxyAccount();
 
-    const { totalValueUsd, totalValueUsdLoading, totalValueUsdError, apyBps, apyBpsLoading, apyBpsError } = useGenesisVaultInfo(VAULT);
+    const { totalValueUsd, totalValueUsdLoading, totalValueUsdError, apyBps, campaignEndTimestamp, apyBpsLoading, apyBpsError } =
+        useGenesisVaultInfo(VAULT);
 
     const {
+        calculateRobinPoints,
         userCurrentValues,
         userCurrentValuesLoading,
         userCurrentValuesError,
@@ -23,15 +25,7 @@ export default function TopMetrics() {
         userEstimatedEarningsError,
     } = useGenesisVaultUserInfo(VAULT, proxyAddress as `0x${string}`);
 
-    // Calculate Robin points from base earnings (non-eligible yield)
-    // Robin points = (baseEarnings / $500 pool) * 50,000 points
-    const robinPointsPoolUsd = 500n * 10n ** BigInt(UNDERYLING_DECIMALS); // $500 in 6 decimals
-    const robinPoints = useMemo(() => {
-        if (userEstimatedEarnings == null) return undefined;
-        const baseEarnings = userEstimatedEarnings[1]; // base earnings from non-eligible markets
-        if (baseEarnings == null || baseEarnings === 0n) return 0n;
-        return (baseEarnings * 50_000n) / robinPointsPoolUsd;
-    }, [userEstimatedEarnings]);
+    const { outstandingRobinPoints: robinPoints } = calculateRobinPoints(apyBps, campaignEndTimestamp);
 
     return (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4 mt-8">
