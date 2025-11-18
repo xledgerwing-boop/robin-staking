@@ -49,9 +49,9 @@ export default function PotentialEarnings() {
     // Non-eligible yield = (nonEligibleUsd * baseApyBps * timeLeftSec) / (10_000n * secondsPerYear)
     const nonEligibleYield =
         nonEligibleUsd == null || apyBps == null ? undefined : (nonEligibleUsd * apyBps * timeLeftSec) / (10_000n * secondsPerYear);
-    // Robin points = (nonEligibleYield / $500 pool) * 10,000 points
+    // Robin points = (nonEligibleYield / $500 pool) * 50,000 points
     const robinPointsPoolUsd = 500n * 10n ** BigInt(UNDERYLING_DECIMALS); // $500 in 6 decimals
-    const robinPoints = nonEligibleYield == null ? undefined : (nonEligibleYield * 10_000n) / robinPointsPoolUsd;
+    const robinPoints = nonEligibleYield == null ? undefined : (nonEligibleYield * 50_000n) / robinPointsPoolUsd;
 
     return (
         <div className="pmx-gradient-border mb-4 mt-12">

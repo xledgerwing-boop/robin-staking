@@ -49,7 +49,7 @@ const FAQS: Array<{ q: string; a: string }> = [
 <p>This is full flexibility with no strings attached.</p>`,
     },
     {
-        q: 'What happens when the vault ends?',
+        q: 'What happens when the vault ends? How do I receive Robin reward points?',
         a: `<p>At the end of the 30-day campaign:</p>
 <ul>
 <li>Your accumulated USDC yield becomes claimable</li>
