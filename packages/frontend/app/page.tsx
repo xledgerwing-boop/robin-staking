@@ -35,9 +35,6 @@ export default function GenesisVaultPage() {
                                     </a>
                                 </Button>
                             </div>
-                            <p className="text-muted-foreground text-lg">
-                                Stake your outcome tokens across eligible markets and earn USDC over time.
-                            </p>
                             <TopMetrics />
                             <VaultCapacity />
                         </div>
@@ -47,6 +44,11 @@ export default function GenesisVaultPage() {
                                 <ManageGenesisPositions />
                             </div>
                         )}
+                        <p className="text-lg font-bold mb-1">Make your Polymarket positions work for you.</p>
+                        <p className="text-muted-foreground text-lg">
+                            Stake your outcome tokens, earn USDC yield and up to 50,000 Robin points while keeping full control of your positions. No
+                            lockups, no complexity — just extra rewards for active traders.
+                        </p>
                         <div className="flex w-full items-center justify-start gap-8 border-b border-border mt-16 xl:mt-40">
                             <button
                                 type="button"
