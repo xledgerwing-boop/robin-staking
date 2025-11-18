@@ -66,13 +66,13 @@ async function main() {
 
         await indexer.start();
 
-        // // Start genesis price updater (scheduler)
-        // if (!RPC_URL || !PRICE_UPDATER_PRIVATE_KEY) {
-        //     logger.warn('Skipping GenesisPriceUpdater (RPC_URL or PRICE_UPDATER_PRIVATE_KEY missing).');
-        // } else {
-        //     const priceUpdater = new GenesisPriceUpdater(dbService, RPC_URL, PRICE_UPDATER_PRIVATE_KEY);
-        //     priceUpdater.start();
-        // }
+        // Start genesis price updater (scheduler)
+        if (!RPC_URL || !PRICE_UPDATER_PRIVATE_KEY) {
+            logger.warn('Skipping GenesisPriceUpdater (RPC_URL or PRICE_UPDATER_PRIVATE_KEY missing).');
+        } else {
+            const priceUpdater = new GenesisPriceUpdater(dbService, RPC_URL, PRICE_UPDATER_PRIVATE_KEY);
+            priceUpdater.start();
+        }
 
         // Handle graceful shutdown
         const gracefulShutdown = async () => {

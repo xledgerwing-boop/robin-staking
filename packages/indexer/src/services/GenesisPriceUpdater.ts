@@ -1,28 +1,26 @@
 import { ethers } from 'ethers';
 import { DBService } from './DbService';
-import { USED_CONTRACTS } from '@robin-pm-staking/common/constants';
+import { UNDERYLING_PRECISION, USED_CONTRACTS } from '@robin-pm-staking/common/constants';
 import { robinGenesisVaultAbi } from '@robin-pm-staking/common/types/contracts-genesis';
 import { NotificationService } from './NotificationService';
 import { Knex } from 'knex';
 import { MARKETS_TABLE } from '@robin-pm-staking/common/lib/repos';
 import { fetchMarketsByConditionIds } from '@robin-pm-staking/common/lib/polymarket';
-import { Market, MarketRow, MarketRowToMarket } from '@robin-pm-staking/common/types/market';
+import { Market, MarketRow, MarketRowToMarket, parsePolymarketMarket } from '@robin-pm-staking/common/types/market';
 
 export class GenesisPriceUpdater {
     private db: DBService;
     private provider: ethers.JsonRpcProvider;
     private wallet: ethers.Wallet;
-    private contract: ethers.Contract;
     private checkIntervalMs = 10 * 60 * 1000; // 10 minutes
     private minEarlyUpdateGapMs = 15 * 60 * 1000; // 15 minutes
-    private standardUpdateGapMs = 60 * 60 * 1000; // 60 minutes
+    private standardUpdateGapMs = 4 * 60 * 60 * 1000; // 4 hours
     private running = false;
 
     constructor(db: DBService, rpcUrl: string, privateKey: string) {
         this.db = db;
         this.provider = new ethers.JsonRpcProvider(rpcUrl);
         this.wallet = new ethers.Wallet(privateKey, this.provider);
-        this.contract = new ethers.Contract(USED_CONTRACTS.GENESIS_VAULT, robinGenesisVaultAbi, this.wallet);
     }
 
     public start() {
@@ -40,15 +38,23 @@ export class GenesisPriceUpdater {
 
             // Build latest prices from Polymarket
             const conditionIds = markets.map(m => m.conditionId);
-            const pmkts = await fetchMarketsByConditionIds(conditionIds);
-            const conditionToPriceA: Record<string, bigint> = {};
+            const pmkts = (await fetchMarketsByConditionIds(conditionIds)).map(m => parsePolymarketMarket(m));
+            if (pmkts.length != conditionIds.length) {
+                await NotificationService.sendNotification(
+                    `❌ Genesis price update failed: Missing Polymarket markets: ${conditionIds
+                        .filter(id => !pmkts.some(m => m.conditionId.toLowerCase() === id.toLowerCase()))
+                        .join(', ')}`
+                );
+                return;
+            }
+            const conditionToPriceA: Record<string, bigint | undefined> = {};
             let anyClosed = false;
             for (const mk of pmkts) {
                 // outcomePrices[0] is YES/first market price in frontend usage
-                const p = Array.isArray((mk as any).outcomePrices) ? Number((mk as any).outcomePrices[0]) : 0.5;
-                const priceA = BigInt(Math.round(p * 1_000_000));
-                conditionToPriceA[(mk as any).conditionId?.toLowerCase?.() || (mk as any).conditionId] = priceA;
-                if ((mk as any).closed === true) anyClosed = true;
+                const p = mk.outcomePrices?.[0];
+                const priceA = p ? BigInt(Math.round(Number.parseFloat(p) * UNDERYLING_PRECISION)) : undefined;
+                conditionToPriceA[mk.conditionId.toLowerCase()] = priceA;
+                if (mk.closed) anyClosed = true;
             }
             if (anyClosed) {
                 await NotificationService.sendNotification('One or more Polymarket markets appear resolved (closed=true).');
@@ -59,7 +65,7 @@ export class GenesisPriceUpdater {
             const largeShift = this.detectLargeShift(markets, conditionToPriceA);
             const now = Date.now();
             const lastSubmittedAtMax = markets.reduce((acc, m) => {
-                const t = m.genesisLastSubmittedAt ? Number(m.genesisLastSubmittedAt) : 0;
+                const t = m.genesisLastSubmittedAt ?? 0;
                 return Math.max(acc, t);
             }, 0);
             const canStandard = now - lastSubmittedAtMax >= this.standardUpdateGapMs;
@@ -72,12 +78,12 @@ export class GenesisPriceUpdater {
                 const cid = m.conditionId.toLowerCase();
                 const fromApi = conditionToPriceA[cid];
                 // fallback to last submitted if market missing in API (shouldn't happen), else mid price
-                let priceA = fromApi ?? (m.genesisLastSubmittedPriceA ? BigInt(m.genesisLastSubmittedPriceA) : (BigInt(500_000) as bigint));
+                let priceA = fromApi ?? m.genesisLastSubmittedPriceA ?? 500_000n;
                 pricesA.push(priceA);
             }
 
             // Submit batchUpdatePrices
-            const iface = new ethers.Interface(robinGenesisVaultAbi as any);
+            const iface = new ethers.Interface(robinGenesisVaultAbi);
             const tx = await this.wallet.sendTransaction({
                 to: USED_CONTRACTS.GENESIS_VAULT,
                 data: iface.encodeFunctionData('batchUpdatePrices', [pricesA]),
@@ -88,28 +94,28 @@ export class GenesisPriceUpdater {
             await this.saveSubmittedPrices(this.db.knex, markets, pricesA);
 
             // Notify with gas and balance
-            const gasUsed = receipt?.gasUsed ? BigInt(receipt.gasUsed.toString()) : 0n;
-            const effPrice = (receipt as any)?.effectiveGasPrice ? BigInt((receipt as any).effectiveGasPrice.toString()) : 0n;
+            const gasUsed = receipt?.gasUsed ?? 0n;
+            const effPrice = receipt?.gasPrice ?? 0n;
             const costWei = gasUsed * effPrice;
             const balanceWei = await this.provider.getBalance(this.wallet.address);
             const costMatic = Number(ethers.formatEther(costWei));
             const balMatic = Number(ethers.formatEther(balanceWei));
             await NotificationService.sendNotification(
                 `✅ Genesis price update submitted. Gas used: ${gasUsed.toString()} (≈ ${costMatic.toFixed(
-                    6
-                )} POL). Wallet balance: ${balMatic.toFixed(4)} POL.`
+                    2
+                )} POL). Wallet balance: ${balMatic.toFixed(2)} POL.`
             );
         } catch (e: any) {
             await NotificationService.sendNotification(`❌ Genesis price update failed: ${(e && e.message) || String(e)}`);
         }
     }
 
-    private detectLargeShift(markets: Market[], conditionToPriceA: Record<string, bigint>): boolean {
+    private detectLargeShift(markets: Market[], conditionToPriceA: Record<string, bigint | undefined>): boolean {
         for (const m of markets) {
             const prev = m.genesisLastSubmittedPriceA;
             const curr = conditionToPriceA[m.conditionId.toLowerCase()];
-            if (prev == null || curr == null) continue;
-            if (prev === 0n) return true;
+            if (curr == null) continue;
+            if (prev === 0n || prev == null) return true;
             const diff = prev > curr ? prev - curr : curr - prev;
             // 10% shift threshold
             if (diff * 100n >= prev * 10n) return true;
@@ -118,10 +124,7 @@ export class GenesisPriceUpdater {
     }
 
     private async getGenesisMarketsOrdered(knex: Knex): Promise<Market[]> {
-        const rows = await knex(MARKETS_TABLE)
-            .select<MarketRow[]>('genesisIndex', 'conditionId', 'genesisEndedAt', 'genesisLastSubmittedPriceA', 'genesisLastSubmittedAt')
-            .whereNotNull('genesisIndex')
-            .orderBy('genesisIndex', 'asc');
+        const rows = await knex<MarketRow>(MARKETS_TABLE).whereNotNull('genesisIndex').orderBy('genesisIndex', 'asc');
         return rows.map(MarketRowToMarket);
     }
 
