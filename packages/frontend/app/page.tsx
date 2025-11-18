@@ -1,13 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import TopMetrics from '@/components/genesis/TopMetrics';
-import PotentialEarnings from '@/components/genesis/PotentialEarnings';
-import VaultCapacity from '@/components/genesis/VaultCapacity';
+import TopMetrics from '@/components/genesis/top-metrics';
+import PotentialEarnings from '@/components/genesis/potential-earnings';
+import VaultCapacity from '@/components/genesis/vault-capacity';
 import ManageGenesisPositions from '@/components/genesis/manage-genesis-positions';
 import Activities from '@/components/genesis/Activities';
 import FAQ from '@/components/genesis/FAQ';
-import AvailableMarkets from '@/components/genesis/AvailableMarkets';
+import AvailableMarkets from '@/components/genesis/available-markets';
 import { Button } from '@/components/ui/button';
 import { ExternalLink } from 'lucide-react';
 import { USED_CONTRACTS } from '@robin-pm-staking/common/constants';
