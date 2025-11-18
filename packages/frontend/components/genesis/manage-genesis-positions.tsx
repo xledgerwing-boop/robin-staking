@@ -38,6 +38,7 @@ type GenesisMarket = {
     walletB: bigint;
     stakedA: bigint;
     stakedB: bigint;
+    priceA?: bigint; // PRICE_SCALE (1e6) based price for YES outcome
 };
 
 export default function ManageGenesisPositions() {
@@ -138,6 +139,7 @@ export default function ManageGenesisPositions() {
                     walletB: 0n,
                     stakedA: 0n,
                     stakedB: 0n,
+                    priceA: row.genesisLastSubmittedPriceA ? BigInt(row.genesisLastSubmittedPriceA) : undefined,
                 };
             }
             if (wallet) {
@@ -182,20 +184,39 @@ export default function ManageGenesisPositions() {
         load();
     }, [walletRes, stakedRes, tab]);
 
+    const PRICE_SCALE = 1_000_000n; // 6 decimals
+
     const depositSummary = useMemo(() => {
         let totalTokens = 0n;
+        let totalUsdValue = 0n;
+        let hasPriceData = false;
         Object.entries(depositDraftYes).forEach(([k, v]) => {
             try {
-                totalTokens += parseUnits(v || '0', UNDERYLING_DECIMALS);
+                const amount = parseUnits(v || '0', UNDERYLING_DECIMALS);
+                totalTokens += amount;
+                const market = markets[Number(k)];
+                if (market?.priceA != null && amount > 0n) {
+                    hasPriceData = true;
+                    // USD value = amount * priceA / PRICE_SCALE
+                    totalUsdValue += (amount * market.priceA) / PRICE_SCALE;
+                }
             } catch {}
         });
         Object.entries(depositDraftNo).forEach(([k, v]) => {
             try {
-                totalTokens += parseUnits(v || '0', UNDERYLING_DECIMALS);
+                const amount = parseUnits(v || '0', UNDERYLING_DECIMALS);
+                totalTokens += amount;
+                const market = markets[Number(k)];
+                if (market?.priceA != null && amount > 0n) {
+                    hasPriceData = true;
+                    // USD value = amount * (PRICE_SCALE - priceA) / PRICE_SCALE
+                    const priceB = PRICE_SCALE - market.priceA;
+                    totalUsdValue += (amount * priceB) / PRICE_SCALE;
+                }
             } catch {}
         });
-        return { totalTokens };
-    }, [depositDraftYes, depositDraftNo]);
+        return { totalTokens, totalUsdValue, hasPriceData };
+    }, [depositDraftYes, depositDraftNo, markets]);
 
     const withdrawSummary = useMemo(() => {
         let totalTokens = 0n;
@@ -213,6 +234,13 @@ export default function ManageGenesisPositions() {
     }, [withdrawDraftYes, withdrawDraftNo]);
 
     const capReached = useMemo(() => (totalValueUsd ?? 0n) >= (tvlCapUsd ?? 0n) && (tvlCapUsd ?? 0n) > 0n, [totalValueUsd, tvlCapUsd]);
+
+    // Check if selected deposit would exceed TVL cap
+    const wouldExceedCap = useMemo(() => {
+        if (!totalValueUsd || !tvlCapUsd || tvlCapUsd === 0n) return false;
+        const projectedTotal = (totalValueUsd ?? 0n) + depositSummary.totalUsdValue;
+        return projectedTotal > tvlCapUsd;
+    }, [totalValueUsd, tvlCapUsd, depositSummary.totalUsdValue]);
 
     const onStakeEverything = async () => {
         try {
@@ -402,16 +430,21 @@ export default function ManageGenesisPositions() {
                     </TabsList>
 
                     <TabsContent value="deposit" className="space-y-4 pt-4">
-                        {capReached && <div className="text-xs text-secondary -mt-2">Cap reached — deposits are temporarily disabled</div>}
+                        {capReached && <div className="text-sm font-bold text-secondary">Cap reached — deposits are temporarily disabled</div>}
+                        {wouldExceedCap && !capReached && (
+                            <div className="text-sm font-bold text-secondary">Selected deposit would exceed TVL cap. Please reduce amount.</div>
+                        )}
                         {proxyAddress ? (
                             <Button
                                 className="relative w-full overflow-hidden h-12"
                                 onClick={onStakeEverything}
-                                disabled={stakeLoading || capReached || depositSummary.totalTokens === 0n}
+                                disabled={stakeLoading || capReached || wouldExceedCap || depositSummary.totalTokens === 0n}
                             >
                                 <span className="flex items-center justify-center">
                                     {stakeLoading ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <ArrowUpRight className="w-4 h-4 mr-2" />}
-                                    {`Stake ${formatUnitsLocale(depositSummary.totalTokens, UNDERYLING_DECIMALS, 1)} tokens`}
+                                    {depositSummary.hasPriceData && depositSummary.totalUsdValue > 0n
+                                        ? `Stake $${formatUnitsLocale(depositSummary.totalUsdValue, UNDERYLING_DECIMALS, 0)}`
+                                        : `Stake ${formatUnitsLocale(depositSummary.totalTokens, UNDERYLING_DECIMALS, 1)} tokens`}
                                 </span>
                             </Button>
                         ) : (
