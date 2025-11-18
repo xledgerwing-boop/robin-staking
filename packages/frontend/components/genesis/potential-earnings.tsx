@@ -58,7 +58,7 @@ export default function PotentialEarnings() {
     return (
         <div className="pmx-gradient-border mb-4 mt-12">
             <div className="pmx-gradient-inner p-4">
-                <div className="flex items-center justify-between gap-6">
+                <div className="flex items-center justify-between">
                     <div className="flex-1 text-center">
                         <div className="text-sm text-muted-foreground mb-1">{shouldDisplayUser ? 'Stake up to' : 'Example: Stake'}</div>
                         <div className="text-lg md:text-xl font-extrabold">
