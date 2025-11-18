@@ -382,8 +382,8 @@ export default function ManageGenesisPositions() {
         setWithdrawDraftNo(withNo);
     };
     const selectAllInactiveWithdrawable = () => {
-        const withYes = { ...withdrawDraftYes };
-        const withNo = { ...withdrawDraftNo };
+        const withYes: Record<number, string> = {};
+        const withNo: Record<number, string> = {};
         inactiveWithdrawList.forEach(m => {
             withYes[m.index] = formatUnitsViem(m.stakedA, UNDERYLING_DECIMALS);
             withNo[m.index] = formatUnitsViem(m.stakedB, UNDERYLING_DECIMALS);
@@ -510,6 +510,11 @@ export default function ManageGenesisPositions() {
                                     <Button variant="outline" size="sm" onClick={selectAllWithdrawable} disabled={withdrawLoading}>
                                         All
                                     </Button>
+                                    {inactiveWithdrawList.length > 0 && (
+                                        <Button variant="outline" size="sm" onClick={selectAllInactiveWithdrawable} disabled={withdrawLoading}>
+                                            All resolved
+                                        </Button>
+                                    )}
                                 </div>
                             )}
                             <div className="relative">
@@ -534,15 +539,7 @@ export default function ManageGenesisPositions() {
                                             {inactiveWithdrawList.length > 0 && (
                                                 <div className="space-y-3">
                                                     <div className="flex items-center justify-between">
-                                                        <div className="text-sm font-medium">Inactive markets</div>
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={selectAllInactiveWithdrawable}
-                                                            disabled={withdrawLoading}
-                                                        >
-                                                            Select all inactive
-                                                        </Button>
+                                                        <div className="text-sm font-medium text-secondary italic">Resolved markets</div>
                                                     </div>
                                                     {inactiveWithdrawList.map(m => {
                                                         const yesSymbol = m.outcomes?.[0] || 'YES';
@@ -572,6 +569,11 @@ export default function ManageGenesisPositions() {
                                                             />
                                                         );
                                                     })}
+                                                </div>
+                                            )}
+                                            {inactiveWithdrawList.length > 0 && (
+                                                <div className="flex items-center justify-between">
+                                                    <div className="text-sm font-medium">Active markets</div>
                                                 </div>
                                             )}
                                             {activeWithdrawList.map(m => {
