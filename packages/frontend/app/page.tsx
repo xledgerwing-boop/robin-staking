@@ -18,7 +18,7 @@ export default function GenesisVaultPage() {
     const isXl = useIsXlScreen();
     return (
         <div className="min-h-screen bg-background">
-            <div className="h-full container mx-auto px-4 pt-16">
+            <div className="h-full container mx-auto px-4 pt-8 lg:pt-16">
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
                     <div className="xl:col-span-2 space-y-6">
                         <div className="bg-gradient-to-b from-primary/0 to-primary/5 rounded-xl p-6 pt-0 space-y-2">
@@ -82,7 +82,7 @@ export default function GenesisVaultPage() {
                                 Activity
                             </button>
                         </div>
-                        <div className="">
+                        <div className="mb-4">
                             {section === 'faq' && <FAQ />}
                             {section === 'activity' && <Activities />}
                             {section === 'markets' && <AvailableMarkets />}
