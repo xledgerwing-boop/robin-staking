@@ -15,6 +15,8 @@ export class GenesisPriceUpdater {
     private checkIntervalMs = 10 * 60 * 1000; // 10 minutes
     private minEarlyUpdateGapMs = 15 * 60 * 1000; // 15 minutes
     private standardUpdateGapMs = 4 * 60 * 60 * 1000; // 4 hours
+    private resolvedNotificationCooldownMs = 60 * 60 * 1000; // 1 hour
+    private resolvedMarketNotifications = new Map<string, number>(); // conditionId -> last notification timestamp
     private running = false;
 
     constructor(db: DBService, rpcUrl: string, privateKey: string) {
@@ -49,24 +51,33 @@ export class GenesisPriceUpdater {
             }
             const conditionToPriceA: Record<string, bigint | undefined> = {};
             const closedMarkets: ParsedPolymarketMarket[] = [];
+            const now = Date.now();
             for (const mk of pmkts) {
                 // outcomePrices[0] is YES/first market price in frontend usage
                 const p = mk.outcomePrices?.[0];
                 const priceA = p ? BigInt(Math.round(Number.parseFloat(p) * UNDERYLING_PRECISION)) : undefined;
-                conditionToPriceA[mk.conditionId.toLowerCase()] = priceA;
-                const dbMarket = markets.find(m => m.conditionId.toLowerCase() === mk.conditionId.toLowerCase());
-                if (mk.closed && dbMarket?.genesisEndedAt == null) closedMarkets.push(mk);
+                const conditionId = mk.conditionId.toLowerCase();
+                conditionToPriceA[conditionId] = priceA;
+                const dbMarket = markets.find(m => m.conditionId.toLowerCase() === conditionId);
+                if (mk.closed && dbMarket?.genesisEndedAt == null) {
+                    //only notify if not notified in the last hour
+                    const lastNotified = this.resolvedMarketNotifications.get(conditionId);
+                    if (lastNotified == null || now - lastNotified >= this.resolvedNotificationCooldownMs) {
+                        closedMarkets.push(mk);
+                        this.resolvedMarketNotifications.set(conditionId, now);
+                    }
+                }
             }
+
             if (closedMarkets.length > 0) {
                 await NotificationService.sendNotification(
-                    `One or more Polymarket markets appear resolved (closed=true):\n ${closedMarkets.map(m => m.question).join(',\n')}`
+                    `One or more Polymarket markets appear resolved (closed=true):\n ${closedMarkets.map(m => m.question).join('\n')}`
                 );
             }
 
             // Compose full price array aligned to genesisIndex order (including ended markets)
             const pricesA: bigint[] = [];
             const largeShift = this.detectLargeShift(markets, conditionToPriceA);
-            const now = Date.now();
             const lastSubmittedAtMax = markets.reduce((acc, m) => {
                 const t = m.genesisLastSubmittedAt ?? 0;
                 return Math.max(acc, t);
