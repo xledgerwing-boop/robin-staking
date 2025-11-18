@@ -63,7 +63,7 @@ export default function AvailableMarkets() {
                                         className="flex items-center gap-1 text-primary hover:underline"
                                         target="_blank"
                                     >
-                                        View on Polymarket
+                                        Buy on Polymarket
                                         <ExternalLink className="w-3 h-3" />
                                     </a>
                                 </div>

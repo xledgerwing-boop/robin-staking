@@ -25,6 +25,7 @@ import { formatUnitsLocale, getErrorMessage } from '@robin-pm-staking/common/lib
 import { CircleCheck, XCircle } from 'lucide-react';
 import { useGenesisVaultInfo } from '@/hooks/use-genesis-vault-info';
 import { useGenesisVaultUserInfo } from '@/hooks/use-genesis-vault-user-info';
+import { ConnectButton } from '../connect-button';
 
 type GenesisMarket = {
     index: number;
@@ -53,7 +54,7 @@ export default function ManageGenesisPositions() {
     const [withdrawShowFade, setWithdrawShowFade] = useState<boolean>(false);
     const [metadataLoading, setMetadataLoading] = useState<boolean>(false);
 
-    const { proxyAddress, isConnected, isConnecting } = useProxyAccount();
+    const { proxyAddress, isConnected, isConnecting, address } = useProxyAccount();
     const vaultAddress = USED_CONTRACTS.GENESIS_VAULT as `0x${string}`;
     const invalidateQueries = useInvalidateQueries();
     const { totalValueUsd, tvlCapUsd, totalValueUsdQueryKey, apyBpsQueryKey } = useGenesisVaultInfo(vaultAddress);
@@ -402,16 +403,20 @@ export default function ManageGenesisPositions() {
 
                     <TabsContent value="deposit" className="space-y-4 pt-4">
                         {capReached && <div className="text-xs text-secondary -mt-2">Cap reached — deposits are temporarily disabled</div>}
-                        <Button
-                            className="relative w-full overflow-hidden h-12"
-                            onClick={onStakeEverything}
-                            disabled={stakeLoading || capReached || depositSummary.totalTokens === 0n}
-                        >
-                            <span className="flex items-center justify-center">
-                                {stakeLoading ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <ArrowUpRight className="w-4 h-4 mr-2" />}
-                                {`Stake ${formatUnitsLocale(depositSummary.totalTokens, UNDERYLING_DECIMALS, 1)} tokens`}
-                            </span>
-                        </Button>
+                        {proxyAddress ? (
+                            <Button
+                                className="relative w-full overflow-hidden h-12"
+                                onClick={onStakeEverything}
+                                disabled={stakeLoading || capReached || depositSummary.totalTokens === 0n}
+                            >
+                                <span className="flex items-center justify-center">
+                                    {stakeLoading ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <ArrowUpRight className="w-4 h-4 mr-2" />}
+                                    {`Stake ${formatUnitsLocale(depositSummary.totalTokens, UNDERYLING_DECIMALS, 1)} tokens`}
+                                </span>
+                            </Button>
+                        ) : (
+                            <ConnectButton className="w-full bg-primary text-primary-foreground h-12 hover:bg-primary/80 hover:text-primary-foreground" />
+                        )}
 
                         <div className="space-y-4">
                             {marketList.length != 0 && (
@@ -435,7 +440,9 @@ export default function ManageGenesisPositions() {
                                             <Loader className="w-5 h-5 animate-spin" />
                                         </div>
                                     ) : marketList.length === 0 ? (
-                                        <div className="text-sm text-muted-foreground text-center py-8">No eligible positions</div>
+                                        <div className="text-sm text-muted-foreground text-center py-8">
+                                            No eligible positions - check eligible markets and buy on Polymarket
+                                        </div>
                                     ) : (
                                         marketList.map(m => {
                                             const yesSymbol = m.outcomes?.[0] || 'YES';
@@ -475,17 +482,21 @@ export default function ManageGenesisPositions() {
                     </TabsContent>
 
                     <TabsContent value="withdraw" className="space-y-4 pt-4">
-                        <Button
-                            className="relative w-full overflow-hidden h-12"
-                            variant="secondary"
-                            onClick={onWithdrawEverything}
-                            disabled={withdrawLoading || withdrawSummary.totalTokens === 0n}
-                        >
-                            <span className="flex items-center justify-center">
-                                {withdrawLoading ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <ArrowUpRight className="w-4 h-4 mr-2" />}
-                                {`Withdraw ${formatUnitsLocale(withdrawSummary.totalTokens, UNDERYLING_DECIMALS, 1)} tokens`}
-                            </span>
-                        </Button>
+                        {proxyAddress ? (
+                            <Button
+                                className="relative w-full overflow-hidden h-12"
+                                variant="secondary"
+                                onClick={onWithdrawEverything}
+                                disabled={withdrawLoading || withdrawSummary.totalTokens === 0n}
+                            >
+                                <span className="flex items-center justify-center">
+                                    {withdrawLoading ? <Loader className="w-4 h-4 mr-2 animate-spin" /> : <ArrowUpRight className="w-4 h-4 mr-2" />}
+                                    {`Withdraw ${formatUnitsLocale(withdrawSummary.totalTokens, UNDERYLING_DECIMALS, 1)} tokens`}
+                                </span>
+                            </Button>
+                        ) : (
+                            <ConnectButton className="w-full bg-secondary text-secondary-foreground h-12 hover:bg-secondary/80 hover:text-secondary-foreground" />
+                        )}
 
                         <div className="space-y-4">
                             {(inactiveWithdrawList.length > 0 || activeWithdrawList.length > 0) && (
@@ -509,7 +520,9 @@ export default function ManageGenesisPositions() {
                                             <Loader className="w-5 h-5 animate-spin" />
                                         </div>
                                     ) : inactiveWithdrawList.length === 0 && activeWithdrawList.length === 0 ? (
-                                        <div className="text-sm text-muted-foreground text-center py-8">No eligible positions</div>
+                                        <div className="text-sm text-muted-foreground text-center py-8">
+                                            No eligible positions - check eligible markets and buy on Polymarket
+                                        </div>
                                     ) : (
                                         <>
                                             {inactiveWithdrawList.length > 0 && (

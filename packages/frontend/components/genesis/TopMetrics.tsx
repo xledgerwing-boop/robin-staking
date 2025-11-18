@@ -52,21 +52,29 @@ export default function TopMetrics() {
             <div>
                 <p className="text-sm text-muted-foreground text-center">My TVL</p>
                 <div className="text-2xl font-bold text-center">
-                    <ValueState
-                        value={userCurrentValues == null ? undefined : `$${formatUnitsLocale(userCurrentValues[0], UNDERYLING_DECIMALS, 0)}`}
-                        loading={userCurrentValuesLoading}
-                        error={!!userCurrentValuesError}
-                    />
+                    {userCurrentValues == null ? (
+                        '-'
+                    ) : (
+                        <ValueState
+                            value={`$${formatUnitsLocale(userCurrentValues[0], UNDERYLING_DECIMALS, 0)}`}
+                            loading={userCurrentValuesLoading}
+                            error={!!userCurrentValuesError}
+                        />
+                    )}
                 </div>
             </div>
             <div>
                 <p className="text-sm text-muted-foreground text-center">My Earnings</p>
                 <div className="text-2xl font-bold text-center">
-                    <ValueState
-                        value={userEstimatedEarnings == null ? undefined : `$${formatUnitsLocale(userEstimatedEarnings[0], UNDERYLING_DECIMALS, 0)}`}
-                        loading={userEstimatedEarningsLoading}
-                        error={!!userEstimatedEarningsError}
-                    />
+                    {userEstimatedEarnings == null ? (
+                        '-'
+                    ) : (
+                        <ValueState
+                            value={`$${formatUnitsLocale(userEstimatedEarnings[0], UNDERYLING_DECIMALS, 0)}`}
+                            loading={userEstimatedEarningsLoading}
+                            error={!!userEstimatedEarningsError}
+                        />
+                    )}
                 </div>
             </div>
         </div>

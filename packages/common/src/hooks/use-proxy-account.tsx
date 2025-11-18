@@ -12,8 +12,8 @@ export function useProxyAccount() {
     const [isCheckingProxyDeployed, setIsCheckingProxyDeployed] = useState<boolean>(false);
     const {
         data: proxyAddress,
-        isLoading,
-        error,
+        isLoading: proxyAddressLoading,
+        error: proxyAddressError,
     } = useReadSafeProxyFactoryComputeProxyAddress({
         address: USED_CONTRACTS.SAFE_PROXY_FACTORY,
         args: [account.address as `0x${string}`],
@@ -43,5 +43,5 @@ export function useProxyAccount() {
         };
     }, [publicClient, proxyAddress, account.isConnected]);
 
-    return { ...account, proxyAddress, hasProxyDeployed, isCheckingProxyDeployed };
+    return { ...account, proxyAddress, proxyAddressLoading, proxyAddressError, hasProxyDeployed, isCheckingProxyDeployed };
 }

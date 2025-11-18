@@ -12,14 +12,19 @@ import { ArrowBigRight, Circle, CircleSmall } from 'lucide-react';
 
 export default function PotentialEarnings() {
     const VAULT = USED_CONTRACTS.GENESIS_VAULT as `0x${string}`;
-    const { proxyAddress, isConnected, isConnecting } = useProxyAccount();
+    const { proxyAddress } = useProxyAccount();
     const { apyBps, apyBpsLoading, apyBpsError, campaignEndTimestamp, campaignEndTimestampLoading, campaignEndTimestampError } =
         useGenesisVaultInfo(VAULT);
     const { userStakeableValue, userStakeableValueLoading, userStakeableValueError } = useGenesisVaultUserInfo(VAULT, proxyAddress as `0x${string}`);
 
-    const totalTokens = userStakeableValue?.[0];
-    const totalUsd = userStakeableValue?.[1];
-    const eligibleUsd = userStakeableValue?.[2];
+    // Example values when wallet not connected: $1000 stakable
+    const exampleTotalUsd = 1000n * 10n ** BigInt(UNDERYLING_DECIMALS); // $1000 in 6 decimals
+    const exampleEligibleUsd = 0n; // Assume 50% eligible for example
+    const exampleTotalTokens = exampleTotalUsd * 2n; // Approximate 1:1 for example
+
+    const totalTokens = proxyAddress ? userStakeableValue?.[0] : exampleTotalTokens;
+    const totalUsd = proxyAddress ? userStakeableValue?.[1] : exampleTotalUsd;
+    const eligibleUsd = proxyAddress ? userStakeableValue?.[2] : exampleEligibleUsd;
 
     // Effective APY BPS = base BPS + EXTRA_APY_BPS weighted by eligible value fraction
     const extraBps = GENESIS_VAULT_INFOS.EXTRA_APY_BPS ?? 0n;
@@ -38,38 +43,36 @@ export default function PotentialEarnings() {
     const potentialYield =
         totalUsd == null || effectiveApyBps == null ? undefined : (totalUsd * effectiveApyBps * timeLeftSec) / (10_000n * secondsPerYear);
 
+    // Calculate non-eligible yield and Robin points
+    // Non-eligible USD = totalUsd - eligibleUsd
+    const nonEligibleUsd = totalUsd != null && eligibleUsd != null ? (totalUsd > eligibleUsd ? totalUsd - eligibleUsd : 0n) : undefined;
+    // Non-eligible yield = (nonEligibleUsd * baseApyBps * timeLeftSec) / (10_000n * secondsPerYear)
+    const nonEligibleYield =
+        nonEligibleUsd == null || apyBps == null ? undefined : (nonEligibleUsd * apyBps * timeLeftSec) / (10_000n * secondsPerYear);
+    // Robin points = (nonEligibleYield / $500 pool) * 10,000 points
+    const robinPointsPoolUsd = 500n * 10n ** BigInt(UNDERYLING_DECIMALS); // $500 in 6 decimals
+    const robinPoints = nonEligibleYield == null ? undefined : (nonEligibleYield * 10_000n) / robinPointsPoolUsd;
+
     return (
         <div className="pmx-gradient-border mb-4 mt-12">
             <div className="pmx-gradient-inner p-4">
                 <div className="flex items-center justify-between gap-6">
                     <div className="flex-1 text-center">
-                        <div className="text-sm text-muted-foreground mb-1">Stake up to</div>
+                        <div className="text-sm text-muted-foreground mb-1">{proxyAddress ? 'Stake up to' : 'Example: Stake'}</div>
                         <div className="text-lg md:text-xl font-extrabold">
                             <ValueState
                                 value={totalUsd == null ? undefined : `$${formatUnitsLocale(totalUsd, UNDERYLING_DECIMALS, 0)}`}
-                                loading={userStakeableValueLoading}
+                                loading={apyBpsLoading || userStakeableValueLoading}
                                 error={!!userStakeableValueError}
                             />
                         </div>
                         <div className="text-xs text-muted-foreground mt-1">
                             <ValueState
                                 value={totalTokens == null ? undefined : `${formatUnitsLocale(totalTokens, UNDERYLING_DECIMALS, 0)} tokens`}
-                                loading={userStakeableValueLoading}
+                                loading={apyBpsLoading || userStakeableValueLoading}
                                 error={!!userStakeableValueError}
                             />
                         </div>
-                    </div>
-                    <CircleSmall className="size-6 text-muted-foreground mt-1" />
-                    <div className="flex-1 text-center">
-                        <div className="text-sm text-muted-foreground mb-1">APY</div>
-                        <div className="text-lg md:text-xl font-extrabold">
-                            <ValueState
-                                value={effectiveApyBps == null ? undefined : `${formatUnits(effectiveApyBps * 100n, 4, 0)}%`}
-                                loading={apyBpsLoading || userStakeableValueLoading}
-                                error={!!apyBpsError || !!userStakeableValueError}
-                            />
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">annualized</div>
                     </div>
                     <ArrowBigRight className="size-6 text-muted-foreground mt-1" />
                     <div className="flex-1 text-center">
@@ -93,10 +96,19 @@ export default function PotentialEarnings() {
                             />
                         </div>
                     </div>
+                    <CircleSmall className="size-6 text-muted-foreground mt-1" />
+                    <div className="flex-1 text-center">
+                        <div className="text-sm text-muted-foreground mb-1">Earn Rewards</div>
+                        <div className="text-lg md:text-xl font-extrabold">
+                            <ValueState
+                                value={robinPoints == null ? undefined : formatUnitsLocale(robinPoints, 0, 0)}
+                                loading={apyBpsLoading || userStakeableValueLoading || campaignEndTimestampLoading}
+                                error={!!apyBpsError || !!userStakeableValueError || !!campaignEndTimestampError}
+                            />
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">Robin Points</div>
+                    </div>
                 </div>
-                {!isConnected && !isConnecting && (
-                    <div className="mt-4 text-center text-md text-secondary">Connect wallet to see potential earnings</div>
-                )}
             </div>
         </div>
     );
