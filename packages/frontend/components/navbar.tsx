@@ -14,7 +14,7 @@ const navigationItems = [
     { href: '/', label: 'Genesis Vault', icon: Sparkles },
     { href: '/staking', label: 'Staking', icon: Home },
     { href: '/portfolio', label: 'Portfolio', icon: WalletMinimal },
-    { href: '/rewards', label: 'Rewards', icon: Trophy },
+    { href: '/rewards', label: 'Rewards', icon: Trophy, highlight: true },
     { href: 'https://robin-markets.gitbook.io', label: 'Docs', icon: BookText, external: true },
 ];
 
@@ -51,11 +51,18 @@ export default function Navbar() {
                                         href={item.href}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors ${
+                                        className={`relative flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors ${
                                             isActive ? 'border-primary border-b-2' : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-                                        }`}
+                                        } ${item.highlight ? 'sparkle-container' : ''}`}
                                     >
-                                        <NavIcon className="w-4 h-4" />
+                                        {item.highlight && (
+                                            <>
+                                                <span className="sparkle sparkle-1">✨</span>
+                                                <span className="sparkle sparkle-2">✨</span>
+                                                <span className="sparkle sparkle-3">✨</span>
+                                            </>
+                                        )}
+                                        <NavIcon className={`w-4 h-4 ${item.highlight ? 'text-primary' : ''}`} />
                                         {item.label}
                                     </Link>
                                 );
@@ -64,11 +71,18 @@ export default function Navbar() {
                                 <Link
                                     key={item.href}
                                     href={item.href}
-                                    className={`flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors ${
+                                    className={`relative flex items-center gap-2 px-3 py-2 text-sm font-medium transition-colors ${
                                         isActive ? 'border-primary border-b-2' : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-                                    }`}
+                                    } ${item.highlight ? 'sparkle-container' : ''}`}
                                 >
-                                    <NavIcon className="w-4 h-4" />
+                                    {item.highlight && (
+                                        <>
+                                            <span className="sparkle sparkle-1">✨</span>
+                                            <span className="sparkle sparkle-2">✨</span>
+                                            <span className="sparkle sparkle-3">✨</span>
+                                        </>
+                                    )}
+                                    <NavIcon className={`w-4 h-4 ${item.highlight ? 'text-primary' : ''}`} />
                                     {item.label}
                                 </Link>
                             );
