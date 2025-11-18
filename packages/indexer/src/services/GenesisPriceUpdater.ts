@@ -54,11 +54,12 @@ export class GenesisPriceUpdater {
                 const p = mk.outcomePrices?.[0];
                 const priceA = p ? BigInt(Math.round(Number.parseFloat(p) * UNDERYLING_PRECISION)) : undefined;
                 conditionToPriceA[mk.conditionId.toLowerCase()] = priceA;
-                if (mk.closed) closedMarkets.push(mk);
+                const dbMarket = markets.find(m => m.conditionId.toLowerCase() === mk.conditionId.toLowerCase());
+                if (mk.closed && dbMarket?.genesisEndedAt == null) closedMarkets.push(mk);
             }
             if (closedMarkets.length > 0) {
                 await NotificationService.sendNotification(
-                    `One or more Polymarket markets appear resolved (closed=true): ${closedMarkets.map(m => m.question).join(', ')}`
+                    `One or more Polymarket markets appear resolved (closed=true):\n ${closedMarkets.map(m => m.question).join(',\n')}`
                 );
             }
 
