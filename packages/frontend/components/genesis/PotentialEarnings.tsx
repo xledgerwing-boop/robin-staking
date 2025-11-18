@@ -39,7 +39,7 @@ export default function PotentialEarnings() {
         totalUsd == null || effectiveApyBps == null ? undefined : (totalUsd * effectiveApyBps * timeLeftSec) / (10_000n * secondsPerYear);
 
     return (
-        <div className="pmx-gradient-border mb-4">
+        <div className="pmx-gradient-border mb-4 mt-12">
             <div className="pmx-gradient-inner p-4">
                 <div className="flex items-center justify-between gap-6">
                     <div className="flex-1 text-center">

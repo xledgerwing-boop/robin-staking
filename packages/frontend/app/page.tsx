@@ -18,29 +18,31 @@ export default function GenesisVaultPage() {
     const isXl = useIsXlScreen();
     return (
         <div className="min-h-screen bg-background">
-            <div className="h-full container mx-auto px-4 py-8">
-                <div className="mb-8">
-                    <div className="flex items-center gap-3">
-                        <h1 className="text-3xl md:text-4xl font-bold">Genesis Reward Vault</h1>
-                        <Button variant="ghost" size="icon" asChild aria-label="View contract on explorer">
-                            <a
-                                href={`${USED_CONTRACTS.EXPLORER_URL}/address/${USED_CONTRACTS.GENESIS_VAULT}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                title="View contract on explorer"
-                            >
-                                <ExternalLink className="w-4 h-4" />
-                            </a>
-                        </Button>
-                    </div>
-                    <p className="text-muted-foreground text-lg">Stake your outcome tokens across eligible markets and earn USDC over time.</p>
-                </div>
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-12 items-start xl:mt-20">
+            <div className="h-full container mx-auto px-4 pt-16">
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
                     <div className="xl:col-span-2 space-y-6">
-                        <TopMetrics />
-                        <VaultCapacity />
+                        <div className="bg-gradient-to-b from-primary/0 to-primary/5 rounded-xl p-6 pt-0 space-y-2">
+                            <div className="flex items-center">
+                                <h1 className="text-3xl md:text-4xl font-bold">Genesis Reward Vault</h1>
+                                <Button variant="ghost" size="icon" asChild aria-label="View contract on explorer">
+                                    <a
+                                        href={`${USED_CONTRACTS.EXPLORER_URL}/address/${USED_CONTRACTS.GENESIS_VAULT}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        title="View contract on explorer"
+                                    >
+                                        <ExternalLink className="w-4 h-4" />
+                                    </a>
+                                </Button>
+                            </div>
+                            <p className="text-muted-foreground text-lg">
+                                Stake your outcome tokens across eligible markets and earn USDC over time.
+                            </p>
+                            <TopMetrics />
+                            <VaultCapacity />
+                        </div>
                         {!isXl && (
-                            <div className="space-y-6 mt-16 xl:mt-0">
+                            <div className="mt-16 xl:mt-0">
                                 <PotentialEarnings />
                                 <ManageGenesisPositions />
                             </div>

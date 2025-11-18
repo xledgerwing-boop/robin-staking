@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { ArrowUpRight, Loader } from 'lucide-react';
 import AmountSlider from '@robin-pm-staking/common/components/amount-slider';
-import { MarketRow, Outcome } from '@robin-pm-staking/common/types/market';
+import { MarketRow } from '@robin-pm-staking/common/types/market';
 import { USED_CONTRACTS, UNDERYLING_DECIMALS } from '@robin-pm-staking/common/constants';
 import { formatUnits as formatUnitsViem, parseUnits } from 'viem';
 import { useProxyAccount } from '@robin-pm-staking/common/hooks/use-proxy-account';
@@ -21,8 +21,8 @@ import {
 } from '@robin-pm-staking/common/src/types/contracts-genesis';
 import useInvalidateQueries from '@robin-pm-staking/common/hooks/use-invalidate-queries';
 import { toast } from 'sonner';
-import { formatUnits, formatUnitsLocale, getErrorMessage } from '@robin-pm-staking/common/lib/utils';
-import OutcomeToken from '@robin-pm-staking/common/components/outcome-token';
+import { formatUnitsLocale, getErrorMessage } from '@robin-pm-staking/common/lib/utils';
+import { CircleCheck, XCircle } from 'lucide-react';
 import { useGenesisVaultInfo } from '@/hooks/use-genesis-vault-info';
 import { useGenesisVaultUserInfo } from '@/hooks/use-genesis-vault-user-info';
 
@@ -393,9 +393,6 @@ export default function ManageGenesisPositions() {
 
     return (
         <Card className="mb-8">
-            <CardHeader>
-                <CardTitle className="text-xl text-muted-foreground">My Portfolio</CardTitle>
-            </CardHeader>
             <CardContent>
                 <Tabs value={tab} onValueChange={v => setTab(v as 'deposit' | 'withdraw')}>
                     <TabsList className="grid w-full grid-cols-2">
@@ -430,7 +427,7 @@ export default function ManageGenesisPositions() {
                             <div className="relative">
                                 <div
                                     ref={depositListRef}
-                                    className="no-scrollbar max-h-[550px] overflow-y-auto pr-1 space-y-4"
+                                    className="no-scrollbar max-h-[550px] overflow-y-auto pr-1 space-y-2 pb-4"
                                     style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                                 >
                                     {depositListLoading ? (
@@ -504,7 +501,7 @@ export default function ManageGenesisPositions() {
                             <div className="relative">
                                 <div
                                     ref={withdrawListRef}
-                                    className="no-scrollbar max-h-[550px] overflow-y-auto pr-1 space-y-4 pb-4"
+                                    className="no-scrollbar max-h-[550px] overflow-y-auto pr-1 space-y-2 pb-4"
                                     style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                                 >
                                     {withdrawListLoading ? (
@@ -512,7 +509,7 @@ export default function ManageGenesisPositions() {
                                             <Loader className="w-5 h-5 animate-spin" />
                                         </div>
                                     ) : inactiveWithdrawList.length === 0 && activeWithdrawList.length === 0 ? (
-                                        <div className="text-sm text-muted-foreground text-center">No eligible positions</div>
+                                        <div className="text-sm text-muted-foreground text-center py-8">No eligible positions</div>
                                     ) : (
                                         <>
                                             {inactiveWithdrawList.length > 0 && (
@@ -625,7 +622,7 @@ type MarketCardProps = {
 
 function MarketSlidersCard({ market, yesMax, noMax, yesSymbol, noSymbol, draftYes, draftNo, onChangeYes, onChangeNo, disabled }: MarketCardProps) {
     return (
-        <Card className="relative overflow-hidden border-muted">
+        <Card className="relative overflow-hidden border-muted shadow-none border-2">
             {market.genesisEligible && (
                 <div className="pointer-events-none select-none absolute -right-10 top-3 rotate-45 bg-primary text-primary-foreground text-[10px] font-semibold uppercase tracking-wider px-12 py-1 shadow-md">
                     +4% APY
@@ -642,7 +639,6 @@ function MarketSlidersCard({ market, yesMax, noMax, yesSymbol, noSymbol, draftYe
                         </div>
                         <div className="flex w-full items-center gap-2 mb-1">
                             <div className="text-xs min-w-7 shrink-0">{Number.parseFloat(draftYes).toFixed(1) || '0'}</div>
-                            <OutcomeToken outcome={Outcome.Yes} symbolHolder={market} noText />
                             <AmountSlider
                                 className="w-full max-w-80"
                                 amount={draftYes || '0'}
@@ -651,11 +647,11 @@ function MarketSlidersCard({ market, yesMax, noMax, yesSymbol, noSymbol, draftYe
                                 disabled={!!disabled}
                                 showMax={false}
                                 showSticky={false}
+                                thumb={<CircleCheck className="w-4 h-4 text-emerald-600" />}
                             />
                         </div>
                         <div className="flex w-full items-center gap-2">
                             <div className="text-xs min-w-7 shrink-0">{Number.parseFloat(draftNo).toFixed(1) || '0'}</div>
-                            <OutcomeToken outcome={Outcome.No} symbolHolder={market} noText />
                             <AmountSlider
                                 className="w-full max-w-80"
                                 amount={draftNo || '0'}
@@ -664,6 +660,7 @@ function MarketSlidersCard({ market, yesMax, noMax, yesSymbol, noSymbol, draftYe
                                 disabled={!!disabled}
                                 showMax={false}
                                 showSticky={false}
+                                thumb={<XCircle className="w-4 h-4 text-red-600" />}
                             />
                         </div>
                     </div>

@@ -65,7 +65,7 @@ export default function VaultCapacity() {
             <div className="w-full flex items-center justify-between px-2 mt-1">
                 <span className="text-sm text-foreground/80">TVL Cap{capReached ? ' • Cap reached' : ''}</span>
                 <span className="text-sm font-medium">
-                    ${formatUnitsLocale(totalValueUsd ?? 0n, UNDERYLING_DECIMALS, 0)} / ${formatUnitsLocale(tvlCapUsd ?? 0n, UNDERYLING_DECIMALS, 0)}{' '}
+                    ${formatUnitsLocale(totalValueUsd ?? 0n, UNDERYLING_DECIMALS, 0)} of ${formatUnitsLocale(tvlCapUsd ?? 0n, UNDERYLING_DECIMALS, 0)}{' '}
                     ({formatUnits(capPctBps, 4, 0)}%)
                 </span>
             </div>

@@ -9,7 +9,7 @@ import { useGenesisVaultUserInfo } from '@/hooks/use-genesis-vault-user-info';
 
 export default function TopMetrics() {
     const VAULT = USED_CONTRACTS.GENESIS_VAULT as `0x${string}`;
-    const { proxyAddress, isConnected } = useProxyAccount();
+    const { proxyAddress } = useProxyAccount();
 
     const { totalValueUsd, totalValueUsdLoading, totalValueUsdError, apyBps, apyBpsLoading, apyBpsError } = useGenesisVaultInfo(VAULT);
 
@@ -23,7 +23,7 @@ export default function TopMetrics() {
     } = useGenesisVaultUserInfo(VAULT, proxyAddress as `0x${string}`);
 
     return (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4 mt-8">
             <div>
                 <p className="text-sm text-muted-foreground text-center">Total TVL</p>
                 <div className="text-2xl font-bold text-center">
