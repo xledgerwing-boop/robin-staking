@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { getProxyAddressForUser } from '@/lib/proxy';
 import { rateLimit } from '@/lib/rate-limit';
-import { doesUserHaveDeposit, FEEDBACK_SUBMISSIONS_TABLE, insertRewardActivity, upsertFeedbackSubmission } from '@/lib/rewards';
+import { doesUserQualifyForFeedbackReward, FEEDBACK_SUBMISSIONS_TABLE, insertRewardActivity, upsertFeedbackSubmission } from '@/lib/rewards';
 import { FEEDBACK_REWARD_PONTS } from '@/lib/constants';
 
 type FeedbackPayload = {
@@ -32,8 +32,8 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Unable to resolve proxy' }, { status: 400 });
         }
 
-        const hasDeposit = await doesUserHaveDeposit(db, proxy);
-        if (!hasDeposit) {
+        const qualifies = await doesUserQualifyForFeedbackReward(db, proxy);
+        if (!qualifies) {
             return NextResponse.json({ error: 'Not eligible: no deposit found' }, { status: 403 });
         }
 

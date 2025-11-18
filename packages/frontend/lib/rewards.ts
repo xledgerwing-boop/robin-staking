@@ -1,8 +1,9 @@
-import { ACTIVITIES_TABLE } from '@robin-pm-staking/common/lib/repos';
+import { ACTIVITIES_TABLE, GENESIS_ACTIVITIES_TABLE } from '@robin-pm-staking/common/lib/repos';
 import { VaultEvent } from '@robin-pm-staking/common/types/conract-events';
 import { Knex } from 'knex';
 import { RewardActivity, RewardActivityRow } from '@robin-pm-staking/common/types/reward-activity';
 import { FeedbackSubmission, FeedbackSubmissionRow } from '@robin-pm-staking/common/types/feedback-submission';
+import { GenesisVaultEvent } from '@robin-pm-staking/common/types/genesis-events';
 
 export const REWARD_ACTIVITIES_TABLE = 'reward_activities';
 export const FEEDBACK_SUBMISSIONS_TABLE = 'feedback_submissions';
@@ -36,6 +37,22 @@ export async function ensureRewardsSchema(db: Knex): Promise<void> {
 export async function doesUserHaveDeposit(db: Knex, proxyAddress: string): Promise<boolean> {
     const row = await db(ACTIVITIES_TABLE).where('type', VaultEvent.Deposited).andWhere('userAddress', proxyAddress.toLowerCase()).first();
     return !!row;
+}
+
+export async function doesUserHaveGenesisDeposit(db: Knex, proxyAddress: string): Promise<boolean> {
+    const row = await db(GENESIS_ACTIVITIES_TABLE)
+        .whereIn('type', [GenesisVaultEvent.Deposit, GenesisVaultEvent.BatchDeposit])
+        .andWhere('userAddress', proxyAddress.toLowerCase())
+        .first();
+    return !!row;
+}
+
+export async function doesUserQualifyForFeedbackReward(db: Knex, proxyAddress: string): Promise<boolean> {
+    let hasDeposit = await doesUserHaveDeposit(db, proxyAddress);
+    if (!hasDeposit) {
+        hasDeposit = await doesUserHaveGenesisDeposit(db, proxyAddress);
+    }
+    return hasDeposit;
 }
 
 export async function queryUserRewardActivities(db: Knex, userAddress: string): Promise<RewardActivityRow[]> {

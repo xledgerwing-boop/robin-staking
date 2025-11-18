@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { rateLimit } from '@/lib/rate-limit';
-import { doesUserHaveDeposit } from '@/lib/rewards';
+import { doesUserQualifyForFeedbackReward } from '@/lib/rewards';
 
 export async function GET(req: NextRequest) {
     const ip = req.headers.get('x-forwarded-for') || 'unknown';
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
 
     try {
         const db = await getDb();
-        const hasDeposit = await doesUserHaveDeposit(db, proxyAddress.toLowerCase());
+        const hasDeposit = await doesUserQualifyForFeedbackReward(db, proxyAddress.toLowerCase());
         return NextResponse.json({ hasDeposit });
     } catch (e) {
         console.error('eligibility error', e);
