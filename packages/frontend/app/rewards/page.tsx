@@ -45,7 +45,7 @@ export default function RewardsPage() {
             <div className="container mx-auto px-4 py-8">
                 <div className="mb-6">
                     <h1 className="text-3xl font-bold">Rewards</h1>
-                    <p className="text-muted-foreground">Earn points by completing actions.</p>
+                    <p className="text-muted-foreground">Earn points by completing actions. Points can be redeemed in a future token sale.</p>
                 </div>
 
                 <RewardsSummary />
