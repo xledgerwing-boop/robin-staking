@@ -21,6 +21,7 @@ export class GenesisPriceUpdater {
     private minLargeShiftCount = 2;
     private resolvedMarketNotifications = new Map<string, number>(); // conditionId -> last notification timestamp
     private running = false;
+    private tickRunning = false;
 
     constructor(db: DBService, rpcUrl: string, privateKey: string) {
         this.db = db;
@@ -38,6 +39,12 @@ export class GenesisPriceUpdater {
     }
 
     private async tick() {
+        // Prevent concurrent execution
+        if (this.tickRunning) {
+            return;
+        }
+        this.tickRunning = true;
+
         try {
             const markets = await this.getGenesisMarketsOrdered(this.db.knex);
             if (markets.length === 0) return;
@@ -111,6 +118,8 @@ export class GenesisPriceUpdater {
             }
         } catch (e: any) {
             await NotificationService.sendNotification(`❌ Genesis price update failed: ${(e && e.message) || String(e)}`);
+        } finally {
+            this.tickRunning = false;
         }
     }
 
@@ -136,7 +145,6 @@ export class GenesisPriceUpdater {
         const costMatic = Number(ethers.formatEther(totalCostWei));
         const balanceWei = await this.provider.getBalance(this.wallet.address);
         const balMatic = Number(ethers.formatEther(balanceWei));
-        await NotificationService.sendNotification(`Wallet balance: ${balMatic.toFixed(2)} POL.`);
 
         // Save last submitted prices + timestamps
         await this.saveSubmittedPrices(this.db.knex, markets, pricesA);
