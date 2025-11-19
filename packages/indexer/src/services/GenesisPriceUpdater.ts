@@ -152,9 +152,10 @@ export class GenesisPriceUpdater {
         let totalGasUsed = 0n;
         let totalCostWei = 0n;
         for (const { market, newPriceA } of marketsWithLargeShift) {
+            if (market.genesisIndex == null) continue;
             const tx = await this.wallet.sendTransaction({
                 to: USED_CONTRACTS.GENESIS_VAULT,
-                data: this.iface.encodeFunctionData('updateMarketPrice', [market.genesisIndex, newPriceA]),
+                data: this.iface.encodeFunctionData('updateMarketPrice', [BigInt(market.genesisIndex), newPriceA]),
             });
             const receipt = await tx.wait();
             const gasUsed = receipt?.gasUsed ?? 0n;
