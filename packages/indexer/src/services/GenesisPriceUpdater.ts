@@ -12,10 +12,12 @@ export class GenesisPriceUpdater {
     private db: DBService;
     private provider: ethers.JsonRpcProvider;
     private wallet: ethers.Wallet;
+    private iface: ethers.Interface;
     private checkIntervalMs = 10 * 60 * 1000; // 10 minutes
     private minEarlyUpdateGapMs = 15 * 60 * 1000; // 15 minutes
     private standardUpdateGapMs = 4 * 60 * 60 * 1000; // 4 hours
     private resolvedNotificationCooldownMs = 60 * 60 * 1000; // 1 hour
+    private largePriceShiftThresholdBps = 500; // 5% (500 basis points)
     private resolvedMarketNotifications = new Map<string, number>(); // conditionId -> last notification timestamp
     private running = false;
 
@@ -23,6 +25,7 @@ export class GenesisPriceUpdater {
         this.db = db;
         this.provider = new ethers.JsonRpcProvider(rpcUrl);
         this.wallet = new ethers.Wallet(privateKey, this.provider);
+        this.iface = new ethers.Interface(robinGenesisVaultAbi);
     }
 
     public start() {
@@ -75,66 +78,131 @@ export class GenesisPriceUpdater {
                 );
             }
 
-            // Compose full price array aligned to genesisIndex order (including ended markets)
-            const pricesA: bigint[] = [];
-            const largeShift = this.detectLargeShift(markets, conditionToPriceA);
-            const lastSubmittedAtMax = markets.reduce((acc, m) => {
+            // Check for regular update (using minimum last update time)
+            const lastSubmittedAtMin = markets.reduce((acc, m) => {
                 const t = m.genesisLastSubmittedAt ?? 0;
-                return Math.max(acc, t);
-            }, 0);
-            const canStandard = now - lastSubmittedAtMax >= this.standardUpdateGapMs;
-            const canEarly = now - lastSubmittedAtMax >= this.minEarlyUpdateGapMs && largeShift;
-            if (!canStandard && !canEarly) {
+                return acc === null || t < acc ? t : acc;
+            }, null as number | null);
+            const canStandard = lastSubmittedAtMin !== null && now - lastSubmittedAtMin >= this.standardUpdateGapMs;
+
+            if (canStandard) {
+                await this.handleStandardUpdate(markets, conditionToPriceA, false);
                 return;
             }
 
-            for (const m of markets) {
-                const cid = m.conditionId.toLowerCase();
-                const fromApi = conditionToPriceA[cid];
-                // fallback to last submitted if market missing in API (shouldn't happen), else mid price
-                let priceA = fromApi ?? m.genesisLastSubmittedPriceA ?? 500_000n;
-                pricesA.push(priceA);
+            // Detect markets with large price shifts
+            const marketsWithLargeShift = this.detectLargeShiftMarkets(markets, conditionToPriceA);
+            const largeShiftCount = marketsWithLargeShift.length;
+            if (largeShiftCount === 0) return;
+
+            const canEarlyBatch = largeShiftCount >= 5 && now - (lastSubmittedAtMin ?? 0) >= this.minEarlyUpdateGapMs;
+            if (canEarlyBatch) {
+                await this.handleStandardUpdate(markets, conditionToPriceA, true);
+                return;
             }
 
-            // Submit batchUpdatePrices
-            const iface = new ethers.Interface(robinGenesisVaultAbi);
-            const tx = await this.wallet.sendTransaction({
-                to: USED_CONTRACTS.GENESIS_VAULT,
-                data: iface.encodeFunctionData('batchUpdatePrices', [pricesA]),
-            });
-            const receipt = await tx.wait();
+            // Check if we can do early individual updates (only if next regular update is far enough away)
+            const nextRegularUpdateTime = lastSubmittedAtMin !== null ? lastSubmittedAtMin + this.standardUpdateGapMs : now;
+            const canEarlyIndividual = nextRegularUpdateTime - now > this.minEarlyUpdateGapMs;
 
-            // Save last submitted prices + timestamps
-            await this.saveSubmittedPrices(this.db.knex, markets, pricesA);
-
-            // Notify with gas and balance
-            const gasUsed = receipt?.gasUsed ?? 0n;
-            const effPrice = receipt?.gasPrice ?? 0n;
-            const costWei = gasUsed * effPrice;
-            const balanceWei = await this.provider.getBalance(this.wallet.address);
-            const costMatic = Number(ethers.formatEther(costWei));
-            const balMatic = Number(ethers.formatEther(balanceWei));
-            await NotificationService.sendNotification(
-                `✅ Genesis price update submitted${
-                    canEarly ? ' (due to LARGE PRICE SHIFT)' : ''
-                }. Gas used: ${gasUsed.toString()} (≈ ${costMatic.toFixed(2)} POL). Wallet balance: ${balMatic.toFixed(2)} POL.`
-            );
+            if (canEarlyIndividual && largeShiftCount < 5) {
+                await this.handleIndividualUpdate(marketsWithLargeShift);
+            }
         } catch (e: any) {
             await NotificationService.sendNotification(`❌ Genesis price update failed: ${(e && e.message) || String(e)}`);
         }
     }
 
-    private detectLargeShift(markets: Market[], conditionToPriceA: Record<string, bigint | undefined>): boolean {
+    private async handleStandardUpdate(markets: Market[], conditionToPriceA: Record<string, bigint | undefined>, largeShift: boolean) {
+        // Regular batch update for all markets
+        const pricesA: bigint[] = [];
         for (const m of markets) {
+            const cid = m.conditionId.toLowerCase();
+            const fromApi = conditionToPriceA[cid];
+            // fallback to last submitted if market missing in API (shouldn't happen), else mid price
+            let priceA = fromApi ?? m.genesisLastSubmittedPriceA ?? 500_000n;
+            pricesA.push(priceA);
+        }
+
+        const tx = await this.wallet.sendTransaction({
+            to: USED_CONTRACTS.GENESIS_VAULT,
+            data: this.iface.encodeFunctionData('batchUpdatePrices', [pricesA]),
+        });
+        const receipt = await tx.wait();
+        const totalGasUsed = receipt?.gasUsed ?? 0n;
+        const effPrice = receipt?.gasPrice ?? 0n;
+        const totalCostWei = totalGasUsed * effPrice;
+        const costMatic = Number(ethers.formatEther(totalCostWei));
+        const balanceWei = await this.provider.getBalance(this.wallet.address);
+        const balMatic = Number(ethers.formatEther(balanceWei));
+        await NotificationService.sendNotification(`Wallet balance: ${balMatic.toFixed(2)} POL.`);
+
+        // Save last submitted prices + timestamps
+        await this.saveSubmittedPrices(this.db.knex, markets, pricesA);
+
+        await NotificationService.sendNotification(
+            `✅ Genesis price update submitted${
+                largeShift ? ' (due to LARGE PRICE SHIFT)' : ''
+            }. Gas used: ${totalGasUsed.toString()} (≈ ${costMatic.toFixed(2)} POL). Wallet balance: ${balMatic.toFixed(2)} POL.`
+        );
+    }
+
+    private async handleIndividualUpdate(marketsWithLargeShift: Array<{ market: Market; newPriceA: bigint }>) {
+        // Update individual markets with large shifts
+        let totalGasUsed = 0n;
+        let totalCostWei = 0n;
+        for (const { market, newPriceA } of marketsWithLargeShift) {
+            const tx = await this.wallet.sendTransaction({
+                to: USED_CONTRACTS.GENESIS_VAULT,
+                data: this.iface.encodeFunctionData('updateMarketPrice', [market.genesisIndex, newPriceA]),
+            });
+            const receipt = await tx.wait();
+            const gasUsed = receipt?.gasUsed ?? 0n;
+            const effPrice = receipt?.gasPrice ?? 0n;
+            totalGasUsed += gasUsed;
+            totalCostWei += gasUsed * effPrice;
+
+            // Update the specific market's price in DB
+            await this.saveSubmittedPriceForMarket(this.db.knex, market, newPriceA);
+        }
+
+        const costMatic = Number(ethers.formatEther(totalCostWei));
+        const balanceWei = await this.provider.getBalance(this.wallet.address);
+        const balMatic = Number(ethers.formatEther(balanceWei));
+        await NotificationService.sendNotification(
+            `✅ Genesis price update: ${
+                marketsWithLargeShift.length
+            } market(s) updated (due to LARGE PRICE SHIFT). Gas used: ${totalGasUsed.toString()} (≈ ${costMatic.toFixed(
+                2
+            )} POL). Wallet balance: ${balMatic.toFixed(2)} POL.`
+        );
+    }
+
+    private detectLargeShiftMarkets(
+        markets: Market[],
+        conditionToPriceA: Record<string, bigint | undefined>
+    ): Array<{ market: Market; newPriceA: bigint }> {
+        const result: Array<{ market: Market; newPriceA: bigint }> = [];
+        const now = Date.now();
+        for (let i = 0; i < markets.length; i++) {
+            const m = markets[i];
+            if (m.genesisIndex == null) continue; // Skip if no genesisIndex
             const prev = m.genesisLastSubmittedPriceA;
             const curr = conditionToPriceA[m.conditionId.toLowerCase()];
             if (curr == null) continue;
-            if (prev === 0n || prev == null) return true;
+            if (prev === 0n || prev == null) {
+                result.push({ market: m, newPriceA: curr });
+                continue;
+            }
             const diff = prev > curr ? prev - curr : curr - prev;
-            // 10% shift threshold
-            if (diff * 100n >= prev * 10n) return true;
+            const isLargeShift = diff * 10_000n >= prev * BigInt(this.largePriceShiftThresholdBps);
+            const reachedTimeThreshold = now - (m.genesisLastSubmittedAt ?? 0) >= this.minEarlyUpdateGapMs;
+            // 5% shift threshold (500 basis points)
+            if (isLargeShift && reachedTimeThreshold) {
+                result.push({ market: m, newPriceA: curr });
+            }
         }
-        return false;
+        return result;
     }
 
     private async getGenesisMarketsOrdered(knex: Knex): Promise<Market[]> {
@@ -150,5 +218,12 @@ export class GenesisPriceUpdater {
                 .update({ genesisLastSubmittedPriceA: prices[i].toString(), genesisLastSubmittedAt: now })
         );
         await Promise.all(updates);
+    }
+
+    private async saveSubmittedPriceForMarket(knex: Knex, market: Market, priceA: bigint) {
+        const now = Date.now().toString();
+        await knex(MARKETS_TABLE)
+            .where({ genesisIndex: market.genesisIndex })
+            .update({ genesisLastSubmittedPriceA: priceA.toString(), genesisLastSubmittedAt: now });
     }
 }
