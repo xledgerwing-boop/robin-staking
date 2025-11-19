@@ -50,7 +50,7 @@ const FAQS: Array<{ q: string; a: string }> = [
     },
     {
         q: 'What happens when the vault ends? How do I receive Robin reward points?',
-        a: `<p>At the end of the 30-day campaign:</p>
+        a: `<p>At the end of the 30-day campaign (Dec 17th 2025):</p>
 <ul>
 <li>Your accumulated USDC yield becomes claimable</li>
 <li>You also receive your share of the <strong>50,000 Genesis Points</strong>
