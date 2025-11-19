@@ -17,7 +17,8 @@ export class GenesisPriceUpdater {
     private minEarlyUpdateGapMs = 15 * 60 * 1000; // 15 minutes
     private standardUpdateGapMs = 4 * 60 * 60 * 1000; // 4 hours
     private resolvedNotificationCooldownMs = 60 * 60 * 1000; // 1 hour
-    private largePriceShiftThresholdBps = 500; // 5% (500 basis points)
+    private largePriceShiftThresholdBps = 1000; // 10%
+    private minLargeShiftCount = 2;
     private resolvedMarketNotifications = new Map<string, number>(); // conditionId -> last notification timestamp
     private running = false;
 
@@ -95,7 +96,7 @@ export class GenesisPriceUpdater {
             const largeShiftCount = marketsWithLargeShift.length;
             if (largeShiftCount === 0) return;
 
-            const canEarlyBatch = largeShiftCount >= 5 && now - (lastSubmittedAtMin ?? 0) >= this.minEarlyUpdateGapMs;
+            const canEarlyBatch = largeShiftCount >= this.minLargeShiftCount && now - (lastSubmittedAtMin ?? 0) >= this.minEarlyUpdateGapMs;
             if (canEarlyBatch) {
                 await this.handleStandardUpdate(markets, conditionToPriceA, true);
                 return;
@@ -105,7 +106,7 @@ export class GenesisPriceUpdater {
             const nextRegularUpdateTime = lastSubmittedAtMin !== null ? lastSubmittedAtMin + this.standardUpdateGapMs : now;
             const canEarlyIndividual = nextRegularUpdateTime - now > this.minEarlyUpdateGapMs;
 
-            if (canEarlyIndividual && largeShiftCount < 5) {
+            if (canEarlyIndividual && largeShiftCount < this.minLargeShiftCount) {
                 await this.handleIndividualUpdate(marketsWithLargeShift);
             }
         } catch (e: any) {
