@@ -16,6 +16,9 @@ import { LogInfo } from './EventService';
 import { logger } from '../utils/logger';
 import { eventInfoToDb } from '@robin-pm-staking/common/lib/utils';
 import { getAndSaveEventAndMarkets } from '@robin-pm-staking/common/lib/repos';
+import { insertRewardActivity } from '@robin-pm-staking/common/lib/rewards';
+import { GENESIS_VAULT_INFOS } from '@robin-pm-staking/common/constants';
+import { NotificationService } from './NotificationService';
 
 export class GenesisEventService {
     private dbService: DBService;
@@ -51,12 +54,27 @@ export class GenesisEventService {
                     eligibleUsd: d.eligibleUsd,
                 });
             } catch (e) {
+                await NotificationService.sendNotification(`Failed to update user genesis interest on deposit: ${e}`);
                 logger.warn('Failed to update user genesis interest on deposit', e);
             }
         } else if (activity.type === GenesisVaultEvent.Withdraw || activity.type === GenesisVaultEvent.BatchWithdraw) {
             activity.userAddress = (logData as GenesisWithdrawEvent | GenesisBatchWithdrawEvent).user.toLowerCase();
         } else if (activity.type === GenesisVaultEvent.Claim) {
-            activity.userAddress = (logData as ClaimEvent).user.toLowerCase();
+            const d = logData as ClaimEvent;
+            activity.userAddress = d.user.toLowerCase();
+
+            try {
+                const rewardPoints = (d.basePaid * GENESIS_VAULT_INFOS.ROBIN_POINTS_POOL) / GENESIS_VAULT_INFOS.BASE_REWARD_POOL;
+                await insertRewardActivity(this.dbService.knex, {
+                    userAddress: activity.userAddress,
+                    points: Number(rewardPoints),
+                    type: 'Genesis Rewards',
+                    details: { basePaid: d.basePaid.toString() },
+                });
+            } catch (e) {
+                await NotificationService.sendNotification(`Failed to insert genesis rewards: ${e}`);
+                logger.warn('Failed to insert genesis rewards', e);
+            }
         } else if (activity.type === GenesisVaultEvent.MarketAdded) {
             const d = logData as MarketAddedEvent;
             // Ensure market exists by conditionId (may not be in DB yet)

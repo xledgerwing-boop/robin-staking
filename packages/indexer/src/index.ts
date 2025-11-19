@@ -6,6 +6,7 @@ import { DBService } from './services/DbService';
 import crypto from 'crypto';
 import { USED_CONTRACTS } from '@robin-pm-staking/common/constants';
 import { GenesisPriceUpdater } from './services/GenesisPriceUpdater';
+import { NotificationService } from './services/NotificationService';
 
 dotenv.config();
 
@@ -148,6 +149,7 @@ function startWebhookServer(
 
             res.status(200).json({ success: true, message: 'Webhook processed successfully' });
         } catch (error) {
+            await NotificationService.sendNotification(`Error processing webhook: ${error}`);
             logger.error('Error processing webhook:', error);
             res.status(500).json({
                 success: false,

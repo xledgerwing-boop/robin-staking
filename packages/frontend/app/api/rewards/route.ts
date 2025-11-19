@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import { getUserAggregatedPoints, hasUserSubmittedFeedback } from '@/lib/rewards';
 import { rateLimit } from '@/lib/rate-limit';
+import { getUserAggregatedPoints, hasUserSubmittedFeedback } from '@robin-pm-staking/common/lib/rewards';
 
 export async function GET(req: NextRequest) {
     const ip = req.headers.get('x-forwarded-for') || 'unknown';

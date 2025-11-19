@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import { REWARD_ACTIVITIES_TABLE } from '@/lib/rewards';
+import { REWARD_ACTIVITIES_TABLE } from '@robin-pm-staking/common/lib/rewards';
 import { RewardActivity, RewardActivityRow } from '@robin-pm-staking/common/types/reward-activity';
 
 function isAuthorized(req: NextRequest): boolean {

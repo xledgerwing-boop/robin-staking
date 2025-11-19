@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import { listFeedbackSubmissions } from '@/lib/rewards';
+import { listFeedbackSubmissions } from '@robin-pm-staking/common/lib/rewards';
 
 function isAuthorized(req: NextRequest): boolean {
     const header = req.headers.get('x-admin-password') || '';

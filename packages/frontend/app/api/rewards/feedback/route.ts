@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { getProxyAddressForUser } from '@/lib/proxy';
 import { rateLimit } from '@/lib/rate-limit';
-import { doesUserQualifyForFeedbackReward, FEEDBACK_SUBMISSIONS_TABLE, insertRewardActivity, upsertFeedbackSubmission } from '@/lib/rewards';
+import {
+    doesUserQualifyForFeedbackReward,
+    FEEDBACK_SUBMISSIONS_TABLE,
+    insertRewardActivity,
+    upsertFeedbackSubmission,
+} from '@robin-pm-staking/common/lib/rewards';
 import { FEEDBACK_REWARD_PONTS } from '@/lib/constants';
 
 type FeedbackPayload = {

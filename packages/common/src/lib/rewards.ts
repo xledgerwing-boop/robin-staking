@@ -1,9 +1,9 @@
-import { ACTIVITIES_TABLE, GENESIS_ACTIVITIES_TABLE } from '@robin-pm-staking/common/lib/repos';
-import { VaultEvent } from '@robin-pm-staking/common/types/conract-events';
+import { ACTIVITIES_TABLE, GENESIS_ACTIVITIES_TABLE } from './repos';
+import { VaultEvent } from '../types/conract-events';
 import { Knex } from 'knex';
-import { RewardActivity, RewardActivityRow } from '@robin-pm-staking/common/types/reward-activity';
-import { FeedbackSubmission, FeedbackSubmissionRow } from '@robin-pm-staking/common/types/feedback-submission';
-import { GenesisVaultEvent } from '@robin-pm-staking/common/types/genesis-events';
+import { RewardActivity, RewardActivityRow } from '../types/reward-activity';
+import { FeedbackSubmission, FeedbackSubmissionRow } from '../types/feedback-submission';
+import { GenesisVaultEvent } from '../types/genesis-events';
 
 export const REWARD_ACTIVITIES_TABLE = 'reward_activities';
 export const FEEDBACK_SUBMISSIONS_TABLE = 'feedback_submissions';

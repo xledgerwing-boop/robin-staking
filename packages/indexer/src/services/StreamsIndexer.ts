@@ -39,6 +39,7 @@ import {
     TvlCapUpdatedEvent,
 } from '@robin-pm-staking/common/types/genesis-events';
 import { USED_CONTRACTS } from '@robin-pm-staking/common/constants';
+import { NotificationService } from './NotificationService';
 
 export class StreamsIndexer {
     private provider: ethers.JsonRpcProvider;
@@ -346,6 +347,7 @@ export class StreamsIndexer {
                 } as EmergencyWithdrawalEvent;
                 break;
             default:
+                await NotificationService.sendNotification(`Unknown genesis event: ${eventName}`);
                 logger.warn(`Unknown genesis event: ${eventName}`);
                 return;
         }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import { queryUserRewardActivities } from '@/lib/rewards';
+import { queryUserRewardActivities } from '@robin-pm-staking/common/lib/rewards';
 import { rateLimit } from '@/lib/rate-limit';
 
 export async function GET(req: NextRequest) {

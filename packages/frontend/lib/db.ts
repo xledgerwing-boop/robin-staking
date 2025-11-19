@@ -1,5 +1,5 @@
 import { ensureSchema } from '@robin-pm-staking/common/lib/repos';
-import { ensureRewardsSchema } from './rewards';
+import { ensureRewardsSchema } from '@robin-pm-staking/common/src/lib/rewards';
 import knex, { Knex } from 'knex';
 import { knexSnakeCaseMappers } from 'objection';
 
