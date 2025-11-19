@@ -299,6 +299,16 @@ export const robinGenesisVaultAbi = [
     {
         type: 'function',
         inputs: [
+            { name: 'index', internalType: 'uint256', type: 'uint256' },
+            { name: 'newPriceA', internalType: 'uint256', type: 'uint256' },
+        ],
+        name: 'updateMarketPrice',
+        outputs: [],
+        stateMutability: 'nonpayable',
+    },
+    {
+        type: 'function',
+        inputs: [
             { name: 'account', internalType: 'address', type: 'address' },
             { name: 'marketIndex', internalType: 'uint256', type: 'uint256' },
         ],
@@ -490,6 +500,15 @@ export const robinGenesisVaultAbi = [
         name: 'MarketAdded',
     },
     { type: 'event', anonymous: false, inputs: [{ name: 'index', internalType: 'uint256', type: 'uint256', indexed: false }], name: 'MarketEnded' },
+    {
+        type: 'event',
+        anonymous: false,
+        inputs: [
+            { name: 'index', internalType: 'uint256', type: 'uint256', indexed: false },
+            { name: 'newPriceA', internalType: 'uint256', type: 'uint256', indexed: false },
+        ],
+        name: 'MarketPriceUpdated',
+    },
     {
         type: 'event',
         anonymous: false,
@@ -942,6 +961,14 @@ export const useWriteRobinGenesisVaultTransferOwnership = /*#__PURE__*/ createUs
 export const useWriteRobinGenesisVaultUnpause = /*#__PURE__*/ createUseWriteContract({ abi: robinGenesisVaultAbi, functionName: 'unpause' })
 
 /**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link robinGenesisVaultAbi}__ and `functionName` set to `"updateMarketPrice"`
+ */
+export const useWriteRobinGenesisVaultUpdateMarketPrice = /*#__PURE__*/ createUseWriteContract({
+    abi: robinGenesisVaultAbi,
+    functionName: 'updateMarketPrice',
+})
+
+/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link robinGenesisVaultAbi}__ and `functionName` set to `"withdraw"`
  */
 export const useWriteRobinGenesisVaultWithdraw = /*#__PURE__*/ createUseWriteContract({ abi: robinGenesisVaultAbi, functionName: 'withdraw' })
@@ -1089,6 +1116,14 @@ export const useSimulateRobinGenesisVaultTransferOwnership = /*#__PURE__*/ creat
 export const useSimulateRobinGenesisVaultUnpause = /*#__PURE__*/ createUseSimulateContract({ abi: robinGenesisVaultAbi, functionName: 'unpause' })
 
 /**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link robinGenesisVaultAbi}__ and `functionName` set to `"updateMarketPrice"`
+ */
+export const useSimulateRobinGenesisVaultUpdateMarketPrice = /*#__PURE__*/ createUseSimulateContract({
+    abi: robinGenesisVaultAbi,
+    functionName: 'updateMarketPrice',
+})
+
+/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link robinGenesisVaultAbi}__ and `functionName` set to `"withdraw"`
  */
 export const useSimulateRobinGenesisVaultWithdraw = /*#__PURE__*/ createUseSimulateContract({ abi: robinGenesisVaultAbi, functionName: 'withdraw' })
@@ -1178,6 +1213,14 @@ export const useWatchRobinGenesisVaultMarketAddedEvent = /*#__PURE__*/ createUse
 export const useWatchRobinGenesisVaultMarketEndedEvent = /*#__PURE__*/ createUseWatchContractEvent({
     abi: robinGenesisVaultAbi,
     eventName: 'MarketEnded',
+})
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link robinGenesisVaultAbi}__ and `eventName` set to `"MarketPriceUpdated"`
+ */
+export const useWatchRobinGenesisVaultMarketPriceUpdatedEvent = /*#__PURE__*/ createUseWatchContractEvent({
+    abi: robinGenesisVaultAbi,
+    eventName: 'MarketPriceUpdated',
 })
 
 /**
