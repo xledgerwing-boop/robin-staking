@@ -83,9 +83,13 @@ export default function TopMetrics() {
                 </div>
                 <div className="text-xs text-center text-primary font-medium mt-0.5">
                     {robinPoints == null ? (
-                        <ValueState value={undefined} loading={userEstimatedEarningsLoading} error={!!userEstimatedEarningsError} />
+                        '-'
                     ) : (
-                        `${formatUnitsLocale(robinPoints, 0, 0)} Robin Points`
+                        <ValueState
+                            value={`${formatUnitsLocale(robinPoints, 0, 0)} Robin Points`}
+                            loading={userEstimatedEarningsLoading}
+                            error={!!userEstimatedEarningsError}
+                        />
                     )}
                 </div>
             </div>
