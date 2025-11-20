@@ -11,6 +11,7 @@
         "deploy:genesis-vault": "dotenv -- bash -c 'forge script script/DeployGenesisVaultOnly.s.sol:DeployGenesisVaultOnly --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY --verify --etherscan-api-key $POLYGONSCAN_API_KEY'",
         "prepare:genesis-vault": "dotenv -- bash -c 'forge script script/PrepareGenesisVault.s.sol:PrepareGenesisVault --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY'",
         "add:genesis-market": "dotenv -- bash -c 'forge script script/AddGenesisMarket.s.sol:AddGenesisMarket --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY'",
+        "end:genesis-market": "dotenv -- bash -c 'forge script script/EndAndReplaceGenesisMarkets.s.sol:EndAndReplaceGenesisMarkets --rpc-url $RPC_URL --broadcast --private-key $PRIVATE_KEY'",
         "send-usdc": "dotenv -- ./sh-scripts.sh send-usdc",
         "check-usdc": "dotenv -- ./sh-scripts.sh check-balance",
         "mint-pol-positions": "dotenv -- ./sh-scripts.sh mint-polymarket-positions",

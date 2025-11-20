@@ -19,11 +19,18 @@ contract EndAndReplaceGenesisMarkets is Script, Constants {
         RobinGenesisVault vault = RobinGenesisVault(vaultAddr);
 
         // Define market replacements (example list; replace with your actual list)
-        MarketReplacement[] memory replacements = new MarketReplacement[](1);
+        MarketReplacement[] memory replacements = new MarketReplacement[](2);
         replacements[0] = MarketReplacement({
-            endIndex: 0, // Index of market to end
-            conditionId: 0x84f8b70331323c2fba97d7ceaa9a35fb645a0770d0dbff169d07f24f376766e9,
-            priceA: 515_000,
+            endIndex: 43, // Index of market to end
+            conditionId: 0x50ddb9cd80d5c271664a2ebb7fcaed1d0a148d82c8e8d314d830f75a944c3dcc,
+            priceA: 700000,
+            extraEligible: false,
+            collateral: UNDERLYING_USD
+        });
+        replacements[1] = MarketReplacement({
+            endIndex: 44, // Index of market to end
+            conditionId: 0x9c1a953fe92c8357f1b646ba25d983aa83e90c525992db14fb726fa895cb5763,
+            priceA: 635000,
             extraEligible: false,
             collateral: UNDERLYING_USD
         });
