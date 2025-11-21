@@ -14,10 +14,11 @@ export class GenesisPriceUpdater {
     private wallet: ethers.Wallet;
     private iface: ethers.Interface;
     private checkIntervalMs = 10 * 60 * 1000; // 10 minutes
-    private minEarlyUpdateGapMs = 15 * 60 * 1000; // 15 minutes
+    private minEarlyUpdateGapMs = 30 * 60 * 1000; // 30 minutes
     private standardUpdateGapMs = 4 * 60 * 60 * 1000; // 4 hours
     private resolvedNotificationCooldownMs = 60 * 60 * 1000; // 1 hour
     private largePriceShiftThresholdBps = 1000; // 10%
+    private largePriceShiftTresholdAbsolute = 20_000;
     private minLargeShiftCount = 2;
     private resolvedMarketNotifications = new Map<string, number>(); // conditionId -> last notification timestamp
     private running = false;
@@ -205,7 +206,7 @@ export class GenesisPriceUpdater {
                 continue;
             }
             const diff = prev > curr ? prev - curr : curr - prev;
-            const isLargeShift = diff * 10_000n >= prev * BigInt(this.largePriceShiftThresholdBps);
+            const isLargeShift = diff * 10_000n >= prev * BigInt(this.largePriceShiftThresholdBps) && diff >= this.largePriceShiftTresholdAbsolute;
             const reachedTimeThreshold = now - (m.genesisLastSubmittedAt ?? 0) >= this.minEarlyUpdateGapMs;
             // 5% shift threshold (500 basis points)
             if (isLargeShift && reachedTimeThreshold) {
