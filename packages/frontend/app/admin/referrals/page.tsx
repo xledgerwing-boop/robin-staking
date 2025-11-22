@@ -10,7 +10,15 @@ import { useAccount } from 'wagmi';
 
 export default function AdminReferralsPage() {
     const { address } = useAccount();
-    const [codes, setCodes] = useState<any[]>([]);
+    const [codes, setCodes] = useState<
+        {
+            id: string;
+            code: string;
+            ownerAddress: string;
+            ownerName: string;
+            createdAt: string;
+        }[]
+    >([]);
     const [loading, setLoading] = useState(false);
     const [newCode, setNewCode] = useState('');
     const [ownerAddress, setOwnerAddress] = useState('');
@@ -67,8 +75,8 @@ export default function AdminReferralsPage() {
             setOwnerAddress('');
             setOwnerName('');
             await loadCodes();
-        } catch (e: any) {
-            toast.error(e.message || 'Failed to create referral code');
+        } catch (e) {
+            toast.error((e as Error).message || 'Failed to create referral code');
         } finally {
             setLoading(false);
         }

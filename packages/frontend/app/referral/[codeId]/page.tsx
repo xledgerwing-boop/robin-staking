@@ -11,7 +11,26 @@ export default function ReferralOverviewPage() {
     const params = useParams();
     const codeId = params.codeId as string;
     const [loading, setLoading] = useState(true);
-    const [data, setData] = useState<any>(null);
+    const [data, setData] = useState<{
+        code: {
+            id: string;
+            code: string;
+            ownerAddress: string;
+            ownerName: string;
+            createdAt: string;
+        };
+        entries: {
+            id: string;
+            userAddress: string;
+            totalTokens: string;
+            realizedValue: string;
+            timestamp: string;
+            transactionHash: string;
+            type: 'deposit' | 'withdraw';
+        }[];
+        totalRealizedValue: string;
+        points: string;
+    } | null>(null);
 
     useEffect(() => {
         loadData();
@@ -107,7 +126,7 @@ export default function ReferralOverviewPage() {
                         <p className="text-muted-foreground">No entries yet</p>
                     ) : (
                         <div className="space-y-2">
-                            {data.entries.map((entry: any) => (
+                            {data.entries.map(entry => (
                                 <Card key={entry.id}>
                                     <CardContent className="pt-4">
                                         <div className="flex justify-between items-center">
