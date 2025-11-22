@@ -87,6 +87,7 @@ export async function matchDepositAndCalculateValue(
         .first();
 
     if (!entry) {
+        console.log('No entry found');
         // Event arrived before frontend API call - create entry ourselves
         // const codes = await db<ReferralCodeRow>(REFERRAL_CODES_TABLE).select('id');
         // if (codes.length === 0) return; // No referral codes exist
@@ -140,6 +141,7 @@ export async function matchDepositAndCalculateValue(
             // Match tokens to markets via clobTokenIds
             const allMarkets = await db<MarketRow>(MARKETS_TABLE).whereNotNull('genesisIndex').whereNotNull('genesisLastSubmittedPriceA');
 
+            console.log('tokenTransfers', tokenTransfers);
             for (const transfer of tokenTransfers) {
                 for (const market of allMarkets) {
                     const clobTokenIds = (market.clobTokenIds as unknown as string[]) || [];
@@ -154,6 +156,8 @@ export async function matchDepositAndCalculateValue(
             }
         }
     }
+
+    console.log('totalUsdValue', totalUsdValue);
 
     // Update matching entry with realized value
     await db(REFERRAL_ENTRIES_TABLE).where('id', entry.id).update({
