@@ -55,7 +55,7 @@ export class StreamsIndexer {
             staticNetwork: true,
         });
         this.eventService = new EventService(postgresUri);
-        this.genesisEventService = new GenesisEventService(postgresUri);
+        this.genesisEventService = new GenesisEventService(postgresUri, rpcUrl);
         this.manager = new ethers.Contract(managerAddress, robinVaultManagerAbi, this.provider);
         this.genesisVault = new ethers.Contract(USED_CONTRACTS.GENESIS_VAULT, robinGenesisVaultAbi, this.provider);
         this.vaultInterface = new ethers.Interface(polymarketAaveStakingVaultAbi);

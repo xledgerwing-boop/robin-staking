@@ -9,6 +9,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { BackButton } from '@/components/back-button';
 import Navbar from '@/components/navbar';
 import BlockedGuard from '@/components/blocked-guard';
+import { ReferralHandler } from '@/components/referral-handler';
 
 const myFont = localFont({
     src: '../public/Satoshi-Variable.ttf',
@@ -85,6 +86,7 @@ export default function RootLayout({
             <body className={`${myFont.className} antialiased`}>
                 <Web3Provider>
                     <ThemeProvider defaultTheme="light">
+                        <ReferralHandler />
                         <Navbar />
                         <BlockedGuard>
                             <div className="block sm:hidden py-3 px-2">

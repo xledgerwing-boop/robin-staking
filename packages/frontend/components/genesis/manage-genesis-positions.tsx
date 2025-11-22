@@ -280,8 +280,26 @@ export default function ManageGenesisPositions() {
                 args: [indices, sidesIsA, amounts],
                 hookIndex: approvedForAll ? 1 : 1,
             });
+            const onSubmitted = async () => {
+                // Track referral before waiting for confirmation
+                try {
+                    await fetch('/api/referral/track', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            userAddress: proxyAddress,
+                            totalTokens: depositSummary.totalTokens.toString(),
+                            type: 'deposit',
+                        }),
+                    });
+                } catch (e) {
+                    // Silently fail - referral tracking is not critical
+                    console.warn('Failed to track referral', e);
+                }
+            };
             // @ts-expect-error fix typing
-            await batchStake(items);
+            await batchStake(items, onSubmitted);
+
             await stakePromise.current;
             await invalidateQueries([totalValueUsdQueryKey, apyBpsQueryKey, userCurrentValuesQueryKey, userStakeableValueQueryKey, walletQueryKey]);
             toast.success('Deposit successful');
@@ -312,13 +330,34 @@ export default function ManageGenesisPositions() {
                 }
             });
             if (indices.length === 0) return;
-            await batchWithdraw([
-                {
-                    address: vaultAddress,
-                    args: [indices, sidesIsA, amounts],
-                    hookIndex: 0,
-                },
-            ]);
+            const onSubmitted = async () => {
+                // Track referral before waiting for confirmation
+                try {
+                    await fetch('/api/referral/track', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            userAddress: proxyAddress,
+                            totalTokens: withdrawSummary.totalTokens.toString(),
+                            type: 'withdraw',
+                        }),
+                    });
+                } catch (e) {
+                    // Silently fail - referral tracking is not critical
+                    console.warn('Failed to track referral', e);
+                }
+            };
+            await batchWithdraw(
+                [
+                    {
+                        address: vaultAddress,
+                        args: [indices, sidesIsA, amounts],
+                        hookIndex: 0,
+                    },
+                ],
+                onSubmitted
+            );
+
             await withdrawPromise.current;
             await invalidateQueries([totalValueUsdQueryKey, apyBpsQueryKey, userCurrentValuesQueryKey, userStakeableValueQueryKey, stakedQueryKey]);
             toast.success('Withdraw successful');

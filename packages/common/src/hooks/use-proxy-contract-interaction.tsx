@@ -44,7 +44,10 @@ export default function useProxyContractInteraction<
 ): {
     error: WaitForTransactionReceiptErrorType | null;
     write: (args: WriteArgs<TAbi, TFunctionName, TContext> & { hookIndex: number }) => Promise<WriteContractData>;
-    batch: (items: (BatchItem<TAbi, TFunctionName, TContext> & { hookIndex: number })[]) => Promise<TransactionResult | WriteContractData>;
+    batch: (
+        items: (BatchItem<TAbi, TFunctionName, TContext> & { hookIndex: number })[],
+        onSubmitted?: () => void
+    ) => Promise<TransactionResult | WriteContractData>;
     isLoading: boolean;
     promise: React.RefObject<Promise<boolean> | null>;
 } {
@@ -126,7 +129,8 @@ export default function useProxyContractInteraction<
     };
 
     const batch = async (
-        items: (BatchItem<TAbi, TFunctionName, TContext> & { hookIndex: number })[]
+        items: (BatchItem<TAbi, TFunctionName, TContext> & { hookIndex: number })[],
+        onSubmitted?: () => void
     ): Promise<TransactionResult | WriteContractData> => {
         if (!proxyAddress) throw new Error('Missing proxyAddress (Safe).');
         if (!owner) throw new Error('Missing connected owner address.');
@@ -151,6 +155,7 @@ export default function useProxyContractInteraction<
             const executeTxResponse = await protocolKit.current.executeTransaction(safeTx, {
                 gasLimit: 3_000_000n,
             });
+            onSubmitted?.();
             await waitForTransactionReceipt(config, { hash: executeTxResponse.hash as `0x${string}` });
             return executeTxResponse;
         } finally {

@@ -9,6 +9,8 @@ export const ACTIVITIES_TABLE = 'activities';
 export const GENESIS_ACTIVITIES_TABLE = 'genesis_activities';
 export const GENESIS_INTERESTS_TABLE = 'genesis_interests';
 export const USER_POSITIONS_TABLE = 'user_positions';
+export const REFERRAL_CODES_TABLE = 'referral_codes';
+export const REFERRAL_ENTRIES_TABLE = 'referral_entries';
 
 export async function ensureSchema(db: Knex): Promise<void> {
     const hasEvents = await db.schema.hasTable(EVENTS_TABLE);
@@ -162,6 +164,31 @@ export async function ensureSchema(db: Knex): Promise<void> {
             table.bigint('createdAt');
             table.bigint('updatedAt');
             table.unique(['userAddress', 'conditionId']);
+        });
+    }
+
+    const hasReferralCodes = await db.schema.hasTable(REFERRAL_CODES_TABLE);
+    if (!hasReferralCodes) {
+        await db.schema.createTable(REFERRAL_CODES_TABLE, (table: Knex.CreateTableBuilder) => {
+            table.string('id').primary();
+            table.string('code').notNullable().unique().index();
+            table.string('ownerAddress').notNullable().index();
+            table.string('ownerName').notNullable();
+            table.bigint('createdAt').notNullable();
+        });
+    }
+
+    const hasReferralEntries = await db.schema.hasTable(REFERRAL_ENTRIES_TABLE);
+    if (!hasReferralEntries) {
+        await db.schema.createTable(REFERRAL_ENTRIES_TABLE, (table: Knex.CreateTableBuilder) => {
+            table.string('id').primary();
+            table.string('referralCodeId').notNullable().index().references('id').inTable(REFERRAL_CODES_TABLE);
+            table.string('userAddress').notNullable().index();
+            table.decimal('totalTokens', 78, 0).notNullable().defaultTo(0);
+            table.decimal('realizedValue', 78, 0).nullable(); // USD value, set after event processing
+            table.bigint('timestamp').notNullable().index();
+            table.string('transactionHash').nullable();
+            table.string('type').notNullable(); // 'deposit' or 'withdraw'
         });
     }
 
