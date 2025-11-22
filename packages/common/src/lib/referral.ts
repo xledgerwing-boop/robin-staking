@@ -142,7 +142,7 @@ export async function matchDepositAndCalculateValue(
 
             for (const transfer of tokenTransfers) {
                 for (const market of allMarkets) {
-                    const clobTokenIds = (JSON.parse(market.clobTokenIds) as string[]) || [];
+                    const clobTokenIds = (market.clobTokenIds as unknown as string[]) || [];
                     const tokenIndex = clobTokenIds.findIndex(id => BigInt(id) === transfer.tokenId);
                     if (tokenIndex >= 0 && market.genesisLastSubmittedPriceA) {
                         const priceA = BigInt(market.genesisLastSubmittedPriceA);
@@ -256,7 +256,7 @@ export async function matchWithdrawAndDecreaseValue(
 
             for (const transfer of tokenTransfers) {
                 for (const market of allMarkets) {
-                    const clobTokenIds = (JSON.parse(market.clobTokenIds) as string[]) || [];
+                    const clobTokenIds = (market.clobTokenIds as unknown as string[]) || [];
                     const tokenIndex = clobTokenIds.findIndex(id => BigInt(id) === transfer.tokenId);
                     if (tokenIndex >= 0 && market.genesisLastSubmittedPriceA) {
                         const priceA = BigInt(market.genesisLastSubmittedPriceA);
