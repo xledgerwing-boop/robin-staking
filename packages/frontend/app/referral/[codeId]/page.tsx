@@ -90,10 +90,10 @@ export default function ReferralOverviewPage() {
                             <div className="text-sm text-muted-foreground">Total Realized Value</div>
                             <div className="text-2xl font-bold">${formatUnitsLocale(totalValue, UNDERYLING_DECIMALS, 2)}</div>
                         </div>
-                        <div>
+                        {/* <div>
                             <div className="text-sm text-muted-foreground">Estimated Points</div>
                             <div className="text-2xl font-bold">{formatUnitsLocale(points, 0, 0)}</div>
-                        </div>
+                        </div> */}
                     </div>
                 </CardContent>
             </Card>
