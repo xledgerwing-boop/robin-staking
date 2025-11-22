@@ -68,7 +68,7 @@ export class GenesisEventService {
                     await matchDepositAndCalculateValue(this.dbService.knex, this.provider, {
                         userAddress: singleDeposit.user,
                         totalTokens: singleDeposit.totalTokens,
-                        eventTimestamp: Number.parseInt(logInfo.timestamp),
+                        eventTimestamp: Number.parseInt(logInfo.timestamp) * 1000,
                         transactionHash: logInfo.transactionHash,
                         marketIndex: Number(singleDeposit.marketIndex),
                         isA: singleDeposit.isA,
@@ -79,7 +79,7 @@ export class GenesisEventService {
                     await matchDepositAndCalculateValue(this.dbService.knex, this.provider, {
                         userAddress: batchDeposit.user,
                         totalTokens: batchDeposit.totalTokens,
-                        eventTimestamp: Number.parseInt(logInfo.timestamp),
+                        eventTimestamp: Number.parseInt(logInfo.timestamp) * 1000,
                         transactionHash: logInfo.transactionHash,
                     });
                 }
