@@ -3,6 +3,7 @@ import { REFERRAL_CODES_TABLE, REFERRAL_ENTRIES_TABLE, MARKETS_TABLE } from './r
 import { MarketRow } from '../types/market';
 import { ethers } from 'ethers';
 import { UNDERYLING_PRECISION_BIG_INT, USED_CONTRACTS } from '../constants';
+import { sleep } from './utils';
 
 const PRICE_SCALE = UNDERYLING_PRECISION_BIG_INT;
 
@@ -77,7 +78,7 @@ export async function matchDepositAndCalculateValue(
 
     // Find referral entry within 2 minutes
     const twoMinutesAgo = eventTimestamp - 2 * 60 * 1000;
-    const entry = await db<ReferralEntryRow>(REFERRAL_ENTRIES_TABLE)
+    let entry = await db<ReferralEntryRow>(REFERRAL_ENTRIES_TABLE)
         .where('userAddress', userAddress.toLowerCase())
         .where('type', 'deposit')
         .where('timestamp', '>=', twoMinutesAgo.toString())
@@ -85,6 +86,18 @@ export async function matchDepositAndCalculateValue(
         .whereNull('realizedValue')
         .orderBy('timestamp', 'desc')
         .first();
+
+    if (!entry) {
+        await sleep(1000 * 5);
+        entry = await db<ReferralEntryRow>(REFERRAL_ENTRIES_TABLE)
+            .where('userAddress', userAddress.toLowerCase())
+            .where('type', 'deposit')
+            .where('timestamp', '>=', twoMinutesAgo.toString())
+            .where('totalTokens', totalTokens.toString())
+            .whereNull('realizedValue')
+            .orderBy('timestamp', 'desc')
+            .first();
+    }
 
     if (!entry) {
         console.log('No entry found');
@@ -186,7 +199,7 @@ export async function matchWithdrawAndDecreaseValue(
     const { userAddress, totalTokens, eventTimestamp, transactionHash, marketIndex, isA, amount } = params;
 
     const twoMinutesAgo = eventTimestamp - 2 * 60 * 1000;
-    const withdrawEntry = await db<ReferralEntryRow>(REFERRAL_ENTRIES_TABLE)
+    let withdrawEntry = await db<ReferralEntryRow>(REFERRAL_ENTRIES_TABLE)
         .where('userAddress', userAddress.toLowerCase())
         .where('type', 'withdraw')
         .where('timestamp', '>=', twoMinutesAgo.toString())
@@ -194,7 +207,21 @@ export async function matchWithdrawAndDecreaseValue(
         .orderBy('timestamp', 'desc')
         .first();
 
-    if (!withdrawEntry) return;
+    if (!withdrawEntry) {
+        await sleep(1000 * 5);
+        withdrawEntry = await db<ReferralEntryRow>(REFERRAL_ENTRIES_TABLE)
+            .where('userAddress', userAddress.toLowerCase())
+            .where('type', 'withdraw')
+            .where('timestamp', '>=', twoMinutesAgo.toString())
+            .where('totalTokens', totalTokens.toString())
+            .orderBy('timestamp', 'desc')
+            .first();
+    }
+
+    if (!withdrawEntry) {
+        console.log('No withdraw entry found');
+        return;
+    }
 
     // Find referral entries within 24 hours
     const twentyFourHoursAgo = eventTimestamp - 24 * 60 * 60 * 1000;
@@ -207,6 +234,7 @@ export async function matchWithdrawAndDecreaseValue(
         .orderBy('timestamp', 'desc');
 
     if (entries.length === 0) {
+        console.log('No entries found');
         // Event arrived before frontend API call - create entry ourselves
         // const codes = await db<ReferralCodeRow>(REFERRAL_CODES_TABLE).select('id');
         // if (codes.length === 0) return;

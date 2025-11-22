@@ -13,6 +13,10 @@ export function getErrorMessage(error: unknown) {
     return '';
 }
 
+export async function sleep(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 export function formatUnits(value: bigint, decimals: number, maxDecimals: number = 2) {
     const clampedMaxDecimals = Math.max(0, Math.min(maxDecimals, decimals));
     const decimalDiff = decimals - clampedMaxDecimals;
