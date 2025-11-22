@@ -78,6 +78,7 @@ export async function matchDepositAndCalculateValue(
 
     // Find referral entry within 2 minutes
     const twoMinutesAgo = eventTimestamp - 2 * 60 * 1000;
+    console.log(eventTimestamp, twoMinutesAgo, userAddress, totalTokens);
     let entry = await db<ReferralEntryRow>(REFERRAL_ENTRIES_TABLE)
         .where('userAddress', userAddress.toLowerCase())
         .where('type', 'deposit')
