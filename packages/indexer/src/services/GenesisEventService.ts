@@ -62,59 +62,63 @@ export class GenesisEventService {
             }
 
             // Process referral matching
-            try {
-                if (activity.type === GenesisVaultEvent.Deposit) {
-                    const singleDeposit = d as GenesisDepositEvent;
-                    await matchDepositAndCalculateValue(this.dbService.knex, this.provider, {
-                        userAddress: singleDeposit.user,
-                        totalTokens: singleDeposit.totalTokens,
-                        eventTimestamp: Number.parseInt(logInfo.timestamp) * 1000,
-                        transactionHash: logInfo.transactionHash,
-                        marketIndex: Number(singleDeposit.marketIndex),
-                        isA: singleDeposit.isA,
-                        amount: singleDeposit.amount,
-                    });
-                } else {
-                    const batchDeposit = d as GenesisBatchDepositEvent;
-                    await matchDepositAndCalculateValue(this.dbService.knex, this.provider, {
-                        userAddress: batchDeposit.user,
-                        totalTokens: batchDeposit.totalTokens,
-                        eventTimestamp: Number.parseInt(logInfo.timestamp) * 1000,
-                        transactionHash: logInfo.transactionHash,
-                    });
+            setTimeout(async () => {
+                try {
+                    if (activity.type === GenesisVaultEvent.Deposit) {
+                        const singleDeposit = d as GenesisDepositEvent;
+                        await matchDepositAndCalculateValue(this.dbService.knex, this.provider, {
+                            userAddress: singleDeposit.user,
+                            totalTokens: singleDeposit.totalTokens,
+                            eventTimestamp: Number.parseInt(logInfo.timestamp) * 1000,
+                            transactionHash: logInfo.transactionHash,
+                            marketIndex: Number(singleDeposit.marketIndex),
+                            isA: singleDeposit.isA,
+                            amount: singleDeposit.amount,
+                        });
+                    } else {
+                        const batchDeposit = d as GenesisBatchDepositEvent;
+                        await matchDepositAndCalculateValue(this.dbService.knex, this.provider, {
+                            userAddress: batchDeposit.user,
+                            totalTokens: batchDeposit.totalTokens,
+                            eventTimestamp: Number.parseInt(logInfo.timestamp) * 1000,
+                            transactionHash: logInfo.transactionHash,
+                        });
+                    }
+                } catch (e) {
+                    logger.warn('Failed to process referral deposit matching', e);
                 }
-            } catch (e) {
-                logger.warn('Failed to process referral deposit matching', e);
-            }
+            }, 5000);
         } else if (activity.type === GenesisVaultEvent.Withdraw || activity.type === GenesisVaultEvent.BatchWithdraw) {
             const d = logData as GenesisWithdrawEvent | GenesisBatchWithdrawEvent;
             activity.userAddress = d.user.toLowerCase();
 
             // Process referral matching
-            try {
-                if (activity.type === GenesisVaultEvent.Withdraw) {
-                    const singleWithdraw = d as GenesisWithdrawEvent;
-                    await matchWithdrawAndDecreaseValue(this.dbService.knex, this.provider, {
-                        userAddress: singleWithdraw.user,
-                        totalTokens: singleWithdraw.amount,
-                        eventTimestamp: Number.parseInt(logInfo.timestamp),
-                        transactionHash: logInfo.transactionHash,
-                        marketIndex: Number(singleWithdraw.marketIndex),
-                        isA: singleWithdraw.isA,
-                        amount: singleWithdraw.amount,
-                    });
-                } else {
-                    const batchWithdraw = d as GenesisBatchWithdrawEvent;
-                    await matchWithdrawAndDecreaseValue(this.dbService.knex, this.provider, {
-                        userAddress: batchWithdraw.user,
-                        totalTokens: batchWithdraw.tokenAmount,
-                        eventTimestamp: Number.parseInt(logInfo.timestamp),
-                        transactionHash: logInfo.transactionHash,
-                    });
+            setTimeout(async () => {
+                try {
+                    if (activity.type === GenesisVaultEvent.Withdraw) {
+                        const singleWithdraw = d as GenesisWithdrawEvent;
+                        await matchWithdrawAndDecreaseValue(this.dbService.knex, this.provider, {
+                            userAddress: singleWithdraw.user,
+                            totalTokens: singleWithdraw.amount,
+                            eventTimestamp: Number.parseInt(logInfo.timestamp),
+                            transactionHash: logInfo.transactionHash,
+                            marketIndex: Number(singleWithdraw.marketIndex),
+                            isA: singleWithdraw.isA,
+                            amount: singleWithdraw.amount,
+                        });
+                    } else {
+                        const batchWithdraw = d as GenesisBatchWithdrawEvent;
+                        await matchWithdrawAndDecreaseValue(this.dbService.knex, this.provider, {
+                            userAddress: batchWithdraw.user,
+                            totalTokens: batchWithdraw.tokenAmount,
+                            eventTimestamp: Number.parseInt(logInfo.timestamp),
+                            transactionHash: logInfo.transactionHash,
+                        });
+                    }
+                } catch (e) {
+                    logger.warn('Failed to process referral withdraw matching', e);
                 }
-            } catch (e) {
-                logger.warn('Failed to process referral withdraw matching', e);
-            }
+            }, 5000);
         } else if (activity.type === GenesisVaultEvent.Claim) {
             const d = logData as ClaimEvent;
             activity.userAddress = d.user.toLowerCase();
