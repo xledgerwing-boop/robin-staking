@@ -67,7 +67,7 @@ export class GenesisEventService {
                     const singleDeposit = d as GenesisDepositEvent;
                     await matchDepositAndCalculateValue(this.dbService.knex, this.provider, {
                         userAddress: singleDeposit.user,
-                        totalTokens: singleDeposit.totalTokens,
+                        totalTokens: singleDeposit.amount,
                         eventTimestamp: Number.parseInt(logInfo.timestamp) * 1000,
                         transactionHash: logInfo.transactionHash,
                         marketIndex: Number(singleDeposit.marketIndex),
@@ -78,7 +78,7 @@ export class GenesisEventService {
                     const batchDeposit = d as GenesisBatchDepositEvent;
                     await matchDepositAndCalculateValue(this.dbService.knex, this.provider, {
                         userAddress: batchDeposit.user,
-                        totalTokens: batchDeposit.totalTokens,
+                        totalTokens: batchDeposit.tokenAmount,
                         eventTimestamp: Number.parseInt(logInfo.timestamp) * 1000,
                         transactionHash: logInfo.transactionHash,
                     });
@@ -97,7 +97,7 @@ export class GenesisEventService {
                     await matchWithdrawAndDecreaseValue(this.dbService.knex, this.provider, {
                         userAddress: singleWithdraw.user,
                         totalTokens: singleWithdraw.amount,
-                        eventTimestamp: Number.parseInt(logInfo.timestamp),
+                        eventTimestamp: Number.parseInt(logInfo.timestamp) * 1000,
                         transactionHash: logInfo.transactionHash,
                         marketIndex: Number(singleWithdraw.marketIndex),
                         isA: singleWithdraw.isA,
@@ -108,7 +108,7 @@ export class GenesisEventService {
                     await matchWithdrawAndDecreaseValue(this.dbService.knex, this.provider, {
                         userAddress: batchWithdraw.user,
                         totalTokens: batchWithdraw.tokenAmount,
-                        eventTimestamp: Number.parseInt(logInfo.timestamp),
+                        eventTimestamp: Number.parseInt(logInfo.timestamp) * 1000,
                         transactionHash: logInfo.transactionHash,
                     });
                 }
