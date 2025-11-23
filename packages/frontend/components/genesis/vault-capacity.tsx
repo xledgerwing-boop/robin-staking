@@ -82,7 +82,7 @@ export default function VaultCapacity() {
                                 <div className="relative inline-flex items-center group">
                                     <Info className="w-4 h-4 text-muted-foreground cursor-help" />
                                     <span className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 hidden w-48 -translate-x-1/2 whitespace-normal rounded-md border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md group-hover:block">
-                                        This will register your stakeable portfolio value to show popularity of the vault
+                                        This will log your stakeable portfolio value to show popularity of the vault
                                     </span>
                                 </div>
                             </div>
