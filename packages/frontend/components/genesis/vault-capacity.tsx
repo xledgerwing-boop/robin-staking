@@ -18,7 +18,12 @@ export default function VaultCapacity() {
     const [registeredUsd, setRegisteredUsd] = useState<bigint>(0n);
     const [loading, setLoading] = useState(false);
 
-    const capReached = useMemo(() => (totalValueUsd ?? 0n) >= (tvlCapUsd ?? 0n) && (tvlCapUsd ?? 0n) > 0n, [totalValueUsd, tvlCapUsd]);
+    const capReached = useMemo(() => {
+        if (!tvlCapUsd || tvlCapUsd === 0n) return false;
+        const fiftyCents = 500_000n; // 0.5 USD in 6 decimals
+        const threshold = tvlCapUsd > fiftyCents ? tvlCapUsd - fiftyCents : 0n;
+        return (totalValueUsd ?? 0n) >= threshold;
+    }, [totalValueUsd, tvlCapUsd]);
     const capPctBps = useMemo(() => (tvlCapUsd ? ((totalValueUsd ?? 0n) * 10_000n * 100n) / (tvlCapUsd ?? 1n) : 0n), [totalValueUsd, tvlCapUsd]);
 
     useEffect(() => {
@@ -65,7 +70,7 @@ export default function VaultCapacity() {
             <div className="w-full flex items-center justify-between px-2 mt-1">
                 <span className="text-sm text-foreground/80">TVL Cap{capReached ? ' • Cap reached' : ''}</span>
                 <span className="text-sm font-medium">
-                    ${formatUnitsLocale(totalValueUsd ?? 0n, UNDERYLING_DECIMALS, 0)} of ${formatUnitsLocale(tvlCapUsd ?? 0n, UNDERYLING_DECIMALS, 0)}{' '}
+                    ${formatUnitsLocale(totalValueUsd ?? 0n, UNDERYLING_DECIMALS, 1)} of ${formatUnitsLocale(tvlCapUsd ?? 0n, UNDERYLING_DECIMALS, 0)}{' '}
                     ({formatUnits(capPctBps, 4, 0)}%)
                 </span>
             </div>
