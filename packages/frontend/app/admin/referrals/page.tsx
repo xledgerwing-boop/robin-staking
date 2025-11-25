@@ -6,10 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { useAccount } from 'wagmi';
 
 export default function AdminReferralsPage() {
-    const { address } = useAccount();
     const [codes, setCodes] = useState<
         {
             id: string;

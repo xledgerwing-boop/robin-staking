@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { rateLimit } from '@/lib/rate-limit';
 import { REFERRAL_CODES_TABLE } from '@robin-pm-staking/common/lib/repos';
-import { Knex } from 'knex';
 
 // Admin check - in production, use proper authentication
 function isAdmin(req: NextRequest): boolean {
