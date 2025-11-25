@@ -20,6 +20,7 @@ export class GenesisPriceUpdater {
     private largePriceShiftThresholdBps = 1000; // 10%
     private largePriceShiftTresholdAbsolute = 20_000;
     private minLargeShiftCount = 2;
+    private maxGasPriceGwei = 600; // Maximum gas price in gwei (default: 600 gwei)
     private resolvedMarketNotifications = new Map<string, number>(); // conditionId -> last notification timestamp
     private running = false;
     private tickRunning = false;
@@ -124,7 +125,27 @@ export class GenesisPriceUpdater {
         }
     }
 
+    private async checkGasPrice(): Promise<{ tooHigh: boolean; currentGwei: number }> {
+        const feeData = await this.provider.getFeeData();
+        const currentGasPrice = feeData.gasPrice ?? 0n;
+        const currentGwei = Number(ethers.formatUnits(currentGasPrice, 'gwei'));
+        const maxGasPriceWei = ethers.parseUnits(this.maxGasPriceGwei.toString(), 'gwei');
+        const tooHigh = currentGasPrice > maxGasPriceWei;
+        return { tooHigh, currentGwei };
+    }
+
     private async handleStandardUpdate(markets: Market[], conditionToPriceA: Record<string, bigint | undefined>, largeShift: boolean) {
+        // Check gas price before proceeding
+        const gasCheck = await this.checkGasPrice();
+        if (gasCheck.tooHigh) {
+            await NotificationService.sendNotification(
+                `⏸️ Genesis full price update skipped: Gas price too high (${gasCheck.currentGwei.toFixed(2)} gwei > ${
+                    this.maxGasPriceGwei
+                } gwei threshold)`
+            );
+            return;
+        }
+
         // Regular batch update for all markets
         const pricesA: bigint[] = [];
         for (const m of markets) {
@@ -158,6 +179,17 @@ export class GenesisPriceUpdater {
     }
 
     private async handleIndividualUpdate(marketsWithLargeShift: Array<{ market: Market; newPriceA: bigint }>) {
+        // Check gas price before proceeding
+        const gasCheck = await this.checkGasPrice();
+        if (gasCheck.tooHigh) {
+            await NotificationService.sendNotification(
+                `⏸️ Genesis individual price update skipped: Gas price too high (${gasCheck.currentGwei.toFixed(2)} gwei > ${
+                    this.maxGasPriceGwei
+                } gwei threshold)`
+            );
+            return;
+        }
+
         // Update individual markets with large shifts
         let totalGasUsed = 0n;
         let totalCostWei = 0n;
