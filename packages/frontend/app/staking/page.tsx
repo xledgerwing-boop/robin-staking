@@ -17,7 +17,7 @@ import type { Market, MarketRow } from '@robin-pm-staking/common/types/market';
 import { MarketRowToMarket, MarketStatus } from '@robin-pm-staking/common/types/market';
 import { useSearchParams } from 'next/navigation';
 import { MarketStatusBadge } from '@/components/market/market-status-badge';
-import { formatUnits } from '@robin-pm-staking/common/lib/utils';
+import { formatUnits, formatUnitsLocale } from '@robin-pm-staking/common/lib/utils';
 import { UNDERYLING_DECIMALS, USED_CONTRACTS, DEFAULT_QUERY_STALE_TIME } from '@robin-pm-staking/common/constants';
 import { useReadRobinStakingVaultGetCurrentApy } from '@robin-pm-staking/common/types/contracts';
 import { useReadRobinGenesisVaultTotalValueUsd } from '@robin-pm-staking/common/types/contracts-genesis';
@@ -364,10 +364,10 @@ function StakingPageContent() {
                                     <DollarSign className="w-6 h-6 text-primary" />
                                 </div>
                                 <div>
-                                    <p className="text-sm text-muted-foreground">Total TVL</p>
+                                    <p className="text-sm text-muted-foreground">TVL</p>
                                     <div className="text-2xl font-bold text-right">
                                         <ValueState
-                                            value={`$${formatUnits(combinedTotalTVL, UNDERYLING_DECIMALS, 0)}`}
+                                            value={`$${formatUnitsLocale(combinedTotalTVL, UNDERYLING_DECIMALS, 0)}`}
                                             loading={totalTVLLoading}
                                             error={totalTVLError}
                                         />

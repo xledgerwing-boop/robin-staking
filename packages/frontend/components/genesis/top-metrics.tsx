@@ -30,7 +30,7 @@ export default function TopMetrics() {
     return (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4 mt-8">
             <div>
-                <p className="text-sm text-muted-foreground text-center">Total TVL</p>
+                <p className="text-sm text-muted-foreground text-center">TVL</p>
                 <div className="text-2xl font-bold text-center">
                     <ValueState
                         value={totalValueUsd == null ? undefined : `$${formatUnitsLocale(totalValueUsd, UNDERYLING_DECIMALS, 0)}`}
